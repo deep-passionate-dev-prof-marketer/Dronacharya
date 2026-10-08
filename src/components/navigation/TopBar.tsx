@@ -4,6 +4,7 @@ import {
   Search,
   Command,
   Link2,
+  Globe,
   KeyRound,
   BookOpen,
   Wifi,
@@ -55,6 +56,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     setIsDocsModalOpen,
     setIsAuthModalOpen,
     setIsScheduleModalOpen,
+    setIsInterpreterModalOpen,
     authenticatedUser,
     logoutUser,
     pitchRooms,
@@ -194,6 +196,16 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           <Video className="w-3.5 h-3.5 text-cyan-400" />
           <span className="hidden md:inline">Switch Room</span>
+        </button>
+
+        {/* AI Live Interpreter Studio Modal Trigger */}
+        <button
+          onClick={() => setIsInterpreterModalOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600/25 to-indigo-600/25 hover:from-cyan-600/40 hover:to-indigo-600/40 border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-semibold transition-all cursor-pointer shadow-sm shadow-cyan-950/30"
+          title="Open AI Real-time Live Interpreter (Two-Way Speech Translation & Dual Audio)"
+        >
+          <Globe className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span className="hidden md:inline">Interpreter</span>
         </button>
 
         {/* Room Link Quick Generator / Shortlink button */}

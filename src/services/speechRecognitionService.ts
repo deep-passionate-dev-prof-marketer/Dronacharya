@@ -1,5 +1,7 @@
 import { LanguageCode } from "../types";
 import { translateDualCaption } from "./geminiService";
+import { TranslationEngine } from "./translation/translationEngine";
+import { getLanguageBcp47 } from "./translation/languageConfig";
 
 export interface SpeechCaptionEvent {
   id: string;
@@ -22,6 +24,7 @@ class RealtimeSpeechRecognitionEngine {
   private listeners: Set<SpeechCallback> = new Set();
   private restartTimeout: any = null;
   private currentSpeaker = "You (Local Speaker)";
+  private activeSourceLanguage: string = "hi";
   private activeTargetLanguage: LanguageCode = "es";
   private audioStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -43,7 +46,7 @@ class RealtimeSpeechRecognitionEngine {
         const rec = new SpeechRecognition();
         rec.continuous = true;
         rec.interimResults = true;
-        rec.lang = "en-US";
+        rec.lang = getLanguageBcp47(this.activeSourceLanguage);
         rec.maxAlternatives = 1;
 
         rec.onresult = async (event: any) => {
@@ -65,10 +68,20 @@ class RealtimeSpeechRecognitionEngine {
             const text = final.trim();
             let translated = text;
             try {
-              const res = await translateDualCaption(text, this.activeTargetLanguage, this.currentSpeaker);
+              const res = await TranslationEngine.translate(
+                text,
+                this.activeSourceLanguage,
+                this.activeTargetLanguage,
+                "general"
+              );
               translated = res.translatedText;
             } catch {
-              translated = text;
+              try {
+                const res = await translateDualCaption(text, this.activeTargetLanguage, this.currentSpeaker);
+                translated = res.translatedText;
+              } catch {
+                translated = text;
+              }
             }
 
             this.emit({
@@ -142,6 +155,13 @@ class RealtimeSpeechRecognitionEngine {
 
   public setTargetLanguage(lang: LanguageCode) {
     this.activeTargetLanguage = lang;
+  }
+
+  public setSourceLanguage(lang: string) {
+    this.activeSourceLanguage = lang.toLowerCase();
+    if (this.recognition) {
+      this.recognition.lang = getLanguageBcp47(this.activeSourceLanguage);
+    }
   }
 
   public subscribe(callback: SpeechCallback): () => void {
@@ -228,10 +248,20 @@ class RealtimeSpeechRecognitionEngine {
     let translated = customTranslation;
     if (!translated) {
       try {
-        const res = await translateDualCaption(cleanText, this.activeTargetLanguage, speaker);
+        const res = await TranslationEngine.translate(
+          cleanText,
+          this.activeSourceLanguage,
+          this.activeTargetLanguage,
+          "general"
+        );
         translated = res.translatedText;
       } catch {
-        translated = cleanText;
+        try {
+          const res = await translateDualCaption(cleanText, this.activeTargetLanguage, speaker);
+          translated = res.translatedText;
+        } catch {
+          translated = cleanText;
+        }
       }
     }
 

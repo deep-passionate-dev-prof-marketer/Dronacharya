@@ -9,6 +9,7 @@ import {
   Hand,
   Disc,
   Languages,
+  Globe,
   LayoutGrid,
   Users,
   Layers,
@@ -38,6 +39,7 @@ export const BottomMeetingControls: React.FC = () => {
     isLiveSubtitlesActive,
     toggleLiveSubtitles,
     subtitleLanguage,
+    setIsInterpreterModalOpen,
     participants,
     setIsAiSummaryModalOpen,
     setActiveView,
@@ -126,6 +128,17 @@ export const BottomMeetingControls: React.FC = () => {
           >
             <Languages className="w-4 h-4" />
             <span className="hidden md:inline">CC [{subtitleLanguage.toUpperCase()}]</span>
+          </button>
+
+          {/* AI Real-time Live Interpreter Studio */}
+          <button
+            onClick={() => setIsInterpreterModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 md:px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all bg-gradient-to-r from-cyan-600/30 to-indigo-600/30 hover:from-cyan-600/50 hover:to-indigo-600/50 text-cyan-200 border border-cyan-400/40 hover:border-cyan-400/80 shadow-lg shadow-cyan-950/40"
+            title="Open AI Real-time Live Interpreter (Two-Way Speech Translation & Dual Audio)"
+          >
+            <Globe className="w-4 h-4 text-cyan-400 animate-pulse" />
+            <span className="hidden lg:inline">AI Interpreter</span>
+            <span className="lg:hidden text-[11px] font-mono">🌐</span>
           </button>
 
           {/* Share Screen */}

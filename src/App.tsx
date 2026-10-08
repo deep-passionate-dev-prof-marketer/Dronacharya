@@ -28,6 +28,7 @@ import { SplitViewContainer } from "./components/layout/SplitViewContainer";
 import { RoomLinkManagerModal } from "./components/links/RoomLinkManagerModal";
 import { SalesHub } from "./components/sales/SalesHub";
 import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
+import { RealtimeInterpreterModal } from "./components/translation/RealtimeInterpreterModal";
 import { Megaphone, X } from "lucide-react";
 
 const MainLayout: React.FC = () => {
@@ -38,6 +39,8 @@ const MainLayout: React.FC = () => {
     dismissBannerAnnouncement,
     isDocsModalOpen,
     setIsDocsModalOpen,
+    isInterpreterModalOpen,
+    setIsInterpreterModalOpen,
     isAuthModalOpen,
     setIsAuthModalOpen,
     authenticatedUser,
@@ -194,6 +197,12 @@ const MainLayout: React.FC = () => {
       <DocumentationModal
         isOpen={isDocsModalOpen}
         onClose={() => setIsDocsModalOpen(false)}
+      />
+
+      {/* Real-Time AI Live Interpreter & Translation Studio Modal */}
+      <RealtimeInterpreterModal
+        isOpen={isInterpreterModalOpen}
+        onClose={() => setIsInterpreterModalOpen(false)}
       />
 
       {/* Dedicated Multi-Role Pre-Join Lobby Modal */}

@@ -8,6 +8,7 @@ import {
   ConceptCitation,
   LanguageCode,
 } from "../types";
+import { TranslationEngine } from "./translation/translationEngine";
 
 export interface SummaryResponse {
   summary: string;
@@ -439,28 +440,43 @@ export async function translateDualCaption(
   }
 
   try {
+    const res = await TranslationEngine.translate(text, "en", targetLanguage, "general");
+    if (res && res.translatedText) {
+      return {
+        speaker,
+        englishText: text,
+        translatedText: res.translatedText,
+        targetLanguage,
+      };
+    }
+  } catch (_engineErr) {}
+
+  try {
     const res = await fetch("/api/ai/live-translate-stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, targetLanguage, speaker }),
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return {
-      speaker: data.speaker || speaker,
-      englishText: data.englishText || text,
-      translatedText: data.translatedText || getLocalFallback(text, targetLanguage),
-      targetLanguage,
-    };
-  } catch (_err) {
-    return {
-      speaker,
-      englishText: text,
-      translatedText: getLocalFallback(text, targetLanguage),
-      targetLanguage,
-    };
-  }
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.translatedText && !data.translatedText.startsWith("<!doctype")) {
+        return {
+          speaker: data.speaker || speaker,
+          englishText: data.englishText || text,
+          translatedText: data.translatedText,
+          targetLanguage,
+        };
+      }
+    }
+  } catch (_err) {}
+
+  return {
+    speaker,
+    englishText: text,
+    translatedText: getLocalFallback(text, targetLanguage),
+    targetLanguage,
+  };
 }
 
 export interface PeerNoteSummaryResult {

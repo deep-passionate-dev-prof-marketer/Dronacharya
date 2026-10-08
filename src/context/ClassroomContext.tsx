@@ -51,6 +51,8 @@ import {
 import { INITIAL_REMOTE_SESSIONS, DEVICE_METADATA_MAP } from "../services/remoteAccessService";
 import { realtimeSocket } from "../services/realtimeSocket";
 import { realtimeSpeechEngine, SpeechCaptionEvent } from "../services/speechRecognitionService";
+import { realtimeInterpreterService } from "../services/translation/realtimeInterpreterService";
+import { TranslationEngine } from "../services/translation/translationEngine";
 import { detectClientDeviceEnvironment, createDeviceAuditRecord } from "../services/deviceDetector";
 import {
   NormalizedProductionMeeting,
@@ -354,6 +356,12 @@ export interface ClassroomContextType {
   // -------------------------------------------------------------
   isDocsModalOpen: boolean;
   setIsDocsModalOpen: (open: boolean) => void;
+
+  // -------------------------------------------------------------
+  // Real-Time AI Live Interpreter & Translation Studio Modal
+  // -------------------------------------------------------------
+  isInterpreterModalOpen: boolean;
+  setIsInterpreterModalOpen: (open: boolean) => void;
 
   // -------------------------------------------------------------
   // Dedicated Multi-Role Authentication Sessions
@@ -704,6 +712,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [isInterpreterModalOpen, setIsInterpreterModalOpen] = useState(false);
 
   // Room Bomber 1:1 High-Conversion Sales Breakout States
   const [pitchRooms, setPitchRooms] = useState<PitchRoomStatus[]>([]);
@@ -1676,8 +1685,38 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
+    const unsubscribeInterpreter = realtimeInterpreterService.subscribeChunks((chunk) => {
+      setCurrentLiveCaption({
+        speakerName: chunk.speakerName,
+        englishText: chunk.sourceText,
+        translatedText: chunk.translatedText,
+        targetLanguage: chunk.targetLanguage as any,
+        timestamp: chunk.timestamp,
+      });
+
+      if (chunk.isFinal) {
+        const newLine: TranscriptLine = {
+          id: chunk.id || `t-${Date.now()}`,
+          speakerId: chunk.speakerId || "stu-user",
+          speakerName: chunk.speakerName,
+          timestamp: chunk.timestamp,
+          text: chunk.sourceText,
+          translatedText: chunk.translatedText,
+          language: chunk.targetLanguage,
+        };
+
+        setTranscriptLines((prev) => {
+          if (prev.some((l) => l.id === newLine.id || (l.text === newLine.text && l.timestamp === newLine.timestamp))) {
+            return prev;
+          }
+          return [...prev, newLine];
+        });
+      }
+    });
+
     return () => {
       unsubscribe();
+      unsubscribeInterpreter();
     };
   }, [roomId, subtitleLanguage]);
 
@@ -1686,10 +1725,12 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (isLiveSubtitlesActive) {
       const activeSpeaker = authenticatedUser ? authenticatedUser.name : "Participant";
       realtimeSpeechEngine.startListening(activeSpeaker);
+      realtimeInterpreterService.startListening(activeSpeaker);
       setIsSpeechRecognitionActive(true);
       setIsLiveSpeechStreaming(true);
     } else {
       realtimeSpeechEngine.stopListening();
+      realtimeInterpreterService.stopListening();
       setIsSpeechRecognitionActive(false);
       setIsLiveSpeechStreaming(false);
     }
@@ -2936,6 +2977,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Documentation Modal
         isDocsModalOpen,
         setIsDocsModalOpen,
+        // AI Realtime Interpreter Studio Modal
+        isInterpreterModalOpen,
+        setIsInterpreterModalOpen,
         // Dedicated Multi-Role Auth
         isAuthModalOpen,
         setIsAuthModalOpen,

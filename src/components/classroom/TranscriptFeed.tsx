@@ -11,17 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { LanguageCode } from "../../types";
-
-const LANGUAGES: Array<{ code: LanguageCode; label: string; flag: string }> = [
-  { code: "en", label: "English", flag: "US" },
-  { code: "es", label: "Español", flag: "ES" },
-  { code: "fr", label: "Français", flag: "FR" },
-  { code: "de", label: "Deutsch", flag: "DE" },
-  { code: "zh", label: "中文 (Mandarin)", flag: "CN" },
-  { code: "hi", label: "हिन्दी (Hindi)", flag: "IN" },
-  { code: "ar", label: "العربية (Arabic)", flag: "SA" },
-  { code: "ja", label: "日本語 (Japanese)", flag: "JP" },
-];
+import { SUPPORTED_LANGUAGES } from "../../services/translation/languageConfig";
 
 export const TranscriptFeed: React.FC = () => {
   const {
@@ -100,9 +90,9 @@ export const TranscriptFeed: React.FC = () => {
               disabled={isTranslating}
               className="bg-transparent text-[11px] text-slate-200 focus:outline-none cursor-pointer"
             >
-              {LANGUAGES.map((l) => (
+              {SUPPORTED_LANGUAGES.map((l) => (
                 <option key={l.code} value={l.code} className="bg-slate-900 text-white">
-                  {l.label}
+                  {l.flag} {l.name}
                 </option>
               ))}
             </select>
