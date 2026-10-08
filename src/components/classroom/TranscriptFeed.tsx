@@ -129,43 +129,46 @@ export const TranscriptFeed: React.FC = () => {
       <div className="px-3 py-2 bg-slate-950/80 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto text-[11px]">
         <span className="text-[10px] text-slate-400 font-semibold shrink-0">Two-Way Test:</span>
         <button
-          onClick={() =>
+          onClick={() => {
+            const tgt = activeLanguage !== "en" ? activeLanguage : "es";
             handleQuickBenchmark(
               "Prof. Vance (Teacher)",
               "आज हम fractions के बारे में सीखेंगे।",
               "hi",
-              "es"
-            )
-          }
+              tgt
+            );
+          }}
           className="px-2 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 rounded-md shrink-0 flex items-center gap-1 transition"
         >
-          <span>🇮🇳</span> Teacher: Fractions
+          <span>🇮🇳</span> Teacher: Fractions → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}
         </button>
         <button
-          onClick={() =>
+          onClick={() => {
+            const tgt = activeLanguage !== "en" ? activeLanguage : "es";
             handleQuickBenchmark(
-              "Sofia (Student)",
-              "No entiendo esta parte.",
-              "es",
-              "hi"
-            )
-          }
+              "Student",
+              "I don't understand this part.",
+              "en",
+              tgt
+            );
+          }}
           className="px-2 py-1 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 rounded-md shrink-0 flex items-center gap-1 transition"
         >
-          <span>🇪🇸</span> Student: No entiendo
+          <span>🎓</span> Student Query → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}
         </button>
         <button
-          onClick={() =>
+          onClick={() => {
+            const tgt = activeLanguage !== "en" ? activeLanguage : "es";
             handleQuickBenchmark(
               "Prof. Vance (Teacher)",
               "Take the square root of 16.",
               "en",
-              "es"
-            )
-          }
+              tgt
+            );
+          }}
           className="px-2 py-1 bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/30 text-indigo-300 rounded-md shrink-0 flex items-center gap-1 transition"
         >
-          <span>🇬🇧</span> STEM: Square Root
+          <span>🇬🇧</span> STEM → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}
         </button>
       </div>
 

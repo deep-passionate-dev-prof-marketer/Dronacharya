@@ -28,6 +28,7 @@ import {
   TranslationMetrics,
 } from "../../services/translation/translationTypes";
 import { useClassroom } from "../../context/ClassroomContext";
+import { realtimeSpeechEngine } from "../../services/speechRecognitionService";
 
 interface Props {
   isOpen: boolean;
@@ -35,7 +36,7 @@ interface Props {
 }
 
 export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { currentRole } = useClassroom();
+  const { currentRole, setSubtitleLanguage, setActiveLanguage } = useClassroom();
   const [activeTab, setActiveTab] = useState<"settings" | "test" | "router" | "metrics">("settings");
 
   // Local state initialized from service
@@ -63,6 +64,15 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
     const updated = { ...preferences, ...partial };
     setPreferences(updated);
     realtimeInterpreterService.updatePreferences(partial);
+
+    if (partial.targetTranslationLanguage) {
+      setSubtitleLanguage(partial.targetTranslationLanguage);
+      setActiveLanguage(partial.targetTranslationLanguage);
+      realtimeSpeechEngine.setTargetLanguage(partial.targetTranslationLanguage);
+    }
+    if (partial.mySpokenLanguage) {
+      realtimeSpeechEngine.setSourceLanguage(partial.mySpokenLanguage);
+    }
   };
 
   const handleUpdateRoom = (partial: any) => {
@@ -472,6 +482,43 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                 <p className="text-xs text-slate-300">
                   Click any benchmark classroom prompt below to instantly hear translated speech and verify dual captions with zero delay:
                 </p>
+
+                {/* Active Selected Language Pair Test */}
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-cyan-950/60 via-slate-900 to-emerald-950/60 border border-cyan-500/50 space-y-2 shadow-lg shadow-cyan-950/30">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-white flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                      Test Current Selection: {myLang.flag} {myLang.name} → {targetLang.flag} {targetLang.name}
+                    </span>
+                    <button
+                      onClick={() =>
+                        runSimulation(
+                          myLang.code === "hi"
+                            ? "आज हम fractions के बारे में सीखेंगे।"
+                            : myLang.code === "es"
+                            ? "Hoy aprenderemos sobre las fracciones."
+                            : myLang.code === "fr"
+                            ? "Aujourd'hui, nous allons apprendre les fractions."
+                            : "Today we will learn about fractions.",
+                          preferences.mySpokenLanguage,
+                          preferences.targetTranslationLanguage,
+                          "Active Speaker"
+                        )
+                      }
+                      disabled={isSimulating}
+                      className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-md text-xs font-bold flex items-center gap-1.5 transition disabled:opacity-50 shadow-md shadow-cyan-500/20"
+                    >
+                      <Play className="w-3 h-3" />
+                      Test {targetLang.name} Translation
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-300">
+                    Spoken ({myLang.name}): <span className="text-white font-medium">"{myLang.code === 'hi' ? 'आज हम fractions के बारे में सीखेंगे।' : 'Today we will learn about fractions.'}"</span>
+                  </div>
+                  <div className="text-xs text-emerald-400">
+                    Translates into: <span className="font-bold">{targetLang.flag} {targetLang.name}</span>
+                  </div>
+                </div>
 
                 {/* Benchmark test 1: Teacher speaks Hindi -> Student hears Spanish */}
                 <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">

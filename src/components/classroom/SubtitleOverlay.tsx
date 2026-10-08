@@ -12,6 +12,7 @@ import {
 import { SUPPORTED_LANGUAGES, getLanguage } from "../../services/translation/languageConfig";
 import { speechTranslationEngine } from "../../services/translation/speechTranslationEngine";
 import { realtimeInterpreterService } from "../../services/translation/realtimeInterpreterService";
+import { realtimeSpeechEngine } from "../../services/speechRecognitionService";
 
 export const SubtitleOverlay: React.FC = () => {
   const {
@@ -78,28 +79,28 @@ export const SubtitleOverlay: React.FC = () => {
                 handleQuickTest(
                   "Prof. Vance (Teacher)",
                   "आज हम fractions के बारे में सीखेंगे।",
-                  "hi",
-                  "es"
+                  srcLang.code,
+                  tgtLang.code
                 )
               }
               className="px-1.5 sm:px-2 py-0.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
-              title="Test Hindi to Spanish translation"
+              title={`Test speech translation into ${tgtLang.name}`}
             >
-              🇮🇳 <span className="hidden sm:inline">Hindi Test</span>
+              {tgtLang.flag} <span className="hidden sm:inline">Test {tgtLang.name}</span>
             </button>
             <button
               onClick={() =>
                 handleQuickTest(
-                  "Sofia (Student)",
-                  "No entiendo esta parte.",
-                  "es",
-                  "hi"
+                  "Student",
+                  "I don't understand this part.",
+                  "en",
+                  tgtLang.code
                 )
               }
               className="px-1.5 sm:px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
-              title="Test Spanish to Hindi translation"
+              title={`Test Student to ${tgtLang.name} translation`}
             >
-              🇪🇸 <span className="hidden sm:inline">Spanish Test</span>
+              🎓 <span className="hidden sm:inline">Student Query</span>
             </button>
             <button
               onClick={() => setIsInterpreterModalOpen(true)}
@@ -140,26 +141,28 @@ export const SubtitleOverlay: React.FC = () => {
                 handleQuickTest(
                   "Prof. Vance (Teacher)",
                   "आज हम fractions के बारे में सीखेंगे।",
-                  "hi",
-                  "es"
+                  srcLang.code,
+                  tgtLang.code
                 )
               }
               className="hidden sm:inline px-1.5 py-0.5 bg-amber-950/40 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded text-[9px] font-semibold transition"
+              title={`Test speech translation into ${tgtLang.name}`}
             >
-              🇮🇳 Hindi
+              {tgtLang.flag} {tgtLang.name}
             </button>
             <button
               onClick={() =>
                 handleQuickTest(
-                  "Sofia (Student)",
-                  "No entiendo esta parte.",
-                  "es",
-                  "hi"
+                  "Student",
+                  "I don't understand this part.",
+                  "en",
+                  tgtLang.code
                 )
               }
               className="hidden sm:inline px-1.5 py-0.5 bg-cyan-950/40 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded text-[9px] font-semibold transition"
+              title={`Test Student Query into ${tgtLang.name}`}
             >
-              🇪🇸 Spanish
+              🎓 Query
             </button>
 
             {/* Quick Language Switch Dropdown */}
@@ -183,6 +186,7 @@ export const SubtitleOverlay: React.FC = () => {
                       key={opt.code}
                       onClick={() => {
                         setSubtitleLanguage(opt.code as any);
+                        realtimeSpeechEngine.setTargetLanguage(opt.code as any);
                         realtimeInterpreterService.updatePreferences({
                           targetTranslationLanguage: opt.code,
                         });

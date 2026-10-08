@@ -430,6 +430,19 @@ function getLocalFallback(text: string, lang: LanguageCode): string {
   return `[${tagMap[lang] || lang.toUpperCase()}] ${text}`;
 }
 
+function detectScriptLanguage(text: string): string {
+  if (/[\u0900-\u097F]/.test(text)) return "hi";
+  if (/[\u0600-\u06FF]/.test(text)) return "ar";
+  if (/[\u0400-\u04FF]/.test(text)) return "ru";
+  if (/[\u4E00-\u9FFF]/.test(text)) return "zh";
+  if (/[\u3040-\u30FF]/.test(text)) return "ja";
+  if (/[\u0980-\u09FF]/.test(text)) return "bn";
+  if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
+  if (/[\u0C00-\u0C7F]/.test(text)) return "te";
+  if (/[¿¡]|\b(hola|entiendo|gracias|profesor|fracciones|parte)\b/i.test(text)) return "es";
+  return "en";
+}
+
 export async function translateDualCaption(
   text: string,
   targetLanguage: LanguageCode,
@@ -439,8 +452,10 @@ export async function translateDualCaption(
     return { speaker, englishText: "", translatedText: "", targetLanguage };
   }
 
+  const detectedSrc = detectScriptLanguage(text);
+
   try {
-    const res = await TranslationEngine.translate(text, "en", targetLanguage, "general");
+    const res = await TranslationEngine.translate(text, detectedSrc, targetLanguage, "general");
     if (res && res.translatedText) {
       return {
         speaker,

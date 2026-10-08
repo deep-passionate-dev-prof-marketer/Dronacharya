@@ -259,13 +259,42 @@ export class TranslationEngine {
       subjectContext
     );
 
-    // 3. Check High-Speed Classroom Semantic Corpus
-    const normalizedKey = cleanText.toLowerCase().trim();
+    // 3. Check Universal Multilingual 50+ Language Semantic Corpus
+    try {
+      const { lookupMultilingualConcept } = await import("./multilingualCorpus");
+      const universalMatch = lookupMultilingualConcept(cleanText, targetLanguage);
+      if (universalMatch) {
+        const finalResult = TerminologyProtector.restoreTerms(universalMatch, restoredMap);
+        addToCache(sourceLanguage, targetLanguage, cleanText, finalResult);
+        return {
+          sourceLanguage,
+          targetLanguage,
+          sourceText: cleanText,
+          translatedText: finalResult,
+          latencyMs: Math.round(performance.now() - startTime),
+          fromCache: false,
+          provider: "semantic_memory",
+        };
+      }
+    } catch (_corpErr) {}
+
+    // 3b. Check High-Speed Classroom Semantic Corpus (Bidirectional)
+    const normalizedKey = cleanText.toLowerCase().trim().replace(/[.!?।]$/, "");
     for (const [corpusKey, translations] of Object.entries(CLASSROOM_SEMANTIC_CORPUS)) {
-      if (
-        normalizedKey === corpusKey.toLowerCase() ||
-        normalizedKey.replace(/[.!?।]$/, "") === corpusKey.toLowerCase().replace(/[.!?।]$/, "")
-      ) {
+      const normCorpusKey = corpusKey.toLowerCase().trim().replace(/[.!?।]$/, "");
+      let isMatch = normalizedKey === normCorpusKey;
+
+      if (!isMatch) {
+        // Reverse check: Does cleanText match any translation in the entry?
+        for (const [, val] of Object.entries(translations)) {
+          if (val.toLowerCase().trim().replace(/[.!?।]$/, "") === normalizedKey) {
+            isMatch = true;
+            break;
+          }
+        }
+      }
+
+      if (isMatch) {
         const directMatch = translations[targetLanguage.toLowerCase()];
         if (directMatch) {
           const finalResult = TerminologyProtector.restoreTerms(directMatch, restoredMap);
