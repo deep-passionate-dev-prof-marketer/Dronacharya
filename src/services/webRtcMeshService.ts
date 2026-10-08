@@ -236,9 +236,12 @@ class WebRtcMeshService {
       } catch {}
     }
 
-    // 2. localStorage Event Bus (Fallback for cross-tab)
+    // 2. localStorage Event Bus (Fallback for cross-tab with unique nonce)
     try {
-      localStorage.setItem(`dronacharya_sig_${this.currentRoomId}`, JSON.stringify(payload));
+      localStorage.setItem(
+        `dronacharya_sig_${this.currentRoomId}`,
+        JSON.stringify({ ...payload, _nonce: `${Date.now()}_${Math.random().toString(36).slice(2)}` })
+      );
     } catch {}
 
     // 3. WebSocket relay (Cross-device)
@@ -264,12 +267,56 @@ class WebRtcMeshService {
 
     switch (signal.type) {
       case "join": {
-        // A new peer joined the room: Create RTCPeerConnection and initiate Offer
+        // A new peer joined the room:
+        // 1. Immediately register peer in local map so UI updates instantly
+        const initialPeer: RemotePeerInfo = {
+          peerId: remoteId,
+          name: signal.senderName,
+          role: signal.senderRole,
+          avatarColor: signal.senderAvatarColor || "#0082FF",
+          isAudioMuted: !!signal.isAudioMuted,
+          isVideoOff: !!signal.isVideoOff,
+          audioLevel: 50,
+        };
+        if (!this.remotePeers.has(remoteId)) {
+          this.remotePeers.set(remoteId, initialPeer);
+          this.notifyPeerStream(initialPeer);
+        }
+
+        // 2. Announce own presence back so the joining peer immediately knows we are here
+        if (this.localUser) {
+          this.broadcastSignal({
+            type: "state-update",
+            senderId: this.localUser.id,
+            senderName: this.localUser.name,
+            senderRole: this.localUser.role,
+            roomId: this.currentRoomId,
+            isAudioMuted: !this.localUser.audioEnabled,
+            isVideoOff: !this.localUser.videoEnabled,
+            timestamp: Date.now(),
+          });
+        }
+
+        // 3. Create RTCPeerConnection and initiate WebRTC offer
         await this.createPeerConnection(remoteId, signal.senderName, signal.senderRole, signal.senderAvatarColor || "#0082FF", true);
         break;
       }
       case "offer": {
         if (!signal.sdp) return;
+        const initialPeer: RemotePeerInfo = {
+          peerId: remoteId,
+          name: signal.senderName,
+          role: signal.senderRole,
+          avatarColor: signal.senderAvatarColor || "#0082FF",
+          isAudioMuted: !!signal.isAudioMuted,
+          isVideoOff: !!signal.isVideoOff,
+          audioLevel: 50,
+        };
+        if (!this.remotePeers.has(remoteId)) {
+          this.remotePeers.set(remoteId, initialPeer);
+          this.notifyPeerStream(initialPeer);
+        }
+
         const pc = await this.createPeerConnection(
           remoteId,
           signal.senderName,
@@ -319,6 +366,19 @@ class WebRtcMeshService {
           peer.isAudioMuted = !!signal.isAudioMuted;
           peer.isVideoOff = !!signal.isVideoOff;
           this.notifyStateChanged();
+        } else {
+          // If we haven't seen this peer yet, register them
+          const newPeer: RemotePeerInfo = {
+            peerId: remoteId,
+            name: signal.senderName,
+            role: signal.senderRole,
+            avatarColor: signal.senderAvatarColor || "#0082FF",
+            isAudioMuted: !!signal.isAudioMuted,
+            isVideoOff: !!signal.isVideoOff,
+            audioLevel: 50,
+          };
+          this.remotePeers.set(remoteId, newPeer);
+          this.notifyPeerStream(newPeer);
         }
         break;
       }
@@ -342,6 +402,21 @@ class WebRtcMeshService {
     remoteAvatarColor: string,
     isInitiator: boolean
   ): Promise<RTCPeerConnection> {
+    // Immediately register peer info if not yet in map
+    const initialPeer: RemotePeerInfo = {
+      peerId: remoteId,
+      name: remoteName,
+      role: remoteRole,
+      avatarColor: remoteAvatarColor,
+      isAudioMuted: false,
+      isVideoOff: false,
+      audioLevel: 50,
+    };
+    if (!this.remotePeers.has(remoteId)) {
+      this.remotePeers.set(remoteId, initialPeer);
+      this.notifyPeerStream(initialPeer);
+    }
+
     if (this.peerConnections.has(remoteId)) {
       return this.peerConnections.get(remoteId)!;
     }
@@ -361,14 +436,15 @@ class WebRtcMeshService {
       const [remoteStream] = event.streams;
       const stream = remoteStream || new MediaStream([event.track]);
 
+      const existing = this.remotePeers.get(remoteId);
       const peerInfo: RemotePeerInfo = {
         peerId: remoteId,
         name: remoteName,
         role: remoteRole,
         avatarColor: remoteAvatarColor,
         stream,
-        isAudioMuted: false,
-        isVideoOff: false,
+        isAudioMuted: existing?.isAudioMuted ?? false,
+        isVideoOff: existing?.isVideoOff ?? false,
         audioLevel: 50,
       };
 

@@ -25,6 +25,7 @@ import {
   ExternalLink,
   Laptop,
   LogOut,
+  GraduationCap,
 } from "lucide-react";
 import { UserRole } from "../../types";
 import { SchoolLogo } from "../brand/SchoolLogo";
@@ -79,7 +80,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   const handleCopyStudentLink = () => {
     const studentUrl = typeof window !== "undefined"
-      ? `${window.location.origin}/?room=${roomId}&role=student`
+      ? `${window.location.origin}/?room=${encodeURIComponent(roomId)}&role=student`
       : roomLink;
     navigator.clipboard.writeText(studentUrl);
     setCopiedLink(true);
@@ -178,15 +179,22 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Zone 3: Quick Action Bar, Room Link, Role Switcher & Profile Dropdown */}
       <div className="flex items-center gap-2">
-        {/* Copy Student Invite Link Quick CTA */}
-        <button
-          onClick={handleCopyStudentLink}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white text-xs font-bold shadow-md transition-all cursor-pointer hover:scale-[1.02]"
-          title="Copy Student WebRTC Joining Link to Clipboard"
-        >
-          {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{copiedLink ? "Link Copied!" : "🔗 Invite Student"}</span>
-        </button>
+        {/* Copy Student Invite Link Quick CTA (for instructors and staff) */}
+        {currentRole !== "student" ? (
+          <button
+            onClick={handleCopyStudentLink}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white text-xs font-bold shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+            title="Copy Student WebRTC Joining Link to Clipboard"
+          >
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{copiedLink ? "Link Copied!" : "🔗 Invite Student"}</span>
+          </button>
+        ) : (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-semibold">
+            <GraduationCap className="w-3.5 h-3.5 text-blue-400" />
+            <span>Student Mode</span>
+          </div>
+        )}
 
         {/* Switch Classroom WebRTC Room Modal Button */}
         <button

@@ -46,7 +46,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   const handleCopyCurrentLink = () => {
-    const studentUrl = typeof window !== "undefined" ? `${window.location.origin}/?room=${roomId}&role=student` : roomLink;
+    const studentUrl = typeof window !== "undefined" ? `${window.location.origin}/?room=${encodeURIComponent(roomId)}&role=student` : roomLink;
     navigator.clipboard.writeText(studentUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);

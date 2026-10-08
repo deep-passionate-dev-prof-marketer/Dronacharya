@@ -95,6 +95,8 @@ const MainLayout: React.FC = () => {
   if (!authenticatedUser) {
     return (
       <PreJoinLobbyModal
+        initialRole={currentRole}
+        initialRoomId={roomId}
         onJoinSuccess={(user, targetRoomId) => loginUser(user, targetRoomId)}
       />
     );

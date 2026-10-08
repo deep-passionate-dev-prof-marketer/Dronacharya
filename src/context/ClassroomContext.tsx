@@ -726,18 +726,49 @@ const INITIAL_EXECUTION_LOGS: ExecutionLog[] = [
 ];
 
 export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentRole, setCurrentRole] = useState<UserRole>("instructor");
-  const [activeView, setActiveView] = useState<ClassroomView>("classroom");
-
-  // Dedicated Multi-Role Auth Session (Persistent)
+  // Dedicated Multi-Role Auth Session (Tab-isolated with persistent fallback)
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(() => {
     try {
-      const saved = localStorage.getItem("21k_dronacharya_auth");
-      return saved ? JSON.parse(saved) : null;
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const urlRole = params.get("role")?.toLowerCase();
+
+        // If the URL explicitly requests a role (e.g. ?role=student)
+        if (urlRole) {
+          const tabSaved = sessionStorage.getItem("21k_dronacharya_auth");
+          if (tabSaved) {
+            const parsed = JSON.parse(tabSaved);
+            if (parsed.role === urlRole) return parsed;
+          }
+          // Do NOT load teacher from localStorage when the URL specifies a student role!
+          return null;
+        }
+
+        // Normal load (no ?role= in URL): check tab sessionStorage first, then fallback to localStorage
+        const tabSaved = sessionStorage.getItem("21k_dronacharya_auth");
+        if (tabSaved) return JSON.parse(tabSaved);
+
+        const localSaved = localStorage.getItem("21k_dronacharya_auth");
+        return localSaved ? JSON.parse(localSaved) : null;
+      }
+      return null;
     } catch {
       return null;
     }
   });
+
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get("role")?.toLowerCase();
+      if (urlRole === "student" || urlRole === "instructor" || urlRole === "auditor" || urlRole === "sales_rep") {
+        return urlRole as UserRole;
+      }
+    }
+    return authenticatedUser?.role || "instructor";
+  });
+
+  const [activeView, setActiveView] = useState<ClassroomView>("classroom");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
   const [isInterpreterModalOpen, setIsInterpreterModalOpen] = useState(false);
@@ -748,9 +779,27 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activePitchRoom, setActivePitchRoom] = useState<PitchRoomStatus | null>(null);
 
   // Room parameters
-  const [roomId, setRoomId] = useState("dronacharya-gr10-phy");
+  const [roomId, setRoomId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRoom = params.get("room") || params.get("roomId") || params.get("join") || params.get("meet");
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      const pathRoom = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+      if (urlRoom || pathRoom) return (urlRoom || pathRoom)!;
+    }
+    return "dronacharya-gr10-phy";
+  });
   const [roomTitle, setRoomTitle] = useState("Grade 10-A · Advanced Quantum Mechanics & Physics (Dronacharya)");
-  const [roomLink, setRoomLink] = useState(() => buildMeetingUrl("dronacharya-gr10-phy"));
+  const [roomLink, setRoomLink] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRoom = params.get("room") || params.get("roomId") || params.get("join") || params.get("meet");
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      const pathRoom = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+      if (urlRoom || pathRoom) return buildMeetingUrl((urlRoom || pathRoom)!);
+    }
+    return buildMeetingUrl("dronacharya-gr10-phy");
+  });
   const [activeProductionMeeting, setActiveProductionMeeting] = useState<NormalizedProductionMeeting | null>(null);
   const [isE2eeSecured] = useState(true);
   const [encryptionFingerprint] = useState("0x21K-Dronacharya · AES-256-GCM · ECDH Key Exchange");
@@ -1356,6 +1405,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setRoomLink(buildMeetingUrl(customRoomId));
     }
     try {
+      sessionStorage.setItem("21k_dronacharya_auth", JSON.stringify(user));
       localStorage.setItem("21k_dronacharya_auth", JSON.stringify(user));
     } catch {}
     setIsAuthModalOpen(false);
@@ -1394,6 +1444,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     webRtcMeshService.leaveRoom();
     setAuthenticatedUser(null);
     try {
+      sessionStorage.removeItem("21k_dronacharya_auth");
       localStorage.removeItem("21k_dronacharya_auth");
     } catch {}
     setParticipants([]);
@@ -1474,6 +1525,32 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
     }
   }, [authenticatedUser, isAudioMuted, isVideoOff, isScreenSharing, handRaised, localStream]);
+
+  // Ensure WebRTC Mesh Room Connection is active whenever authenticatedUser and roomId are set
+  useEffect(() => {
+    if (authenticatedUser && roomId) {
+      const localParticipant: Participant = {
+        id: authenticatedUser.id,
+        name: authenticatedUser.name,
+        role: authenticatedUser.role,
+        avatarColor: authenticatedUser.avatarColor || (authenticatedUser.role === "instructor" ? "#003872" : "#0082FF"),
+        isLocal: true,
+        audioEnabled: !isAudioMuted,
+        videoEnabled: !isVideoOff,
+        screenSharing: isScreenSharing,
+        handRaised: handRaised,
+        breakoutRoomId: null,
+        audioLevel: 80,
+        attendanceStatus: "present",
+        joinedAt: "Just now",
+        xpPoints: 120,
+        gradeLevel: authenticatedUser.gradeLevel,
+        section: authenticatedUser.section,
+        stream: localStream || undefined,
+      };
+      webRtcMeshService.joinRoom(roomId, localParticipant, localStream || undefined);
+    }
+  }, [authenticatedUser?.id, roomId]);
 
   // Sync local stream with WebRTC mesh
   useEffect(() => {
@@ -2612,7 +2689,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setRoomLink(buildMeetingUrl("dronacharya-gr10-phy"));
   };
 
-  // Auto-detect production meeting link from browser URL query params (?join=, ?meetingUrl=, ?room=)
+  // Auto-detect production meeting link and role from browser URL query params and pathname
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -2621,9 +2698,23 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         params.get("meetingUrl") ||
         params.get("meeting") ||
         params.get("room") ||
+        params.get("roomId") ||
         params.get("meet");
-      if (joinParam && joinParam.trim()) {
-        joinProductionMeetingUrl(joinParam.trim());
+
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      const pathRoom = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+
+      const targetRoom = (joinParam || pathRoom || "").trim();
+      if (targetRoom && targetRoom !== roomId) {
+        joinProductionMeetingUrl(targetRoom);
+      }
+
+      // Check role param
+      const urlRole = params.get("role")?.toLowerCase();
+      if (urlRole && (urlRole === "student" || urlRole === "instructor" || urlRole === "auditor" || urlRole === "sales_rep")) {
+        if (urlRole !== currentRole) {
+          setCurrentRole(urlRole as UserRole);
+        }
       }
     }
   }, [pitchRooms]);

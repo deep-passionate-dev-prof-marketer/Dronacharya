@@ -27,9 +27,45 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
   initialRoomId = "dronacharya-live",
   onJoinSuccess,
 }) => {
-  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
-  const [displayName, setDisplayName] = useState<string>("Dr. Evelyn Vance");
-  const [targetRoomId, setTargetRoomId] = useState<string>(initialRoomId);
+  // Compute initial state synchronously from URL query and pathname
+  const [selectedRole, setSelectedRole] = useState<UserRole>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get("role")?.toLowerCase();
+      if (urlRole === "student") return "student";
+      if (urlRole === "teacher" || urlRole === "instructor") return "instructor";
+      if (urlRole === "auditor") return "auditor";
+      if (urlRole === "sales" || urlRole === "sales_rep") return "sales_rep";
+
+      // If joining via /room/:slug, default to student
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      if (pathMatch) return "student";
+    }
+    return initialRole;
+  });
+
+  const [displayName, setDisplayName] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get("role")?.toLowerCase();
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      if (urlRole === "student" || (!urlRole && pathMatch)) return "Sophia Chen";
+      if (urlRole === "auditor") return "Inspector Marcus Thorne";
+      if (urlRole === "sales" || urlRole === "sales_rep") return "Senior Admissions Officer";
+    }
+    return initialRole === "student" ? "Sophia Chen" : "Dr. Evelyn Vance";
+  });
+
+  const [targetRoomId, setTargetRoomId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRoom = params.get("room") || params.get("roomId") || params.get("join") || params.get("meet");
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      const pathRoom = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+      if (urlRoom || pathRoom) return (urlRoom || pathRoom)!;
+    }
+    return initialRoomId;
+  });
 
   const [isCameraActive, setIsCameraActive] = useState<boolean>(true);
   const [isMicActive, setIsMicActive] = useState<boolean>(true);
@@ -39,32 +75,35 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Parse URL search params (?room=... & ?role=...)
+  // Sync URL search params & path changes
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const urlRoom = params.get("room") || params.get("roomId");
+      const urlRoom = params.get("room") || params.get("roomId") || params.get("join") || params.get("meet");
       const urlRole = params.get("role")?.toLowerCase();
+      const pathMatch = window.location.pathname.match(/\/(?:room|s)\/([^/?#]+)/);
+      const pathRoom = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
 
-      if (urlRoom) {
-        setTargetRoomId(urlRoom);
+      const effectiveRoom = urlRoom || pathRoom;
+      if (effectiveRoom) {
+        setTargetRoomId(effectiveRoom);
       }
 
-      if (urlRole === "student") {
+      if (urlRole === "student" || (!urlRole && pathRoom && selectedRole !== "student")) {
         setSelectedRole("student");
-        setDisplayName("Sophia Chen");
+        setDisplayName((prev) => (prev === "Dr. Evelyn Vance" ? "Sophia Chen" : prev));
       } else if (urlRole === "teacher" || urlRole === "instructor") {
         setSelectedRole("instructor");
-        setDisplayName("Dr. Evelyn Vance");
+        setDisplayName((prev) => (prev === "Sophia Chen" ? "Dr. Evelyn Vance" : prev));
       } else if (urlRole === "auditor") {
         setSelectedRole("auditor");
         setDisplayName("Inspector Marcus Thorne");
-      } else if (urlRole === "sales") {
+      } else if (urlRole === "sales" || urlRole === "sales_rep") {
         setSelectedRole("sales_rep");
         setDisplayName("Senior Admissions Officer");
       }
     }
-  }, []);
+  }, [initialRole, initialRoomId]);
 
   // Request camera & microphone for greenroom preview
   useEffect(() => {
@@ -388,7 +427,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
                   className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-sm transition-all shadow-xl shadow-cyan-600/30 flex items-center justify-center gap-2 cursor-pointer group"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Enter Live Classroom (WebRTC)</span>
+                  <span>Enter Live Classroom as {selectedRole === "instructor" ? "Teacher" : selectedRole === "student" ? "Student" : selectedRole}</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>

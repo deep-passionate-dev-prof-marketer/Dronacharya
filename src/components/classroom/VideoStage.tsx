@@ -329,31 +329,57 @@ export const VideoStage: React.FC = () => {
 
                 {/* Invite & Classroom Status Card */}
                 <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-6 flex flex-col justify-between shadow-2xl min-h-[260px] backdrop-blur-xl">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                        Classroom Active · Room {roomId}
-                      </span>
+                  {currentRole === "student" ? (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
+                          Live In Class · Room {roomId}
+                        </span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-2">{roomTitle}</h3>
+                      <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                        Welcome to your live class! Your camera and microphone are connected via in-house WebRTC. You will see the instructor and classmates as soon as they join.
+                      </p>
+                      <div className="p-3 bg-blue-950/50 border border-blue-500/30 rounded-xl space-y-1.5">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-cyan-300">
+                          <Sparkles className="w-4 h-4 text-cyan-400" />
+                          <span>AI Real-time Interpreter & Dual Subtitles Ready</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-normal">
+                          When your teacher speaks in Hindi, English, Spanish or any of 50+ languages, live translated speech and captions will automatically stream to you.
+                        </p>
+                      </div>
                     </div>
-                    <h3 className="text-base sm:text-lg font-bold text-white mb-2">{roomTitle}</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                      You are live in the classroom with in-house WebRTC. Click below to copy the direct Student joining link to test or start the lesson with your scholar!
-                    </p>
-                  </div>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
+                            Classroom Active · Room {roomId}
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-bold text-white mb-2">{roomTitle}</h3>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                          You are live in the classroom with in-house WebRTC. Click below to copy the direct Student joining link to test or start the lesson with your scholar!
+                        </p>
+                      </div>
 
-                  <div className="space-y-3">
-                    <button
-                      onClick={handleCopyStudentLink}
-                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-xs transition-all shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                      <span>{copiedLink ? "Student Invite Link Copied!" : "🔗 Copy Student Invite Link"}</span>
-                    </button>
-                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-white/10 text-[11px] text-slate-400 font-mono truncate">
-                      <span className="truncate flex-1">{typeof window !== "undefined" ? `${window.location.origin}/?room=${roomId}&role=student` : roomLink}</span>
-                    </div>
-                  </div>
+                      <div className="space-y-3">
+                        <button
+                          onClick={handleCopyStudentLink}
+                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-xs transition-all shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                          <span>{copiedLink ? "Student Invite Link Copied!" : "🔗 Copy Student Invite Link"}</span>
+                        </button>
+                        <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-white/10 text-[11px] text-slate-400 font-mono truncate">
+                          <span className="truncate flex-1">{typeof window !== "undefined" ? `${window.location.origin}/?room=${encodeURIComponent(roomId)}&role=student` : roomLink}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ) : (
