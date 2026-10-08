@@ -28,33 +28,36 @@ export const ParticipantVideoTile: React.FC<Props> = ({
   const activeStream = isLocal ? localStream : participant.stream;
   const showVideo = isLocal ? !isVideoOff : participant.videoEnabled;
   const isMicMuted = isLocal ? isAudioMuted : !participant.audioEnabled;
+  const hasMedia = Boolean(participant.attachVideo || activeStream);
+  const speaking = participant.isSpeaking || (!isMicMuted && participant.audioLevel > 20);
 
   useEffect(() => {
-    if (videoRef.current && activeStream) {
-      if (videoRef.current.srcObject !== activeStream) {
-        videoRef.current.srcObject = activeStream;
-      }
-      videoRef.current.play().catch(() => {
-        // Autoplay policy fallback
-      });
-    }
-  }, [activeStream, showVideo]);
+    const el = videoRef.current;
+    if (!el || !showVideo) return;
+    // LiveKit tracks attach themselves (this also drives adaptive quality for this tile's size)
+    if (participant.attachVideo) return participant.attachVideo(el);
+    if (activeStream && el.srcObject !== activeStream) el.srcObject = activeStream;
+    el.play().catch(() => {});
+  }, [participant.attachVideo, activeStream, showVideo]);
 
   return (
     <div
       className={`relative w-full h-full rounded-2xl bg-slate-900/90 border overflow-hidden flex flex-col items-center justify-center group transition-all duration-300 select-none shadow-lg ${aspectClass} ${
         isPinned
           ? "border-blue-500 ring-2 ring-blue-500/50 shadow-blue-500/20"
+          : speaking
+          ? "border-emerald-400/80 ring-2 ring-emerald-400/40"
           : "border-white/10 hover:border-white/20"
       }`}
     >
       {/* Live Video Feed */}
-      {showVideo && activeStream ? (
+      {showVideo && hasMedia ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          muted={isLocal} // Always mute local video to avoid microphone feedback
+          // Audio is played by separate <audio> elements so it never stops when tiles move or unmount
+          muted
           className={`w-full h-full object-cover ${isLocal ? "-scale-x-100" : ""}`}
         />
       ) : (
@@ -63,7 +66,7 @@ export const ParticipantVideoTile: React.FC<Props> = ({
           <div className="relative">
             <div
               className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-xl transition-all duration-300 ${
-                !isMicMuted && participant.audioLevel > 20
+                speaking
                   ? "ring-4 ring-emerald-400/80 scale-105"
                   : ""
               }`}
@@ -71,7 +74,7 @@ export const ParticipantVideoTile: React.FC<Props> = ({
             >
               {participant.name ? participant.name.charAt(0).toUpperCase() : "U"}
             </div>
-            {!isMicMuted && participant.audioLevel > 20 && (
+            {speaking && (
               <span className="absolute -inset-1 rounded-full border border-emerald-400 animate-ping opacity-40 pointer-events-none" />
             )}
           </div>

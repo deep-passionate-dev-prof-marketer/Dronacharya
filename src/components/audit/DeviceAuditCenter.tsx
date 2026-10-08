@@ -24,6 +24,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DeviceAuditRecord, UserRole } from "../../types";
+import { DeviceAccessControlPanel } from "../access/DeviceAccessControlPanel";
 
 export const DeviceAuditCenter: React.FC = () => {
   const { deviceAuditLogs, logDeviceAudit, currentRole, authenticatedUser } = useClassroom();
@@ -31,6 +32,7 @@ export const DeviceAuditCenter: React.FC = () => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [activeTab, setActiveTab] = useState<"access" | "telemetry">("access");
 
   // Filter logs by selected role and search query
   const filteredLogs = deviceAuditLogs.filter((log) => {
@@ -221,6 +223,27 @@ export const DeviceAuditCenter: React.FC = () => {
         </div>
       </div>
 
+      {/* Access control (device-locked links) vs passive telemetry */}
+      <div className="flex rounded-xl border border-white/10 bg-white/[0.03] p-1 mb-4 sm:mb-6 self-start text-sm" role="tablist">
+        {([
+          ["access", "Access control"],
+          ["telemetry", "Device telemetry"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={activeTab === k}
+            onClick={() => setActiveTab(k)}
+            className={`px-4 h-10 rounded-lg font-semibold transition-colors ${activeTab === k ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "access" && <DeviceAccessControlPanel />}
+
+      {activeTab === "telemetry" && (<>
       {/* Form Factor & OS Distribution Strip */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex items-center gap-3">
@@ -394,6 +417,7 @@ export const DeviceAuditCenter: React.FC = () => {
           </table>
         </div>
       </div>
+      </>)}
     </div>
   );
 };

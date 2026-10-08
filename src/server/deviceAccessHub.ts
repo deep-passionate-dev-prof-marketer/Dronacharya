@@ -314,6 +314,44 @@ function toCsvValue(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/**
+ * Decides whether this user/device may join the room and records the outcome in the audit log.
+ * Used by the evaluate endpoint and by the LiveKit token endpoint, so a blocked device never
+ * receives media credentials.
+ */
+export function evaluateJoinRequest(req: express.Request, roomSlug: string, rawStudent: any, rawDevice: any): EvaluateResponse {
+  const student = sanitizeActor(rawStudent);
+  const device = enrichDevice(req, rawDevice);
+  const policy = getRoomPolicy(roomSlug);
+  const effective = device.effectiveDeviceType || device.deviceType;
+
+  let decision: EvaluateResponse["decision"];
+  let activeRequest: DeviceAccessRequest | undefined;
+  if (!STAFF_ROLES.includes(student.role) && !isDeviceAllowed(policy, effective)) {
+    const approval = findActiveApproval(roomSlug, student, device.deviceId);
+    decision = approval ? "approved_override" : "block";
+    activeRequest = approval || findOpenRequest(roomSlug, student, device.deviceId);
+  } else {
+    decision = "allow";
+  }
+
+  recordEvent({
+    type: decision === "allow" ? "join_allowed" : decision === "approved_override" ? "join_allowed_by_approval" : "join_blocked",
+    roomSlug,
+    actor: student,
+    device,
+    policy: pickPolicy(policy),
+    decision,
+    requestId: activeRequest?.id,
+    details:
+      device.integrity === "mismatch"
+        ? `Device claim mismatch: browser reported ${device.deviceType}, server saw ${device.serverClassifiedType}. Enforced as ${effective}.`
+        : undefined,
+  });
+
+  return { decision, policy, effectiveDeviceType: effective, integrity: device.integrity, activeRequest, enforcement: "server" };
+}
+
 export function setupDeviceAccessRoutes(app: express.Express, broadcast: BroadcastFn) {
   loadFromDisk();
   setInterval(expireStaleRequests, 60 * 1000).unref?.();
@@ -370,37 +408,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
   app.post("/api/device-access/evaluate", (req, res) => {
     const roomSlug = String(req.body?.roomSlug || "");
     if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
-    const student = sanitizeActor(req.body?.student);
-    const device = enrichDevice(req, req.body?.device);
-    const policy = getRoomPolicy(roomSlug);
-    const effective = device.effectiveDeviceType || device.deviceType;
-
-    let decision: EvaluateResponse["decision"];
-    let activeRequest: DeviceAccessRequest | undefined;
-    if (!STAFF_ROLES.includes(student.role) && !isDeviceAllowed(policy, effective)) {
-      const approval = findActiveApproval(roomSlug, student, device.deviceId);
-      decision = approval ? "approved_override" : "block";
-      activeRequest = approval || findOpenRequest(roomSlug, student, device.deviceId);
-    } else {
-      decision = "allow";
-    }
-
-    recordEvent({
-      type: decision === "allow" ? "join_allowed" : decision === "approved_override" ? "join_allowed_by_approval" : "join_blocked",
-      roomSlug,
-      actor: student,
-      device,
-      policy: pickPolicy(policy),
-      decision,
-      requestId: activeRequest?.id,
-      details:
-        device.integrity === "mismatch"
-          ? `Device claim mismatch: browser reported ${device.deviceType}, server saw ${device.serverClassifiedType}. Enforced as ${effective}.`
-          : undefined,
-    });
-
-    const body: EvaluateResponse = { decision, policy, effectiveDeviceType: effective, integrity: device.integrity, activeRequest, enforcement: "server" };
-    res.json(body);
+    res.json(evaluateJoinRequest(req, roomSlug, req.body?.student, req.body?.device));
   });
 
   // ---------- Exception requests ----------

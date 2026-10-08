@@ -96,8 +96,8 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs select-none">
-      <div className="w-full max-w-xl rounded-2xl bg-[#080d1a] border border-[#003872] shadow-2xl overflow-hidden flex flex-col font-sans text-white animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs select-none">
+      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-xl rounded-t-3xl sm:rounded-2xl bg-[#080d1a] border border-[#003872] shadow-2xl overflow-hidden flex flex-col font-sans text-white animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-4 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">

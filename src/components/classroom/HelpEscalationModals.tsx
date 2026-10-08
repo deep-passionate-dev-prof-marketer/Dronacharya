@@ -88,8 +88,8 @@ export const HelpEscalationModals: React.FC = () => {
 
       {/* 1. Modal: Ask for Parent Help */}
       {isParentHelpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className="w-full max-w-md bg-[#090e17] rounded-2xl border border-[#003872] shadow-2xl overflow-hidden font-sans text-white">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none">
+          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-[#090e17] rounded-t-3xl sm:rounded-2xl border border-[#003872] shadow-2xl overflow-hidden font-sans text-white">
             <div className="p-4 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-[#003872] text-[#00C2E0]">
@@ -177,8 +177,8 @@ export const HelpEscalationModals: React.FC = () => {
 
       {/* 2. Modal: Ask for CX Help */}
       {isCxHelpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className="w-full max-w-md bg-[#090e17] rounded-2xl border border-rose-900/50 shadow-2xl overflow-hidden font-sans text-white">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none">
+          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-[#090e17] rounded-t-3xl sm:rounded-2xl border border-rose-900/50 shadow-2xl overflow-hidden font-sans text-white">
             <div className="p-4 bg-gradient-to-r from-rose-950 via-[#001F40] to-[#001F40] border-b border-rose-800/40 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-rose-900/60 text-rose-300">

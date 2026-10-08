@@ -30,9 +30,13 @@ import {
   Briefcase,
   Cloud,
   Sliders,
+  PhoneOff,
 } from "lucide-react";
 import { generateDemoMeetingUrl } from "../../services/demoClassService";
 import { SubtitleOverlay } from "./SubtitleOverlay";
+import { classroomTransport } from "../../services/media/classroomTransport";
+import { StageLayout, Presentation } from "./stage/StageLayout";
+import { TranscriptFeed } from "./TranscriptFeed";
 import { FloatingAttentionHUD } from "./FloatingAttentionHUD";
 import { ParticipantTileActions } from "./ParticipantTileActions";
 import { RoomBreakOverlay } from "./RoomBreakOverlay";
@@ -48,6 +52,19 @@ import { OneToOnePitchStage } from "../bomber/OneToOnePitchStage";
 import { ParticipantVideoTile } from "./ParticipantVideoTile";
 import { BottomMeetingControls } from "./BottomMeetingControls";
 import { Participant } from "../../types";
+
+/** Phones and tablets (< 1024px) get the swipeable stage panes. */
+function useIsCompact() {
+  const query = "(max-width: 1023px)";
+  const [compact, setCompact] = React.useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  React.useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setCompact(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return compact;
+}
 
 export const VideoStage: React.FC = () => {
   const {
@@ -82,7 +99,14 @@ export const VideoStage: React.FC = () => {
     triggerRoomBomber,
     roomRatio,
     setIsScheduleModalOpen,
+    isWhiteboardPresenting,
+    transportState,
+    hasLeftClass,
+    rejoinClass,
+    startAudioPlayback,
+    mediaJoinError,
   } = useClassroom();
+  const isCompact = useIsCompact();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -149,6 +173,23 @@ export const VideoStage: React.FC = () => {
   }
 
 
+  if (hasLeftClass) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6 bg-[#070b14]">
+        <div className="max-w-sm w-full text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <PhoneOff className="w-6 h-6 text-slate-300" />
+          </div>
+          <h2 className="text-lg font-bold text-white">You left the class</h2>
+          <p className="text-sm text-slate-400">The class is still running for everyone else.</p>
+          <button onClick={rejoinClass} className="btn-primary w-full">
+            Rejoin class
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (currentRole === "auditor") {
     return (
       <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
@@ -195,6 +236,31 @@ export const VideoStage: React.FC = () => {
   // Pinned or spotlighted participant
   const pinnedParticipant = displayParticipants.find((p) => p.id === pinnedParticipantId) || displayParticipants[0];
 
+  // What fills the main stage: a shared screen beats a presented whiteboard; otherwise people
+  const localParticipant = displayParticipants.find((p) => p.isLocal) || participants.find((p) => p.isLocal);
+  const remotePresenter = participants.find((p) => !p.isLocal && p.screenSharing && p.attachScreen);
+  const presentation: Presentation =
+    isScreenSharing && screenStream && localParticipant
+      ? { kind: "screen", presenter: localParticipant, localStream: screenStream }
+      : remotePresenter
+      ? { kind: "screen", presenter: remotePresenter }
+      : isWhiteboardPresenting
+      ? { kind: "whiteboard" }
+      : null;
+
+  const renderTile = (p: Participant) => (
+    <ParticipantVideoTile
+      participant={p}
+      isLocal={!!p.isLocal}
+      localStream={localStream}
+      isAudioMuted={isAudioMuted}
+      isVideoOff={isVideoOff}
+      isPinned={pinnedParticipantId === p.id}
+      onPinToggle={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
+      aspectClass=""
+    />
+  );
+
   const formatDuration = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
@@ -203,6 +269,37 @@ export const VideoStage: React.FC = () => {
 
   return (
     <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
+      {/* Connection & audio notices: the class keeps running underneath */}
+      {(transportState.status === "reconnecting" || transportState.audioBlocked || mediaJoinError || transportState.error === "duplicate_identity") && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 w-[calc(100%-1rem)] max-w-md pointer-events-none">
+          {transportState.status === "reconnecting" && (
+            <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-100 text-xs font-semibold flex items-center gap-2 shadow-lg">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Connection unstable, reconnecting… you're still in class
+            </div>
+          )}
+          {transportState.error === "duplicate_identity" && (
+            <div className="pointer-events-auto px-3 py-2.5 rounded-xl bg-slate-900/95 border border-white/15 text-slate-100 text-xs flex items-center gap-3 shadow-lg">
+              <span>You joined this class from another tab or device.</span>
+              <button onClick={() => classroomTransport.rejoin()} className="shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold">
+                Use here
+              </button>
+            </div>
+          )}
+          {transportState.audioBlocked && (
+            <button onClick={startAudioPlayback} className="pointer-events-auto px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold shadow-lg">
+              Tap to turn on class sound
+            </button>
+          )}
+          {mediaJoinError && (
+            <div className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-100 text-xs">
+              {mediaJoinError === "device_blocked"
+                ? "This device isn't allowed for this class. Please rejoin from a laptop or desktop."
+                : "Couldn't connect audio/video. Check your connection; we'll keep trying."}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Laser Pointer Overlay */}
       {remotePointer.active && (
         <div
@@ -281,98 +378,7 @@ export const VideoStage: React.FC = () => {
           </div>
         )}
 
-        {isScreenSharing ? (
-          /* Screen Presentation View */
-          <div className="w-full h-full flex flex-col gap-3">
-            <div className="flex-1 rounded-2xl bg-black border border-white/10 relative overflow-hidden flex items-center justify-center">
-              {screenStream ? (
-                <video
-                  ref={screenVideoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center p-6 text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3 animate-pulse">
-                    <Share2 className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-sm font-bold text-white mb-1">
-                    Screen Share Active
-                  </h3>
-                  <p className="text-xs text-slate-400 max-w-sm">
-                    Broadcasting live desktop presentation. Click stage to drop laser pointers.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Filmstrip participant row */}
-            <div className="h-24 flex items-center gap-2 overflow-x-auto py-1">
-              {displayParticipants.map((p) => (
-                <div
-                  key={p.id}
-                  className="relative w-32 h-full rounded-xl bg-slate-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center group"
-                >
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
-                    style={{ backgroundColor: p.avatarColor }}
-                  >
-                    {p.name.charAt(0)}
-                  </div>
-                  <div className="absolute bottom-1 left-1.5 right-1.5 flex items-center justify-between text-[10px] text-slate-300">
-                    <span className="truncate max-w-[70px]">{p.name.split(" ")[0]}</span>
-                    {p.audioEnabled ? <Volume2 className="w-2.5 h-2.5 text-emerald-400" /> : <MicOff className="w-2.5 h-2.5 text-rose-400" />}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : layoutMode === "spotlight" && pinnedParticipant ? (
-          /* Spotlight Hero Mode */
-          <div className="w-full h-full flex flex-col gap-3">
-            {/* Primary Hero Stage */}
-            <div className="flex-1 rounded-2xl overflow-hidden shadow-xl">
-              <ParticipantVideoTile
-                participant={pinnedParticipant}
-                isLocal={!!pinnedParticipant.isLocal}
-                localStream={localStream}
-                isAudioMuted={isAudioMuted}
-                isVideoOff={isVideoOff}
-                isPinned={true}
-                onPinToggle={() => setPinnedParticipantId(null)}
-                aspectClass="w-full h-full"
-              />
-            </div>
-
-            {/* Thumbnail row */}
-            <div className="h-24 flex items-center gap-2 overflow-x-auto py-1">
-              {displayParticipants
-                .filter((p) => p.id !== pinnedParticipant.id)
-                .map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setPinnedParticipantId(p.id)}
-                    className="relative w-32 h-full rounded-xl bg-slate-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center group hover:border-blue-500/50 transition-all text-left"
-                  >
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
-                      style={{ backgroundColor: p.avatarColor }}
-                    >
-                      {p.name.charAt(0)}
-                    </div>
-                    <div className="absolute bottom-1 left-1.5 right-1.5 flex items-center justify-between text-[10px] text-slate-300">
-                      <span className="truncate max-w-[70px]">{p.name.split(" ")[0]}</span>
-                      <Pin className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 text-blue-400" />
-                    </div>
-                  </button>
-                ))}
-            </div>
-          </div>
-        ) : (
-          /* Standard & Custom Grid View */
-          <div className="w-full flex-1 min-h-0 flex flex-col justify-center-safe">
-            {displayParticipants.length === 0 ? (
+        {displayParticipants.length === 0 ? (
               /* Completely Empty Stage */
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-slate-900/40 rounded-3xl border border-white/5 my-auto">
                 <div className="w-16 h-16 rounded-3xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
@@ -404,7 +410,7 @@ export const VideoStage: React.FC = () => {
                   )}
                 </div>
               </div>
-            ) : displayParticipants.length === 1 && displayParticipants[0].isLocal && classStatus === "waiting" ? (
+        ) : displayParticipants.length === 1 && displayParticipants[0].isLocal && classStatus === "waiting" && !presentation ? (
               /* Pre-Class Waiting State (Zoom/Meet Waiting Room & Launchpad) */
               <div className="w-full grid grid-cols-1 @2xl:grid-cols-2 gap-3 @2xl:gap-4 items-center max-w-4xl mx-auto my-auto p-1 @md:p-2">
                 {/* Local User Tile */}
@@ -505,42 +511,15 @@ export const VideoStage: React.FC = () => {
                   )}
                 </div>
               </div>
-            ) : displayParticipants.length === 2 ? (
-              /* Two Participants: Zoom & Google Meet Style Equal 50/50 Gallery Grid */
-              <div className="w-full h-full grid grid-cols-1 @xl:grid-cols-2 gap-3 @xl:gap-4 items-center auto-rows-fr overflow-y-auto p-1 max-h-full">
-                {displayParticipants.map((p) => (
-                  <ParticipantVideoTile
-                    key={p.id}
-                    participant={p}
-                    isLocal={!!p.isLocal}
-                    localStream={localStream}
-                    isAudioMuted={isAudioMuted}
-                    isVideoOff={isVideoOff}
-                    isPinned={pinnedParticipantId === p.id}
-                    onPinToggle={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
-                    aspectClass={getAspectClass()}
-                  />
-                ))}
-              </div>
-            ) : (
-              /* Adaptive Multi-Participant Grid */
-              <div className={`w-full grid ${getGridClasses()} gap-3 auto-rows-fr overflow-y-auto p-1 max-h-full`}>
-                {displayParticipants.map((p) => (
-                  <ParticipantVideoTile
-                    key={p.id}
-                    participant={p}
-                    isLocal={!!p.isLocal}
-                    localStream={localStream}
-                    isAudioMuted={isAudioMuted}
-                    isVideoOff={isVideoOff}
-                    isPinned={pinnedParticipantId === p.id}
-                    onPinToggle={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
-                    aspectClass={getAspectClass()}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+        ) : (
+          <StageLayout
+            participants={displayParticipants}
+            renderTile={renderTile}
+            pinnedId={pinnedParticipantId}
+            presentation={presentation}
+            compact={isCompact}
+            detailsPane={<TranscriptFeed />}
+          />
         )}
 
 
@@ -555,8 +534,8 @@ export const VideoStage: React.FC = () => {
       </div>
       <BottomMeetingControls />
 
-      {/* Slide-over Deep Biometric Attention & Audio Audit Drawer */}
-      <AttentionAuditDrawer />
+      {/* Attention/audio audit drawer: auditors and admins only */}
+      {currentRole === "admin" && <AttentionAuditDrawer />}
 
       {/* Multi-Device Remote System Access Console */}
       <MultiDeviceRemoteConsole />

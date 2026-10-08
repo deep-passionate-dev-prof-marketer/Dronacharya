@@ -5,6 +5,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/livekit/(.*)",
+      "destination": "/api/livekit/$1"
+    },
+    {
       "source": "/api/ai/live-translate-stream",
       "destination": "/api/ai/live-translate-stream"
     },

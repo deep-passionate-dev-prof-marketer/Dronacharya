@@ -95,8 +95,8 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
   const targetLang = getLanguage(preferences.targetTranslationLanguage);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-[#0b1329] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn relative w-full max-w-4xl max-h-[94dvh] sm:max-h-[90dvh] flex flex-col bg-[#0b1329] border border-cyan-500/30 rounded-t-3xl sm:rounded-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans">
         
         {/* Header Bar */}
         <div className="px-5 py-4 border-b border-slate-800 bg-[#0f1b38]/80 flex items-center justify-between">

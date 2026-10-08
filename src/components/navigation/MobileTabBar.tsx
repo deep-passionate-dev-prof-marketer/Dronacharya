@@ -1,5 +1,5 @@
 import React from "react";
-import { Video, MessageSquare, Sparkles, BookOpen, CalendarCheck, BarChart2, ShieldCheck, Zap, Flame, Database, Menu } from "lucide-react";
+import { Video, MessageSquare, Sparkles, BookOpen, CalendarCheck, CalendarDays, BarChart2, ShieldCheck, Zap, Flame, Database, Menu } from "lucide-react";
 import { useClassroom, ClassroomView } from "../../context/ClassroomContext";
 
 type Tab = { view: ClassroomView; label: string; icon: React.ComponentType<{ className?: string }> };
@@ -15,7 +15,7 @@ const PRIMARY_TABS: Record<string, Tab[]> = {
   instructor: [
     { view: "classroom", label: "Stage", icon: Video },
     { view: "attendance", label: "Attendance", icon: CalendarCheck },
-    { view: "analytics", label: "Insights", icon: BarChart2 },
+    { view: "facilitators", label: "Schedule", icon: CalendarDays },
     { view: "notebook", label: "Notebook", icon: Sparkles },
   ],
   auditor: [

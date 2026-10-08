@@ -146,4 +146,20 @@
 /* keep long values inside their cards on narrow screens.              */
 /* ------------------------------------------------------------------ */
 main .grid > * { min-width: 0; }
-main h1, main h2, main h3 { overflow-wrap: anywhere; }
+main h1, main h2, main h3 { overflow-wrap: break-word; }
+
+/* Phones: section header rows (title block + controls) wrap instead of crushing the title,
+   and desktop-sized card padding/gaps tighten so content gets the width. */
+@media (max-width: 639px) {
+  main .flex.justify-between:not(.flex-col):has(> div:first-child :is(h1, h2, h3), > div:first-child > p) {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+  }
+  main .flex.justify-between:not(.flex-col):has(> div:first-child :is(h1, h2, h3), > div:first-child > p) > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  main .p-6 { padding: 1rem; }
+  main .gap-6 { gap: 1rem; }
+  main .mb-6 { margin-bottom: 1rem; }
+}

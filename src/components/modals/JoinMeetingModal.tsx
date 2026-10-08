@@ -53,8 +53,8 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-      <div className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-100 max-h-[92dvh]">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn w-full max-w-lg bg-slate-900 border border-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-100 max-h-[94dvh] sm:max-h-[90dvh]">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-2.5">

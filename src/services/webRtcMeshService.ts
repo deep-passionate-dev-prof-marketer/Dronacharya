@@ -1,3 +1,4 @@
+import { realtimeSocket } from "./realtimeSocket";
 import { Participant, UserRole } from "../types";
 
 export interface RemotePeerInfo {
@@ -49,7 +50,8 @@ class WebRtcMeshService {
   private remotePeers: Map<string, RemotePeerInfo> = new Map();
 
   private broadcastChannel: BroadcastChannel | null = null;
-  private wsRelay: WebSocket | null = null;
+  private wsRelayUnbind: (() => void) | null = null;
+  private disconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private heartbeatTimer: any = null;
 
   private onPeerStreamListeners: Set<PeerStreamCallback> = new Set();
@@ -164,10 +166,8 @@ class WebRtcMeshService {
       this.broadcastChannel = null;
     }
 
-    if (this.wsRelay) {
-      this.wsRelay.close();
-      this.wsRelay = null;
-    }
+    this.wsRelayUnbind?.();
+    this.wsRelayUnbind = null;
 
     this.isConnected = false;
   }
@@ -242,23 +242,15 @@ class WebRtcMeshService {
     this.connectWsRelay(roomId);
   }
 
+  /**
+   * Cross-device signaling goes through our own realtime server (it previously pointed at a
+   * public echo server, which only echoes back to the sender, so devices never connected).
+   */
   private connectWsRelay(roomId: string) {
-    try {
-      // Connect to public reliable WebSocket relay for cross-device handshakes
-      const ws = new WebSocket(`wss://echo.websocket.events`);
-      ws.onopen = () => {
-        this.wsRelay = ws;
-      };
-      ws.onmessage = (evt) => {
-        try {
-          const parsed = JSON.parse(evt.data);
-          if (parsed && parsed.dronacharyaMesh && parsed.roomId === roomId) {
-            this.handleSignal(parsed);
-          }
-        } catch {}
-      };
-      ws.onerror = () => {};
-    } catch {}
+    this.wsRelayUnbind?.();
+    this.wsRelayUnbind = realtimeSocket.on("MESH_SIGNAL", (data: any) => {
+      if (data?.roomId === roomId && data.signal) this.handleSignal(data.signal);
+    });
   }
 
   private setupStorageListener() {
@@ -290,12 +282,8 @@ class WebRtcMeshService {
       );
     } catch {}
 
-    // 3. WebSocket relay (Cross-device)
-    if (this.wsRelay && this.wsRelay.readyState === WebSocket.OPEN) {
-      try {
-        this.wsRelay.send(JSON.stringify({ ...payload, dronacharyaMesh: true }));
-      } catch {}
-    }
+    // 3. Our realtime server (cross-device)
+    realtimeSocket.send("MESH_SIGNAL", { roomId: this.currentRoomId, signal: payload });
   }
 
   private async handleSignal(signal: SignalPayload) {
@@ -555,11 +543,28 @@ class WebRtcMeshService {
       }
     };
 
+    const dropPeer = () => {
+      this.disconnectTimers.delete(remoteId);
+      if (this.peerConnections.get(remoteId) !== pc) return;
+      pc.close();
+      this.remotePeers.delete(remoteId);
+      this.peerConnections.delete(remoteId);
+      this.notifyPeerLeft(remoteId);
+    };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "disconnected" || pc.connectionState === "failed" || pc.connectionState === "closed") {
-        this.remotePeers.delete(remoteId);
-        this.peerConnections.delete(remoteId);
-        this.notifyPeerLeft(remoteId);
+      const pending = this.disconnectTimers.get(remoteId);
+      if (pc.connectionState === "connected" && pending) {
+        clearTimeout(pending);
+        this.disconnectTimers.delete(remoteId);
+      } else if (pc.connectionState === "disconnected") {
+        // "disconnected" is often a brief network blip; give ICE 10s to recover before dropping the peer
+        if (!pending) this.disconnectTimers.set(remoteId, setTimeout(dropPeer, 10000));
+        try {
+          pc.restartIce();
+        } catch {}
+      } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        if (pending) clearTimeout(pending);
+        dropPeer();
       }
     };
 

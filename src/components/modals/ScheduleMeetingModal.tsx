@@ -31,11 +31,14 @@ import {
   generateDemoMeetingUrl,
 } from "../../services/demoClassService";
 import { RoomRatio } from "../../types";
+import { TeacherMatchPicker, PickedTeacher } from "../matching/TeacherMatchPicker";
+import type { MatchRequest } from "../../services/matching/teacherMatcher";
 
 export const ScheduleMeetingModal: React.FC = () => {
   const {
     isScheduleModalOpen,
     setIsScheduleModalOpen,
+    authenticatedUser,
     roomTitle,
     roomLink,
     setRoomId,
@@ -63,6 +66,72 @@ export const ScheduleMeetingModal: React.FC = () => {
   const [manualRatio, setManualRatio] = useState<RoomRatio>("1:4");
   const [manualTeacher, setManualTeacher] = useState("Dr. Evelyn Vance");
   const [manualRoomCode, setManualRoomCode] = useState("dronacharya-gr10-phy");
+  // Matching: class time (local) + teacher picked from eligible matches
+  const [manualStartLocal, setManualStartLocal] = useState(() => {
+    const d = new Date(Date.now() + 30 * 60000);
+    d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
+  const [allowInterpreter, setAllowInterpreter] = useState(false);
+  const [matchedTeacher, setMatchedTeacher] = useState<PickedTeacher | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [isBooking, setIsBooking] = useState(false);
+  const matchRequest: MatchRequest = {
+    subject: manualCourse,
+    gradeLevel: manualGrade,
+    language: manualLanguage,
+    allowInterpreter,
+    startUtc: new Date(manualStartLocal).toISOString(),
+    durationMin: 60,
+    classSize: parseInt(String(manualRatio).split(":")[1] || "1", 10) || 1,
+    studentCountryIso2: manualCountry,
+    studentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
+
+  /** Books through the server matcher (no hard-coded teacher), then records the lead with the real assignment. */
+  const bookMatchedClass = async (): Promise<string | null> => {
+    setIsBooking(true);
+    setBookingError(null);
+    try {
+      const res = await fetch("/api/match/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request: matchRequest,
+          preferredTeacherId: matchedTeacher?.id,
+          student: { key: manualStudentId, name: manualStudentName },
+          sessionType: "demo",
+          actor: { id: authenticatedUser?.id, name: authenticatedUser?.name, role: authenticatedUser?.role },
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Booking failed (HTTP ${res.status})`);
+      const teacherName = body.teacher?.name || matchedTeacher?.name || manualTeacher;
+      setManualTeacher(teacherName);
+      setManualRoomCode(body.booking.roomSlug);
+      demoClassService.createDemoLead({
+        studentName: manualStudentName,
+        parentName: manualParentName || "Parent",
+        parentEmail: manualParentEmail || "parent@21k.family",
+        gradeLevel: manualGrade,
+        country: manualCountry,
+        course: manualCourse,
+        preferredLanguage: manualLanguage,
+        meetingRatio: manualRatio,
+        assignedTeacherId: body.booking.teacherId,
+        assignedTeacherName: teacherName,
+        roomCode: body.booking.roomSlug,
+        crmSource: "Website Booking",
+      });
+      return body.booking.roomSlug as string;
+    } catch (err: any) {
+      setBookingError(err?.message || "Booking failed");
+      return null;
+    } finally {
+      setIsBooking(false);
+    }
+  };
   const [copiedManualLink, setCopiedManualLink] = useState(false);
   const [copiedManualInvite, setCopiedManualInvite] = useState(false);
 
@@ -90,24 +159,20 @@ export const ScheduleMeetingModal: React.FC = () => {
     teacherName: manualTeacher,
   });
 
-  const handleCopyManualLink = () => {
-    // Also persist lead in demo queue for teacher tracking
-    demoClassService.createDemoLead({
-      studentName: manualStudentName,
-      parentName: manualParentName || "Parent",
-      parentEmail: manualParentEmail || "parent@21k.family",
-      gradeLevel: manualGrade,
-      country: manualCountry,
-      course: manualCourse,
-      preferredLanguage: manualLanguage,
-      meetingRatio: manualRatio,
-      assignedTeacherId: "tch-1",
-      assignedTeacherName: manualTeacher,
-      roomCode: manualRoomCode,
-      crmSource: "Website Booking",
-    });
-
-    navigator.clipboard.writeText(liveGeneratedUrl);
+  const handleCopyManualLink = async () => {
+    const roomSlug = await bookMatchedClass();
+    if (!roomSlug) return;
+    navigator.clipboard.writeText(
+      generateDemoMeetingUrl({
+        roomCode: roomSlug,
+        studentId: manualStudentId,
+        grade: manualGrade,
+        course: manualCourse,
+        language: manualLanguage,
+        ratio: manualRatio,
+        teacherName: matchedTeacher?.name || manualTeacher,
+      })
+    );
     setCopiedManualLink(true);
     setTimeout(() => setCopiedManualLink(false), 2500);
   };
@@ -136,23 +201,10 @@ Edge Delivery: Netflix Open Connect Mesh (<20ms latency SLA).`;
     setTimeout(() => setCopiedManualInvite(false), 2500);
   };
 
-  const handleLaunchManualRoom = () => {
-    demoClassService.createDemoLead({
-      studentName: manualStudentName,
-      parentName: manualParentName || "Parent",
-      parentEmail: manualParentEmail || "parent@21k.family",
-      gradeLevel: manualGrade,
-      country: manualCountry,
-      course: manualCourse,
-      preferredLanguage: manualLanguage,
-      meetingRatio: manualRatio,
-      assignedTeacherId: "tch-1",
-      assignedTeacherName: manualTeacher,
-      roomCode: manualRoomCode,
-      crmSource: "Website Booking",
-    });
-
-    setRoomId(manualRoomCode);
+  const handleLaunchManualRoom = async () => {
+    const roomSlug = await bookMatchedClass();
+    if (!roomSlug) return;
+    setRoomId(roomSlug);
     setActiveView("classroom");
     setIsScheduleModalOpen(false);
     startClass();
@@ -224,8 +276,8 @@ Security: Hardware-Accelerated AES-256-GCM`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/80 backdrop-blur-sm select-none">
-      <div className="w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-800 p-5 md:p-6 flex flex-col gap-4 shadow-2xl font-sans text-slate-200 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm select-none">
+      <div className="animate-sheetUp sm:animate-fadeIn w-full max-w-2xl rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 md:p-6 flex flex-col gap-4 shadow-2xl font-sans text-slate-200 max-h-[94dvh] sm:max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-[#FFBB00]" />
@@ -445,14 +497,30 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   </select>
                 </div>
 
-                {/* Assigned Teacher */}
+                {/* Class time (your local time) */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Assigned Teacher</label>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Class time (your local time)</label>
                   <input
-                    type="text"
-                    value={manualTeacher}
-                    onChange={(e) => setManualTeacher(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                    type="datetime-local"
+                    value={manualStartLocal}
+                    onChange={(e) => setManualStartLocal(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                  />
+                  <label className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
+                    <input type="checkbox" checked={allowInterpreter} onChange={(e) => setAllowInterpreter(e.target.checked)} className="accent-blue-500" />
+                    Allow AI interpreter if no teacher speaks this language
+                  </label>
+                </div>
+
+                {/* Teacher: matched automatically, staff may pick an eligible alternative */}
+                <div className="sm:col-span-2">
+                  <TeacherMatchPicker
+                    request={matchRequest}
+                    value={matchedTeacher}
+                    onChange={(t) => {
+                      setMatchedTeacher(t);
+                      if (t) setManualTeacher(t.name);
+                    }}
                   />
                 </div>
 
@@ -483,6 +551,10 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   {liveGeneratedUrl}
                 </div>
               </div>
+
+              {bookingError && (
+                <p className="text-xs text-rose-200 bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">{bookingError}</p>
+              )}
 
               {/* Actions Button Island */}
               <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 border-t border-slate-800">

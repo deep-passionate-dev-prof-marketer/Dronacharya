@@ -1,3 +1,4 @@
+import { subjectScore as tokenSubjectScore } from "./matching/teacherMatcher";
 export interface FacilitatorCandidate {
   id: string;
   name: string;
@@ -229,14 +230,14 @@ export function computeFacilitatorMatch(
   }
 
   // 3. Subject & Curriculum Expertise (Max 25 pts)
-  const hasDirectSubject = candidate.subjects.some((s) =>
-    s.toLowerCase().includes(req.targetSubject.toLowerCase())
-  );
+  // Token/synonym match (the old substring test missed e.g. "Physics" vs "Quantum Physics & Mechanics")
+  const subjectMatch = tokenSubjectScore(req.targetSubject, candidate.subjects);
+  const hasDirectSubject = subjectMatch.score >= 22;
   if (hasDirectSubject) {
     subjectScore += 20;
     matchReasons.push(`Expert in ${req.targetSubject}`);
-  } else {
-    // Cross-STEM applicability
+  } else if (subjectMatch.score > 0) {
+    // Related subject in the same family
     subjectScore += 8;
   }
   if (req.requiresExperiencedLead && candidate.yearsExperience >= 10) {
@@ -271,7 +272,12 @@ export function computeFacilitatorMatch(
     penalties += 35;
   }
 
-  const compositeScore = Math.max(0, Math.min(100, geoScore + languageScore + subjectScore + qualityScore + capacityScore - penalties));
+  // Hard rules: never recommend someone offline, unqualified, or unable to teach in the room's language
+  const blocked = candidate.status === "offline" || !speaksPrimary || subjectMatch.score === 0;
+  if (candidate.status === "offline") matchReasons.unshift("Excluded: offline");
+  if (!speaksPrimary) matchReasons.unshift(`Excluded: doesn't speak ${req.primaryLanguage}`);
+  if (subjectMatch.score === 0) matchReasons.unshift(`Excluded: not qualified for ${req.targetSubject}`);
+  const compositeScore = blocked ? 0 : Math.max(0, Math.min(100, geoScore + languageScore + subjectScore + qualityScore + capacityScore - penalties));
 
   return {
     candidate,
@@ -295,7 +301,7 @@ export function rankFacilitatorsForRoom(
 ): FacilitatorMatchResult[] {
   const results = pool.map((c) => computeFacilitatorMatch(c, req));
   results.sort((a, b) => b.compositeScore - a.compositeScore);
-  if (results.length > 0) {
+  if (results.length > 0 && results[0].compositeScore > 0) {
     results[0].isTopRecommendation = true;
   }
   return results;

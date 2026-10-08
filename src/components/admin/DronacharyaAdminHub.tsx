@@ -63,26 +63,26 @@ export const DronacharyaAdminHub: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#ECECEC] overflow-y-auto select-none">
+    <div className="flex-1 flex flex-col bg-[#070b14] overflow-y-auto select-none">
       {/* 21K School Dronacharya Admin Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-xs">
+      <div className="bg-slate-900/70 border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#E1EDFF] text-[#003872]">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-300">
               Campus Operations Engine
             </span>
             <span className="text-xs text-slate-400">·</span>
-            <span className="text-xs font-semibold text-[#003872]">
+            <span className="text-xs font-semibold text-blue-300">
               21K School Academic Automation
             </span>
           </div>
-          <h1 className="font-headline font-bold text-xl text-[#003872] mt-0.5">
+          <h1 className="font-headline font-bold text-xl text-blue-300 mt-0.5">
             Dronacharya Operations & Automation Console
           </h1>
         </div>
 
         {/* Navigation Sub-Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 bg-white/[0.06] p-1 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
           {[
             { id: "hierarchicalRooms", label: "21K Room Flows & Shortlinks", icon: Sparkles },
             { id: "flows", label: "Automation Flows", icon: Workflow },
@@ -100,7 +100,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                   isActive
                     ? "bg-[#003872] text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+                    : "text-slate-300 hover:text-white hover:bg-white/10"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -122,7 +122,7 @@ export const DronacharyaAdminHub: React.FC = () => {
       )}
 
       {failoverToast && (
-        <div className="bg-[#FFBB00] text-[#003872] px-6 py-2 text-xs font-bold flex items-center justify-between">
+        <div className="bg-[#FFBB00] text-blue-300 px-6 py-2 text-xs font-bold flex items-center justify-between">
           <span>Emergency substitute facilitator successfully reassigned. Student lobby notified.</span>
           <button onClick={() => setFailoverToast(false)} className="hover:opacity-80 p-0.5" aria-label="Close toast">
             <X className="w-3.5 h-3.5" />
@@ -143,15 +143,15 @@ export const DronacharyaAdminHub: React.FC = () => {
         {activeTab === "gradeRooms" && (
           <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
             {/* Quick Batch Generator Banner */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
               <div>
                 <span className="font-mono text-[10px] font-bold text-[#0082FF] uppercase">
                   BATCH AUTOMATION ENGINE
                 </span>
-                <h3 className="font-headline font-bold text-base text-[#003872] mt-0.5">
+                <h3 className="font-headline font-bold text-base text-blue-300 mt-0.5">
                   1-Click Grade-Wide Virtual Room Generation
                 </h3>
-                <p className="text-xs text-slate-500 font-sans mt-0.5">
+                <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Automatically generates isolated section rooms (A, B, C) with teacher allocation, timetable bindings, and student roster links.
                 </p>
               </div>
@@ -165,7 +165,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                       setRoomCreatedToast(true);
                       setTimeout(() => setRoomCreatedToast(false), 3000);
                     }}
-                    className="px-3 py-2 rounded-lg bg-[#E1EDFF] text-[#003872] hover:bg-[#003872] hover:text-white text-xs font-bold transition-colors"
+                    className="px-3 py-2 rounded-lg bg-blue-500/10 text-blue-300 hover:bg-[#003872] hover:text-white text-xs font-bold transition-colors"
                   >
                     + Grade {g} Batch
                   </button>
@@ -176,10 +176,10 @@ export const DronacharyaAdminHub: React.FC = () => {
             {/* Custom Single Room Form */}
             <form
               onSubmit={handleCreateGradeRoom}
-              className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-4 shadow-sm"
+              className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex flex-col gap-4 shadow-sm"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-headline font-bold text-sm text-[#003872]">
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <h3 className="font-headline font-bold text-sm text-blue-300">
                   Manual Course & Grade Room Provisioner
                 </h3>
                 <span className="text-xs text-slate-400">Instantly creates active WebRTC classroom</span>
@@ -187,11 +187,11 @@ export const DronacharyaAdminHub: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs font-sans">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Grade Level</label>
+                  <label className="block text-slate-200 font-semibold mb-1">Grade Level</label>
                   <select
                     value={selectedGrade}
                     onChange={(e) => setSelectedGrade(parseInt(e.target.value, 10))}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                    className="w-full border border-white/15 rounded-lg p-2.5 text-slate-100"
                   >
                     {[6, 7, 8, 9, 10, 11, 12].map((g) => (
                       <option key={g} value={g}>
@@ -202,11 +202,11 @@ export const DronacharyaAdminHub: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Section</label>
+                  <label className="block text-slate-200 font-semibold mb-1">Section</label>
                   <select
                     value={selectedSection}
                     onChange={(e) => setSelectedSection(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                    className="w-full border border-white/15 rounded-lg p-2.5 text-slate-100"
                   >
                     <option value="A">Section A</option>
                     <option value="B">Section B</option>
@@ -215,22 +215,22 @@ export const DronacharyaAdminHub: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Course Title</label>
+                  <label className="block text-slate-200 font-semibold mb-1">Course Title</label>
                   <input
                     type="text"
                     value={selectedCourse}
                     onChange={(e) => setSelectedCourse(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2 text-slate-800"
+                    className="w-full border border-white/15 rounded-lg p-2 text-slate-100"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Assigned Facilitator</label>
+                  <label className="block text-slate-200 font-semibold mb-1">Assigned Facilitator</label>
                   <select
                     value={selectedTeacherId}
                     onChange={(e) => setSelectedTeacherId(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                    className="w-full border border-white/15 rounded-lg p-2.5 text-slate-100"
                   >
                     {teachers.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -241,7 +241,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2 border-t border-slate-100">
+              <div className="flex justify-end pt-2 border-t border-white/5">
                 <button
                   type="submit"
                   className="px-5 py-2 rounded-lg bg-[#003872] text-white text-xs font-bold hover:bg-[#00264d] transition-colors shadow-sm"
@@ -252,18 +252,18 @@ export const DronacharyaAdminHub: React.FC = () => {
             </form>
 
             {/* Active Grade Rooms Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-headline font-bold text-sm text-[#003872]">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 overflow-hidden shadow-sm">
+              <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                <h3 className="font-headline font-bold text-sm text-blue-300">
                   Provisioned Campus Virtual Rooms ({gradeRooms.length})
                 </h3>
-                <span className="text-xs font-mono text-emerald-700">AES-256 E2EE Active</span>
+                <span className="text-xs font-mono text-emerald-300">AES-256 E2EE Active</span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 font-mono text-[11px] border-b border-slate-200">
+                    <tr className="bg-white/[0.03] text-slate-400 font-mono text-[11px] border-b border-white/10">
                       <th className="p-3 pl-4">Grade & Section</th>
                       <th className="p-3">Course Curriculum</th>
                       <th className="p-3">Assigned Facilitator</th>
@@ -273,21 +273,21 @@ export const DronacharyaAdminHub: React.FC = () => {
                       <th className="p-3 pr-4 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-sans">
+                  <tbody className="divide-y divide-white/5 font-sans">
                     {gradeRooms.map((room) => (
-                      <tr key={room.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-3 pl-4 font-bold text-[#003872]">
+                      <tr key={room.id} className="hover:bg-white/[0.05] transition-colors">
+                        <td className="p-3 pl-4 font-bold text-blue-300">
                           Grade {room.gradeLevel}-{room.section}
                         </td>
-                        <td className="p-3 font-semibold text-slate-800">{room.courseName}</td>
-                        <td className="p-3 text-slate-600">{room.teacherName}</td>
-                        <td className="p-3 font-mono text-slate-500">{room.studentCount} enrolled</td>
+                        <td className="p-3 font-semibold text-slate-100">{room.courseName}</td>
+                        <td className="p-3 text-slate-300">{room.teacherName}</td>
+                        <td className="p-3 font-mono text-slate-400">{room.studentCount} enrolled</td>
                         <td className="p-3 font-mono text-[#0082FF]">{room.roomCode}</td>
-                        <td className="p-3 font-mono text-slate-500">{room.scheduledTime}</td>
+                        <td className="p-3 font-mono text-slate-400">{room.scheduledTime}</td>
                         <td className="p-3 pr-4 text-right">
                           <button
                             onClick={() => setActiveView("classroom")}
-                            className="px-2.5 py-1 rounded-md bg-[#003872]/10 text-[#003872] hover:bg-[#003872] hover:text-white text-xs font-bold transition-colors inline-flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-md bg-[#003872]/10 text-blue-300 hover:bg-[#003872] hover:text-white text-xs font-bold transition-colors inline-flex items-center gap-1"
                           >
                             <span>Enter Stage</span>
                             <ExternalLink className="w-3 h-3" />
@@ -306,16 +306,16 @@ export const DronacharyaAdminHub: React.FC = () => {
         {activeTab === "teachers" && (
           <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
             {/* Emergency Substitute Failover Control */}
-            <div className="bg-gradient-to-r from-rose-50 to-amber-50 rounded-2xl border border-rose-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="bg-gradient-to-r from-rose-500/10 to-amber-500/10 rounded-2xl border border-rose-500/30 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-600/10 text-rose-600 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-rose-600/10 text-rose-300 flex items-center justify-center shrink-0">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-headline font-bold text-sm text-slate-900">
+                  <h3 className="font-headline font-bold text-sm text-slate-100">
                     Emergency Substitute Facilitator Failover
                   </h3>
-                  <p className="text-xs text-slate-600 font-sans mt-0.5">
+                  <p className="text-xs text-slate-300 font-sans mt-0.5">
                     If an instructor is disconnected or unverified, this hard operational rule instantly transfers classroom control to an available substitute facilitator.
                   </p>
                 </div>
@@ -325,7 +325,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                 <select
                   value={failoverTargetRoom}
                   onChange={(e) => setFailoverTargetRoom(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-800"
+                  className="bg-slate-900/70 border border-white/15 rounded-lg p-2 text-xs text-slate-100"
                 >
                   {gradeRooms.map((r) => (
                     <option key={r.id} value={r.roomCode}>
@@ -349,7 +349,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                 return (
                   <div
                     key={teacher.id}
-                    className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between gap-4 shadow-sm"
+                    className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex flex-col justify-between gap-4 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -360,7 +360,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                           {teacher.name.charAt(0)}
                         </div>
                         <div>
-                          <h4 className="font-headline font-bold text-sm text-[#003872]">
+                          <h4 className="font-headline font-bold text-sm text-blue-300">
                             {teacher.name}
                           </h4>
                           <span className="text-xs text-slate-400 font-mono">{teacher.email}</span>
@@ -370,35 +370,35 @@ export const DronacharyaAdminHub: React.FC = () => {
                       <span
                         className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded ${
                           teacher.status === "in_class"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-slate-600"
+                            ? "bg-emerald-500/10 text-emerald-300"
+                            : "bg-white/[0.06] text-slate-300"
                         }`}
                       >
                         {teacher.status.replace("_", " ")}
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 text-xs font-sans">
-                      <div className="flex items-center justify-between text-slate-500">
+                    <div className="flex flex-col gap-2 pt-2 border-t border-white/5 text-xs font-sans">
+                      <div className="flex items-center justify-between text-slate-400">
                         <span>Certified Subjects:</span>
-                        <span className="font-semibold text-slate-800">{teacher.subjects.join(", ")}</span>
+                        <span className="font-semibold text-slate-100">{teacher.subjects.join(", ")}</span>
                       </div>
-                      <div className="flex items-center justify-between text-slate-500">
+                      <div className="flex items-center justify-between text-slate-400">
                         <span>Grades Assigned:</span>
-                        <span className="font-semibold text-slate-800">
+                        <span className="font-semibold text-slate-100">
                           Grades {teacher.grades.join(", ")}
                         </span>
                       </div>
 
                       {/* Workload Progress Bar */}
                       <div className="flex flex-col gap-1 mt-1">
-                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                        <div className="flex justify-between text-[11px] text-slate-400 font-mono">
                           <span>Teaching Capacity</span>
                           <span>
                             {teacher.weeklyHours} / {teacher.maxHours} hrs/wk ({workloadPercent}%)
                           </span>
                         </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
                           <div
                             className={`h-full ${
                               workloadPercent > 80 ? "bg-amber-500" : "bg-[#003872]"
@@ -418,12 +418,12 @@ export const DronacharyaAdminHub: React.FC = () => {
         {/* Tab 4: Cohorts & Student Batches */}
         {activeTab === "cohorts" && (
           <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between shadow-sm">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex items-center justify-between shadow-sm">
               <div>
-                <h3 className="font-headline font-bold text-sm text-[#003872]">
+                <h3 className="font-headline font-bold text-sm text-blue-300">
                   Student Cohorts & Batch Allocation
                 </h3>
-                <p className="text-xs text-slate-500 font-sans mt-0.5">
+                <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Pre-configured groups of learners mapped by grade, course specialization, and home facilitator.
                 </p>
               </div>
@@ -440,23 +440,23 @@ export const DronacharyaAdminHub: React.FC = () => {
               {cohorts.map((cohort) => (
                 <div
                   key={cohort.id}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between gap-4 shadow-sm"
+                  className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex flex-col justify-between gap-4 shadow-sm"
                 >
                   <div>
                     <span className="text-[10px] font-mono font-bold text-[#0082FF] uppercase">
                       GRADE {cohort.gradeLevel} SECTION {cohort.section}
                     </span>
-                    <h4 className="font-headline font-bold text-sm text-[#003872] mt-0.5">
+                    <h4 className="font-headline font-bold text-sm text-blue-300 mt-0.5">
                       {cohort.name}
                     </h4>
-                    <p className="text-xs text-slate-500 font-sans mt-2">
+                    <p className="text-xs text-slate-400 font-sans mt-2">
                       Facilitator: <strong>{cohort.primaryTeacher}</strong>
                     </p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {cohort.courseTracks.map((t, i) => (
                         <span
                           key={i}
-                          className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold"
+                          className="px-2 py-0.5 rounded bg-white/[0.06] text-slate-200 text-[10px] font-semibold"
                         >
                           {t}
                         </span>
@@ -464,11 +464,11 @@ export const DronacharyaAdminHub: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-mono">
                     <span>{cohort.studentCount} Active Learners</span>
                     <button
                       onClick={() => setActiveView("attendance")}
-                      className="text-[#003872] font-bold hover:underline"
+                      className="text-blue-300 font-bold hover:underline"
                     >
                       View Roster →
                     </button>
@@ -482,12 +482,12 @@ export const DronacharyaAdminHub: React.FC = () => {
         {/* Tab 5: Live Execution Audit Logs */}
         {activeTab === "auditLogs" && (
           <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between shadow-sm">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex items-center justify-between shadow-sm">
               <div>
-                <h3 className="font-headline font-bold text-sm text-[#003872]">
+                <h3 className="font-headline font-bold text-sm text-blue-300">
                   Dronacharya Automated Operations Audit Log
                 </h3>
-                <p className="text-xs text-slate-500 font-sans mt-0.5">
+                <p className="text-xs text-slate-400 font-sans mt-0.5">
                   Complete real-time telemetry recording room generation triggers, substitute routing, and compliance events.
                 </p>
               </div>
@@ -497,18 +497,18 @@ export const DronacharyaAdminHub: React.FC = () => {
               </span>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="divide-y divide-slate-100">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 overflow-hidden shadow-sm">
+              <div className="divide-y divide-white/5">
                 {executionLogs.map((log) => (
                   <div key={log.id} className="p-4 flex items-start justify-between gap-4 text-xs font-sans">
                     <div className="flex items-start gap-3">
                       <div
                         className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
                           log.status === "success"
-                            ? "bg-emerald-100 text-emerald-800"
+                            ? "bg-emerald-500/10 text-emerald-300"
                             : log.status === "warning"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-rose-100 text-rose-800"
+                            ? "bg-amber-500/10 text-amber-300"
+                            : "bg-rose-500/10 text-rose-300"
                         }`}
                       >
                         {log.status === "success" ? (
@@ -518,8 +518,8 @@ export const DronacharyaAdminHub: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <div className="font-bold text-[#003872]">{log.ruleName}</div>
-                        <div className="text-slate-700 mt-0.5">{log.actionTaken}</div>
+                        <div className="font-bold text-blue-300">{log.ruleName}</div>
+                        <div className="text-slate-200 mt-0.5">{log.actionTaken}</div>
                         <div className="text-slate-400 text-[11px] font-mono mt-1">
                           Trigger: {log.triggerEvent} · {log.details}
                         </div>

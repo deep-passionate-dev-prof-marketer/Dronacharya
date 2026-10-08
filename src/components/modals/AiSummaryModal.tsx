@@ -62,8 +62,8 @@ export const AiSummaryModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none">
-      <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl bg-slate-900 border border-indigo-500/40 p-6 flex flex-col gap-4 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm select-none">
+      <div className="animate-sheetUp sm:animate-fadeIn w-full max-w-2xl max-h-[94dvh] sm:max-h-[90dvh] rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-indigo-500/40 p-6 flex flex-col gap-4 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
           <div className="flex items-center gap-2">

@@ -50,14 +50,14 @@ export const OfflineRepository: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
       {/* Top Bar for Materials View */}
-      <div className="h-14 border-b border-slate-800 bg-slate-900/90 px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="min-h-14 py-2 border-b border-slate-800 bg-slate-900/90 px-3 sm:px-6 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
             <HardDrive className="w-4 h-4" />
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-white">STEM Cloud Repository & Offline Cache</h1>
-            <p className="text-[11px] text-slate-400">
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold text-white truncate">STEM Cloud Repository & Offline Cache</h1>
+            <p className="hidden sm:block text-[11px] text-slate-400">
               Synchronized course slides, laboratory notebooks, and encrypted offline study decks
             </p>
           </div>

@@ -64,10 +64,10 @@ export const CollaborativeDock: React.FC = () => {
 
   if (isCollapsed) {
     return (
-      <div className="border-l border-slate-200 bg-slate-50 flex flex-col items-center py-2 px-1 z-20 shrink-0 select-none">
+      <div className="border-l border-white/10 bg-white/[0.03] flex flex-col items-center py-2 px-1 z-20 shrink-0 select-none">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="p-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:text-[#003872] shadow-xs mb-3 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg bg-slate-900/70 border border-white/15 text-slate-200 hover:text-blue-300 shadow-xs mb-3 transition-colors cursor-pointer"
           title="Expand Collaborative Dock"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -86,13 +86,13 @@ export const CollaborativeDock: React.FC = () => {
                 className={`p-2 rounded-lg transition-colors cursor-pointer relative ${
                   isActive
                     ? "bg-[#003872] text-white shadow-xs"
-                    : "text-slate-600 hover:text-[#003872] hover:bg-slate-200"
+                    : "text-slate-300 hover:text-blue-300 hover:bg-white/10"
                 }`}
                 title={tab.label}
               >
                 <Icon className="w-4 h-4" />
                 {tab.badge && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FFBB00] text-[#003872] text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FFBB00] text-blue-300 text-[9px] font-bold flex items-center justify-center">
                     {tab.badge}
                   </span>
                 )}
@@ -105,9 +105,9 @@ export const CollaborativeDock: React.FC = () => {
   }
 
   return (
-    <div className="w-full flex-1 min-h-0 border-l border-slate-200 bg-white flex flex-col select-none overflow-hidden font-sans">
+    <div className="w-full flex-1 min-h-0 border-l border-white/10 bg-slate-900/70 flex flex-col select-none overflow-hidden font-sans">
       {/* Dock Navigation Tab Bar (21K School Light Style) */}
-      <div className="h-12 border-b border-slate-200 bg-slate-50 px-2 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar shrink-0">
+      <div className="h-12 border-b border-white/10 bg-white/[0.03] px-2 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar shrink-0">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -121,15 +121,15 @@ export const CollaborativeDock: React.FC = () => {
                   isActive
                     ? "bg-[#003872] text-white shadow-xs"
                     : tab.highlight
-                    ? "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
-                    : "text-slate-600 hover:text-[#003872] hover:bg-slate-200/60"
+                    ? "bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-200"
+                    : "text-slate-300 hover:text-blue-300 hover:bg-white/10"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${tab.highlight && !isActive ? "text-amber-700" : ""}`} />
+                <Icon className={`w-3.5 h-3.5 ${tab.highlight && !isActive ? "text-amber-300" : ""}`} />
                 <span>{tab.label}</span>
 
                 {tab.badge && (
-                  <span className="w-4 h-4 rounded-full bg-[#FFBB00] text-[#003872] text-[10px] font-bold flex items-center justify-center -ml-0.5 shadow-xs">
+                  <span className="w-4 h-4 rounded-full bg-[#FFBB00] text-blue-300 text-[10px] font-bold flex items-center justify-center -ml-0.5 shadow-xs">
                     {tab.badge}
                   </span>
                 )}
@@ -141,7 +141,7 @@ export const CollaborativeDock: React.FC = () => {
         {/* Collapse toggle */}
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 shrink-0 transition-colors cursor-pointer"
+          className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 shrink-0 transition-colors cursor-pointer"
           title="Minimize Dock"
         >
           <ChevronRight className="w-4 h-4" />
@@ -149,7 +149,7 @@ export const CollaborativeDock: React.FC = () => {
       </div>
 
       {/* Render Active Tool */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-white">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-900/70">
         {activeDockTab === "whiteboard" && <WhiteboardCanvas />}
         {activeDockTab === "stem3d" && <StemArVisualizer />}
         {activeDockTab === "notes" && <DeckAndNotes />}

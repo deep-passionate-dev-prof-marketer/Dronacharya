@@ -11,6 +11,8 @@
 
 import { RoomRatio } from "../types";
 import { buildMeetingUrl } from "./domainService";
+import { deviceAccessApi } from "./deviceAccessClient";
+import { canonicalTeacherId } from "./matching/facultyRoster";
 
 export interface DemoBookingLead {
   id: string;
@@ -103,7 +105,7 @@ export const INITIAL_DEMO_LEADS: DemoBookingLead[] = [
     meetingRatio: "1:4",
     scheduledTime: "10:30 AM UTC",
     scheduledTimestamp: Date.now() + 180 * 1000, // 3 mins from now
-    assignedTeacherId: "tch-1",
+    assignedTeacherId: "tch-vance",
     assignedTeacherName: "Dr. Evelyn Vance",
     roomCode: "dronacharya-gr10-phy",
     meetingUrl: "",
@@ -127,7 +129,7 @@ export const INITIAL_DEMO_LEADS: DemoBookingLead[] = [
     meetingRatio: "1:4",
     scheduledTime: "10:30 AM UTC",
     scheduledTimestamp: Date.now() + 180 * 1000,
-    assignedTeacherId: "tch-1",
+    assignedTeacherId: "tch-vance",
     assignedTeacherName: "Dr. Evelyn Vance",
     roomCode: "dronacharya-gr10-phy",
     meetingUrl: "",
@@ -151,7 +153,7 @@ export const INITIAL_DEMO_LEADS: DemoBookingLead[] = [
     meetingRatio: "1:1",
     scheduledTime: "11:15 AM UTC",
     scheduledTimestamp: Date.now() + 2700 * 1000,
-    assignedTeacherId: "tch-2",
+    assignedTeacherId: "tch-sharma",
     assignedTeacherName: "Prof. Rajesh Sengupta",
     roomCode: "21k-gr8-secA-rob",
     meetingUrl: "",
@@ -184,7 +186,8 @@ class DemoClassService {
   }
 
   public getTeacherSchedule(teacherId: string): DemoBookingLead[] {
-    return this.leads.filter((l) => l.assignedTeacherId === teacherId);
+    const id = canonicalTeacherId(teacherId);
+    return this.leads.filter((l) => canonicalTeacherId(l.assignedTeacherId) === id);
   }
 
   public getLeadByStudentId(studentId: string): DemoBookingLead | undefined {
@@ -257,6 +260,17 @@ class DemoClassService {
     };
 
     this.leads.unshift(newLead);
+
+    // Demo rooms are locked to laptop/desktop by the "demo" auto rule; register the room so
+    // the server enforces it and the audit log records who provisioned the link.
+    deviceAccessApi
+      .setRoomPolicy({
+        roomSlug: params.roomCode,
+        context: { sessionType: "demo", gradeLevel: params.gradeLevel },
+        actor: { id: params.assignedTeacherId, name: params.assignedTeacherName, role: "instructor" },
+      })
+      .catch(() => {});
+
     return newLead;
   }
 }

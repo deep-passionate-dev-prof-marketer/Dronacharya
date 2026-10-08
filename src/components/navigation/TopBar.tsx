@@ -63,6 +63,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
     pitchRooms,
     activeProductionMeeting,
     leaveProductionMeeting,
+    setIsAnalyticsConsentOpen,
   } = useClassroom();
 
   const [copiedLink, setCopiedLink] = useState(false);
@@ -118,7 +119,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
     { label: "CRM Webhook Auto-Room Generator", category: "Ops", roles: ["sales_rep", "admin"], action: () => setActiveView("crm"), icon: Layers },
     { label: "Google LLM Notebook Studio", category: "AI", roles: ["instructor", "student", "admin"], action: () => setActiveView("notebook"), icon: Sparkles },
     { label: "Class Attendance", category: "View", roles: ["instructor", "auditor", "admin"], action: () => setActiveView("attendance"), icon: Calendar },
-    { label: "Attention Analytics", category: "View", roles: ["instructor", "auditor", "admin"], action: () => setActiveView("analytics"), icon: Sparkles },
+    { label: "Engagement Analytics", category: "Audit", roles: ["auditor", "admin"], action: () => setActiveView("analytics"), icon: Sparkles },
     { label: "Course Materials Library", category: "View", roles: ["instructor", "student", "admin"], action: () => setActiveView("materials"), icon: BookOpen },
     { label: "Automation & Operations Hub", category: "Ops", roles: ["admin"], action: () => setActiveView("admin"), icon: Layers },
     { label: "Device Access Requests & Audit Log", category: "Audit", roles: ["auditor", "admin", "instructor"], action: () => setActiveView("device_audit"), icon: ShieldCheck },
@@ -160,7 +161,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
         className="hover:opacity-90 transition-opacity flex items-center min-w-0 shrink-0"
         aria-label="Dronacharya home"
       >
-        <SchoolLogo size="sm" showTagline={false} systemName="Dronacharya" theme="dark" badgeFrom="xl" />
+        <SchoolLogo size="sm" showTagline={false} systemName="Dronacharya" theme="dark" badgeFrom="xl" compactOnTiny />
       </a>
 
       <div className="hidden xl:flex items-center gap-2 text-xs text-slate-400 pl-3 ml-1 border-l border-white/10 min-w-0">
@@ -294,6 +295,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
                       <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${isOfflineMode ? "translate-x-4" : ""}`} />
                     </span>
                   </button>
+                  {(currentRole === "student" || currentRole === "instructor" || currentRole === "sales_rep") && (
+                    <button className="menu-item" onClick={menuAction(() => setIsAnalyticsConsentOpen(true))}>
+                      <ShieldCheck className="w-4 h-4 text-violet-300" /> Engagement analytics choice
+                    </button>
+                  )}
                   <button className="menu-item" onClick={menuAction(() => setIsDocsModalOpen(true))}>
                     <BookOpen className="w-4 h-4 text-blue-400" /> Platform docs
                   </button>

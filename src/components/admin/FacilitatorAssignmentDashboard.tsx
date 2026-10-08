@@ -131,26 +131,26 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 w-full h-full overflow-y-auto bg-[#F4F6F9] text-slate-800 font-sans p-4 md:p-6">
+    <div className="flex-1 w-full h-full overflow-y-auto bg-[#070b14] text-slate-100 font-sans p-4 md:p-6">
       <div className="max-w-6xl mx-auto flex flex-col gap-4 lg:gap-6">
         {/* Header Banner */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#003872] flex items-center justify-center text-white shadow-xs">
               <UserCheck className="w-5 h-5 text-[#FFBB00]" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-[#003872]">
+              <h1 className="text-lg font-bold text-blue-300">
                 Multi-Criteria Facilitator Assignment & Failover Engine
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 Automated multi-factor matching across Country, State, City, Languages, Subject Expertise, and Quality SLA with instant emergency substitute failover.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>SLA Target: &lt;3.0s Matching</span>
             </span>
@@ -159,19 +159,19 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
 
         {/* Emergency Failover Incident Banner (if triggered) */}
         {failoverLog && (
-          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs animate-in fade-in">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-sm text-amber-950">
                     Emergency Substitute Auto-Dispatched
                   </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-200 text-amber-900">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-200 text-amber-300">
                     {failoverLog.timeToMatchMs}ms Execution
                   </span>
                 </div>
-                <p className="text-xs text-amber-800 mt-0.5">
+                <p className="text-xs text-amber-300 mt-0.5">
                   Replaced <strong className="text-amber-950">{failoverLog.originalTeacher}</strong> with certified substitute <strong className="text-amber-950">{failoverLog.substituteTeacher}</strong>. Room handed over with zero student disruption.
                 </p>
               </div>
@@ -179,7 +179,7 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
 
             <button
               onClick={() => setFailoverLog(null)}
-              className="text-xs font-bold text-amber-900 hover:text-amber-950 px-3 py-1.5 rounded-lg bg-amber-200/80 hover:bg-amber-200 transition-colors cursor-pointer shrink-0"
+              className="text-xs font-bold text-amber-300 hover:text-amber-950 px-3 py-1.5 rounded-lg bg-amber-200/80 hover:bg-amber-200 transition-colors cursor-pointer shrink-0"
             >
               Dismiss Incident
             </button>
@@ -189,34 +189,34 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
         {/* Main Grid: Room Criteria vs Candidate Ranked Matches */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* COLUMN 1: ROOM ASSIGNMENT REQUIREMENTS */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col gap-4">
-            <h2 className="text-sm font-bold text-[#003872] flex items-center gap-1.5 border-b border-slate-100 pb-2">
+          <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-4">
+            <h2 className="text-sm font-bold text-blue-300 flex items-center gap-1.5 border-b border-white/5 pb-2">
               <Sliders className="w-4 h-4 text-[#0082FF]" />
               <span>Room Criteria & Target Parameters</span>
             </h2>
 
             <div className="flex flex-col gap-3 text-xs">
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Target Room Code</label>
+                <label className="font-semibold text-slate-200 block mb-1">Target Room Code</label>
                 <input
                   type="text"
                   value={selectedRequirement.roomCode}
                   onChange={(e) =>
                     setSelectedRequirement((prev) => ({ ...prev, roomCode: e.target.value }))
                   }
-                  className="w-full font-mono text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#0082FF]"
+                  className="w-full font-mono text-xs p-2 rounded-lg border border-white/10 bg-white/[0.03] focus:outline-none focus:ring-1 focus:ring-[#0082FF]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Country Server</label>
+                  <label className="font-semibold text-slate-200 block mb-1">Country Server</label>
                   <select
                     value={selectedRequirement.countryCode}
                     onChange={(e) =>
                       setSelectedRequirement((prev) => ({ ...prev, countryCode: e.target.value }))
                     }
-                    className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none cursor-pointer"
+                    className="w-full text-xs p-2 rounded-lg border border-white/10 bg-white/[0.03] focus:outline-none cursor-pointer"
                   >
                     <option value="in">India (IN)</option>
                     <option value="ae">UAE (AE)</option>
@@ -227,7 +227,7 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Grade Level</label>
+                  <label className="font-semibold text-slate-200 block mb-1">Grade Level</label>
                   <select
                     value={selectedRequirement.gradeLevel}
                     onChange={(e) =>
@@ -236,7 +236,7 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                         gradeLevel: Number(e.target.value),
                       }))
                     }
-                    className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none cursor-pointer"
+                    className="w-full text-xs p-2 rounded-lg border border-white/10 bg-white/[0.03] focus:outline-none cursor-pointer"
                   >
                     {[6, 7, 8, 9, 10, 11, 12].map((g) => (
                       <option key={g} value={g}>
@@ -248,13 +248,13 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Subject Expertise</label>
+                <label className="font-semibold text-slate-200 block mb-1">Subject Expertise</label>
                 <select
                   value={selectedRequirement.targetSubject}
                   onChange={(e) =>
                     setSelectedRequirement((prev) => ({ ...prev, targetSubject: e.target.value }))
                   }
-                  className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none cursor-pointer"
+                  className="w-full text-xs p-2 rounded-lg border border-white/10 bg-white/[0.03] focus:outline-none cursor-pointer"
                 >
                   <option value="Quantum Physics">Quantum Physics & Advanced Mechanics</option>
                   <option value="Robotics">Robotics & Autonomous Hardware</option>
@@ -266,13 +266,13 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Primary Language</label>
+                  <label className="font-semibold text-slate-200 block mb-1">Primary Language</label>
                   <select
                     value={selectedRequirement.primaryLanguage}
                     onChange={(e) =>
                       setSelectedRequirement((prev) => ({ ...prev, primaryLanguage: e.target.value }))
                     }
-                    className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none cursor-pointer"
+                    className="w-full text-xs p-2 rounded-lg border border-white/10 bg-white/[0.03] focus:outline-none cursor-pointer"
                   >
                     <option value="English">English</option>
                     <option value="Hindi">Hindi</option>
@@ -283,13 +283,13 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Secondary Language</label>
+                  <label className="font-semibold text-slate-200 block mb-1">Secondary Language</label>
                   <select
                     value={selectedRequirement.secondaryLanguage || "Hindi"}
                     onChange={(e) =>
                       setSelectedRequirement((prev) => ({ ...prev, secondaryLanguage: e.target.value }))
                     }
-                    className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none cursor-pointer"
+                    className="w-full text-xs p-2 rounded-lg border border-white/10 bg-white/[0.03] focus:outline-none cursor-pointer"
                   >
                     <option value="Hindi">Hindi</option>
                     <option value="English">English</option>
@@ -301,8 +301,8 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
               </div>
 
               {/* Current Active Assignment Box */}
-              <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+              <div className="mt-2 p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col gap-2">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-bold">
                   Currently Assigned Lead
                 </span>
                 {assignedTeacher ? (
@@ -315,13 +315,13 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                         {assignedTeacher.name.charAt(0)}
                       </div>
                       <div>
-                        <span className="font-bold text-slate-900 block">{assignedTeacher.name}</span>
-                        <span className="text-[11px] text-slate-500">
+                        <span className="font-bold text-slate-100 block">{assignedTeacher.name}</span>
+                        <span className="text-[11px] text-slate-400">
                           {assignedTeacher.city}, {assignedTeacher.country} · SLA {assignedTeacher.qualityScore}%
                         </span>
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300">
                       Active
                     </span>
                   </div>
@@ -343,13 +343,13 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
           </div>
 
           {/* COLUMN 2 & 3: RANKED MATCHES & SCORING BREAKDOWN */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h2 className="text-sm font-bold text-[#003872] flex items-center gap-1.5">
+          <div className="lg:col-span-2 bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <h2 className="text-sm font-bold text-blue-300 flex items-center gap-1.5">
                 <Award className="w-4 h-4 text-[#FFBB00]" />
                 <span>Ranked Facilitator Candidates (Weighted Algorithm)</span>
               </h2>
-              <span className="text-xs text-slate-500 font-mono">
+              <span className="text-xs text-slate-400 font-mono">
                 {matchResults.length} Qualified Teachers
               </span>
             </div>
@@ -364,8 +364,8 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                     key={c.id}
                     className={`rounded-xl border p-4 flex flex-col gap-3 transition-all ${
                       isCurrent
-                        ? "bg-sky-50/50 border-[#0082FF] ring-1 ring-[#0082FF]/30"
-                        : "bg-white border-slate-200 hover:border-slate-300"
+                        ? "bg-sky-500/10 border-[#0082FF] ring-1 ring-[#0082FF]/30"
+                        : "bg-slate-900/70 border-white/10 hover:border-white/20"
                     }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -378,19 +378,19 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-sm text-slate-900">{c.name}</h3>
+                            <h3 className="font-bold text-sm text-slate-100">{c.name}</h3>
                             {idx === 0 && (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+                              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 text-[10px] font-bold">
                                 #1 Top Match
                               </span>
                             )}
                             {c.isSubstituteEligible && (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[10px] font-bold">
                                 Sub Eligible
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-400">
                             {c.city}, {c.state}, {c.country} • {c.yearsExperience} yrs experience
                           </p>
                         </div>
@@ -400,7 +400,7 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <span className="text-xs text-slate-400 font-medium block">Match Score</span>
-                          <span className="text-lg font-extrabold text-[#003872] font-mono">
+                          <span className="text-lg font-extrabold text-blue-300 font-mono">
                             {result.compositeScore}%
                           </span>
                         </div>
@@ -420,26 +420,26 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                     </div>
 
                     {/* Score Breakdown Pills */}
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] pt-2 border-t border-slate-100 font-mono">
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100 text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] pt-2 border-t border-white/5 font-mono">
+                      <div className="bg-white/[0.03] p-1.5 rounded-lg border border-white/5 text-center">
                         <span className="text-slate-400 block text-[10px]">Geo Match</span>
-                        <span className="font-bold text-slate-700">{result.scoreBreakdown.geoScore}/25 pts</span>
+                        <span className="font-bold text-slate-200">{result.scoreBreakdown.geoScore}/25 pts</span>
                       </div>
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100 text-center">
+                      <div className="bg-white/[0.03] p-1.5 rounded-lg border border-white/5 text-center">
                         <span className="text-slate-400 block text-[10px]">Language</span>
-                        <span className="font-bold text-slate-700">{result.scoreBreakdown.languageScore}/25 pts</span>
+                        <span className="font-bold text-slate-200">{result.scoreBreakdown.languageScore}/25 pts</span>
                       </div>
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100 text-center">
+                      <div className="bg-white/[0.03] p-1.5 rounded-lg border border-white/5 text-center">
                         <span className="text-slate-400 block text-[10px]">Subject</span>
-                        <span className="font-bold text-slate-700">{result.scoreBreakdown.subjectScore}/25 pts</span>
+                        <span className="font-bold text-slate-200">{result.scoreBreakdown.subjectScore}/25 pts</span>
                       </div>
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100 text-center">
+                      <div className="bg-white/[0.03] p-1.5 rounded-lg border border-white/5 text-center">
                         <span className="text-slate-400 block text-[10px]">Quality SLA</span>
-                        <span className="font-bold text-slate-700">{result.scoreBreakdown.qualityScore}/15 pts</span>
+                        <span className="font-bold text-slate-200">{result.scoreBreakdown.qualityScore}/15 pts</span>
                       </div>
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100 text-center">
+                      <div className="bg-white/[0.03] p-1.5 rounded-lg border border-white/5 text-center">
                         <span className="text-slate-400 block text-[10px]">Capacity</span>
-                        <span className="font-bold text-slate-700">{result.scoreBreakdown.capacityScore}/10 pts</span>
+                        <span className="font-bold text-slate-200">{result.scoreBreakdown.capacityScore}/10 pts</span>
                       </div>
                     </div>
 
@@ -448,9 +448,9 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                       {result.matchReasons.map((reason, rIdx) => (
                         <span
                           key={rIdx}
-                          className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] inline-flex items-center gap-1"
+                          className="px-2 py-0.5 rounded-md bg-white/[0.06] text-slate-300 text-[11px] inline-flex items-center gap-1"
                         >
-                          <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <Check className="w-3 h-3 text-emerald-300 shrink-0" />
                           <span>{reason}</span>
                         </span>
                       ))}

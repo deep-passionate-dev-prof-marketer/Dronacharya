@@ -3,7 +3,10 @@ import fs from "fs";
 import path from "path";
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { setupDeviceAccessRoutes, upsertRoomPolicy } from "./deviceAccessHub";
+import { getRoomPolicy, setupDeviceAccessRoutes, upsertRoomPolicy } from "./deviceAccessHub";
+import { setupLivekitRoutes } from "./livekitHub";
+import { setupMatchingRoutes } from "./matchingHub";
+import { setupEngagementRoutes } from "./engagementHub";
 
 export interface ConnectedClient {
   ws: WebSocket;
@@ -217,6 +220,9 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
 
   // Device access policies, exception requests & audit trail
   setupDeviceAccessRoutes(app, broadcast);
+  setupLivekitRoutes(app);
+  setupMatchingRoutes(app);
+  setupEngagementRoutes(app);
 
   // Active WebSocket Connection Listener
   wss.on("connection", (ws: WebSocket) => {
@@ -378,6 +384,15 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
               type: "CHAT_BROADCAST",
               message,
             });
+            break;
+          }
+
+          // Peer-to-peer fallback: classroom data messages and WebRTC signaling relayed to the room
+          case "ROOM_DATA":
+          case "MESH_SIGNAL": {
+            const roomId = String(payload?.roomId || currentClient?.roomId || "");
+            if (!roomId) return;
+            broadcastToRoom(roomId, { type, ...payload }, ws);
             break;
           }
 
@@ -986,7 +1001,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
 
     const roleCredentials: Record<string, any> = {
       instructor: {
-        id: "host-1",
+        id: "tch-vance",
         name: username || "Dr. Evelyn Vance",
         email: email || "e.vance@faculty.21k.school",
         role: "instructor",
@@ -1184,6 +1199,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       ...item,
       fullUrl: `${origin}/room/${item.slug}`,
       shortUrl: `${origin}/s/${item.shortCode}`,
+      devicePolicy: getRoomPolicy(item.slug),
     }));
     res.json(dynamicLinks);
   });

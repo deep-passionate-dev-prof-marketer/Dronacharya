@@ -21,11 +21,32 @@ export interface SpeechUtteranceEvent {
 
 export type UtteranceCallback = (event: SpeechUtteranceEvent) => void;
 
+/** What the caption engine is doing right now, shown on the CC button. */
+export type CaptionHealth =
+  | { state: "off" }
+  | { state: "listening" }
+  | { state: "recovering"; reason: string }
+  | { state: "unsupported"; reason: string }
+  | { state: "blocked"; reason: string };
+
+/** Best guess at the speaker's language from the browser, instead of assuming Hindi. */
+function defaultSpokenLanguage(): string {
+  if (typeof navigator === "undefined") return "en";
+  return (navigator.language || "en").split("-")[0].toLowerCase();
+}
+
 class RealtimeSpeechAndTtsEngine {
   // Speech Recognition (STT)
   private recognition: any = null;
   private isListening: boolean = false;
-  private currentSpokenLanguage: string = "hi"; // Default Hindi as per requirements
+  private currentSpokenLanguage: string = defaultSpokenLanguage();
+  private health: CaptionHealth = { state: "off" };
+  private healthListeners: Set<(h: CaptionHealth) => void> = new Set();
+  private retryDelayMs = 300;
+  private lastResultAt = 0;
+  private watchdog: any = null;
+  /** The class microphone track, shared so we never open a second capture (which mutes the call on mobile) */
+  private sharedMic: MediaStream | null = null;
   private currentSpeaker: string = "Teacher";
   private listeners: Set<UtteranceCallback> = new Set();
   private restartTimer: any = null;
@@ -102,8 +123,8 @@ class RealtimeSpeechAndTtsEngine {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      console.warn("[STT Engine] Web Speech API not supported in this browser.");
       this.isSupported = false;
+      this.health = { state: "unsupported", reason: "This browser can't produce captions (use Chrome or Edge). You'll still see captions from other speakers." };
       return;
     }
 
@@ -150,19 +171,47 @@ class RealtimeSpeechAndTtsEngine {
         }
       };
 
-      rec.onerror = (event: any) => {
-        if (event.error === "no-speech") {
-          // Normal silence, ignore
-          return;
-        }
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          console.warn("[STT Engine] Microphone permission not allowed:", event.error);
-          this.isListening = false;
-          return;
-        }
-        console.warn("[STT Engine] Recognition event:", event.error);
+      rec.onstart = () => {
+        this.retryDelayMs = 300;
+        this.lastResultAt = Date.now();
+        this.setHealth({ state: "listening" });
       };
 
+      rec.onerror = (event: any) => {
+        switch (event.error) {
+          case "no-speech":
+          case "aborted":
+            return; // silence or our own restart; onend handles it
+          case "not-allowed":
+          case "service-not-allowed":
+            // Keep the user's intent; the UI offers a retry once permission is granted
+            this.setHealth({ state: "blocked", reason: "Microphone permission is blocked for captions." });
+            this.retryDelayMs = 5000;
+            return;
+          case "network":
+            this.retryDelayMs = Math.min(this.retryDelayMs * 2, 8000);
+            this.setHealth({ state: "recovering", reason: "Caption service unreachable, retrying…" });
+            return;
+          case "audio-capture":
+            this.retryDelayMs = 1500;
+            this.setHealth({ state: "recovering", reason: "Microphone busy, retrying…" });
+            return;
+          case "language-not-supported":
+            this.setHealth({ state: "unsupported", reason: `Captions don't support ${this.currentSpokenLanguage} in this browser.` });
+            this.isListening = false;
+            return;
+          default:
+            console.warn("[STT Engine] Recognition event:", event.error);
+        }
+      };
+
+      rec.onresult = ((orig) => (event: any) => {
+        this.lastResultAt = Date.now();
+        if (this.health.state !== "listening") this.setHealth({ state: "listening" });
+        orig(event);
+      })(rec.onresult);
+
+      // Chrome ends continuous recognition every ~60s and after errors: restart transparently
       rec.onend = () => {
         if (this.isListening) {
           this.scheduleRestart();
@@ -177,8 +226,37 @@ class RealtimeSpeechAndTtsEngine {
     }
   }
 
+  private setHealth(h: CaptionHealth) {
+    this.health = h;
+    this.healthListeners.forEach((l) => l(h));
+  }
+
+  public getHealth(): CaptionHealth {
+    return this.isListening || this.health.state === "unsupported" ? this.health : { state: "off" };
+  }
+
+  public subscribeHealth(l: (h: CaptionHealth) => void): () => void {
+    this.healthListeners.add(l);
+    l(this.getHealth());
+    return () => {
+      this.healthListeners.delete(l);
+    };
+  }
+
+  /** Reuse the classroom mic for voice-activity detection instead of opening another capture. */
+  public setSharedMicStream(stream: MediaStream | null) {
+    if (stream && stream.getAudioTracks().length) {
+      this.sharedMic = stream;
+      if (this.isListening) {
+        this.stopVad();
+        this.startVad();
+      }
+    }
+  }
+
   private scheduleRestart() {
     clearTimeout(this.restartTimer);
+    const delay = this.retryDelayMs;
     this.restartTimer = setTimeout(() => {
       if (this.isListening && this.recognition) {
         try {
@@ -190,7 +268,17 @@ class RealtimeSpeechAndTtsEngine {
           }
         }
       }
-    }, 300);
+    }, delay);
+  }
+
+  /** Interpreter on/off: whether translated captions are also spoken aloud. */
+  public setTtsEnabled(enabled: boolean) {
+    this.isTtsEnabled = enabled;
+    if (!enabled && typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
   }
 
   public setSpokenLanguage(langCode: string) {
@@ -208,8 +296,17 @@ class RealtimeSpeechAndTtsEngine {
 
   public startListening(speaker: string = "Teacher") {
     this.currentSpeaker = speaker;
+    if (!this.isSupported) {
+      this.setHealth(this.health);
+      return;
+    }
+    // Idempotent: several UI paths ask to start; only one recognizer may run at a time
+    if (this.isListening) return;
     this.isListening = true;
+    this.retryDelayMs = 300;
+    this.setHealth({ state: "recovering", reason: "Starting captions…" });
     this.startVad();
+    this.startWatchdog();
 
     if (this.recognition && this.isSupported) {
       try {
@@ -226,7 +323,9 @@ class RealtimeSpeechAndTtsEngine {
   public stopListening() {
     this.isListening = false;
     clearTimeout(this.restartTimer);
+    clearInterval(this.watchdog);
     this.stopVad();
+    this.setHealth({ state: "off" });
 
     if (this.recognition) {
       try {
@@ -235,14 +334,29 @@ class RealtimeSpeechAndTtsEngine {
     }
   }
 
+  /** Someone is talking but recognition has produced nothing for 8s: it silently stalled, restart it. */
+  private startWatchdog() {
+    clearInterval(this.watchdog);
+    this.watchdog = setInterval(() => {
+      if (!this.isListening || !this.recognition) return;
+      const quietFor = Date.now() - this.lastResultAt;
+      if (this.currentAudioLevel > this.vadThreshold && quietFor > 8000) {
+        this.lastResultAt = Date.now();
+        this.setHealth({ state: "recovering", reason: "Reconnecting captions…" });
+        try {
+          this.recognition.abort();
+        } catch {}
+      }
+    }, 2000);
+  }
+
   // Voice Activity Detection (VAD) Implementation
   private async startVad() {
     if (typeof window === "undefined" || this.analyser) return;
 
     try {
-      if (!this.micStream && navigator.mediaDevices?.getUserMedia) {
-        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
+      // Only use the classroom's own mic stream; a second getUserMedia can mute the call on phones
+      this.micStream = this.sharedMic;
 
       if (this.micStream) {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;

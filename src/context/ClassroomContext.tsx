@@ -53,6 +53,7 @@ import { INITIAL_REMOTE_SESSIONS, DEVICE_METADATA_MAP } from "../services/remote
 import { realtimeSocket } from "../services/realtimeSocket";
 import { realtimeSpeechEngine, SpeechCaptionEvent } from "../services/speechRecognitionService";
 import { realtimeInterpreterService } from "../services/translation/realtimeInterpreterService";
+import { speechTranslationEngine, CaptionHealth } from "../services/translation/speechTranslationEngine";
 import { TranslationEngine } from "../services/translation/translationEngine";
 import { detectClientDeviceEnvironment, createDeviceAuditRecord } from "../services/deviceDetector";
 import {
@@ -61,7 +62,11 @@ import {
   buildMeetingUrl,
   buildShortMeetingUrl,
 } from "../services/domainService";
-import { webRtcMeshService, RemotePeerInfo } from "../services/webRtcMeshService";
+import { webRtcMeshService } from "../services/webRtcMeshService";
+import { classroomTransport, DeviceBlockedError, TransportState } from "../services/media/classroomTransport";
+import { captureDeviceSnapshot } from "../services/deviceAccessClient";
+import { whiteboardStore } from "../services/whiteboard/whiteboardStore";
+import { engagementRunner } from "../services/engagement/engagementRunner";
 
 export type ClassroomView =
   | "classroom"
@@ -380,6 +385,24 @@ export interface ClassroomContextType {
   authenticatedUser: AuthUser | null;
   loginUser: (user: AuthUser, customRoomId?: string) => void;
   logoutUser: () => void;
+
+  // Classroom media transport
+  transportState: TransportState;
+  hasLeftClass: boolean;
+  mediaJoinError: string | null;
+  leaveClass: () => Promise<void>;
+  rejoinClass: () => void;
+  startAudioPlayback: () => Promise<void>;
+  isWhiteboardPresenting: boolean;
+  setWhiteboardPresenting: (presenting: boolean) => void;
+  captionHealth: CaptionHealth;
+  isInterpreterOn: boolean;
+  toggleInterpreter: () => void;
+  /** Engagement analytics consent: unknown until the user (or guardian) decides */
+  analyticsConsent: "unknown" | "granted" | "declined" | "not_applicable";
+  isAnalyticsConsentOpen: boolean;
+  setIsAnalyticsConsentOpen: (open: boolean) => void;
+  submitAnalyticsConsent: (granted: boolean, guardian?: { name: string; attested: boolean }) => Promise<string | null>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -752,7 +775,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return null;
         } else if (urlRole === "instructor" || urlRole === "teacher") {
           return {
-            id: "tch-1",
+            id: "tch-vance",
             name: "Dr. Evelyn Vance",
             email: "e.vance@21k.school",
             role: "instructor",
@@ -770,7 +793,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         // Default to certified Lead Teacher session so user never lands on a blocked screen
         return {
-          id: "tch-1",
+          id: "tch-vance",
           name: "Dr. Evelyn Vance",
           email: "e.vance@21k.school",
           role: "instructor",
@@ -856,10 +879,14 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Synchronize Live Class Status via WebRTC mesh
   useEffect(() => {
-    const unbind = webRtcMeshService.onClassStatusChanged((status) => {
-      setClassStatus(status);
+    const unbindMesh = webRtcMeshService.onClassStatusChanged((status) => setClassStatus(status));
+    const unbindData = classroomTransport.onData("class_status", (payload) => {
+      if (payload?.status) setClassStatus(payload.status);
     });
-    return () => unbind();
+    return () => {
+      unbindMesh();
+      unbindData();
+    };
   }, []);
 
   const connectDemoStudent = () => {
@@ -889,11 +916,13 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const startClass = () => {
     setClassStatus("in_progress");
+    classroomTransport.sendData("class_status", { status: "in_progress" });
     webRtcMeshService.broadcastClassStatus("in_progress");
   };
 
   const endClass = () => {
     setClassStatus("ended");
+    classroomTransport.sendData("class_status", { status: "ended" });
     webRtcMeshService.broadcastClassStatus("ended");
   };
 
@@ -1241,8 +1270,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 1280, height: 720 },
-            audio: true,
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 }, facingMode: "user" },
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
           });
           activeStream = stream;
           setLocalStream(stream);
@@ -1379,7 +1408,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
-    const unbindSpeechCaption = realtimeSocket.on("SPEECH_CAPTION_BROADCAST", (data: any) => {
+    const handleRemoteCaption = (data: any) => {
       const caption = data.caption;
       if (caption) {
         setCurrentLiveCaption({
@@ -1409,7 +1438,13 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         }
       }
-    });
+    };
+    const unbindSpeechCaptionWs = realtimeSocket.on("SPEECH_CAPTION_BROADCAST", handleRemoteCaption);
+    const unbindSpeechCaptionRtc = classroomTransport.onData("caption", handleRemoteCaption);
+    const unbindSpeechCaption = () => {
+      unbindSpeechCaptionWs();
+      unbindSpeechCaptionRtc();
+    };
 
     const unbindDeviceAudit = realtimeSocket.on("DEVICE_AUDIT_LOG_BROADCAST", (data: any) => {
       const record = data.record;
@@ -1525,13 +1560,12 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return [localParticipant, ...others];
     });
 
-    // In-house WebRTC mesh connect
-    webRtcMeshService.joinRoom(targetRoom, localParticipant, localStream || undefined);
+    // Media/data transport is joined by the effect below once user + room are set
     realtimeSocket.joinRoom(user, targetRoom);
   };
 
   const logoutUser = () => {
-    webRtcMeshService.leaveRoom();
+    classroomTransport.leave();
     setAuthenticatedUser(null);
     try {
       sessionStorage.removeItem("21k_dronacharya_auth");
@@ -1541,46 +1575,25 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsAuthModalOpen(true);
   };
 
-  // WebRTC Mesh Remote Streams Subscription
+  // Remote participants come from the classroom transport (LiveKit or peer-to-peer fallback)
+  const [transportState, setTransportState] = useState<TransportState>(classroomTransport.getState());
+  const [hasLeftClass, setHasLeftClass] = useState(false);
+  const [mediaJoinError, setMediaJoinError] = useState<string | null>(null);
   useEffect(() => {
-    const unbindPeer = webRtcMeshService.onPeerStream((peerInfo: RemotePeerInfo) => {
+    const unbindPeers = classroomTransport.onPeers((peers) => {
       setParticipants((prev) => {
-        // Remove synthetic demo student if a real remote peer connects
-        const base = prev.filter((p) => p.id !== "stu-sophia-1");
-        const existingIdx = base.findIndex((p) => p.id === peerInfo.peerId);
-        const remoteParticipant: Participant = {
-          id: peerInfo.peerId,
-          name: peerInfo.name,
-          role: peerInfo.role,
-          avatarColor: peerInfo.avatarColor,
-          isLocal: false,
-          audioEnabled: !peerInfo.isAudioMuted,
-          videoEnabled: !peerInfo.isVideoOff,
-          screenSharing: false,
-          handRaised: false,
-          breakoutRoomId: null,
-          audioLevel: peerInfo.audioLevel || 50,
-          attendanceStatus: "present",
-          joinedAt: "Just now",
-          xpPoints: 100,
-          stream: peerInfo.stream,
-        };
-        if (existingIdx >= 0) {
-          const updated = [...base];
-          updated[existingIdx] = remoteParticipant;
-          return updated;
-        }
-        return [...base, remoteParticipant];
+        const locals = prev.filter((p) => p.isLocal);
+        // The scripted demo student only fills an otherwise empty room
+        const demo = peers.length === 0 ? prev.filter((p) => p.id === "stu-sophia-1") : [];
+        return [...locals, ...peers, ...demo];
       });
     });
-
-    const unbindLeft = webRtcMeshService.onPeerLeft((peerId: string) => {
-      setParticipants((prev) => prev.filter((p) => p.id !== peerId));
-    });
-
+    const unbindState = classroomTransport.onState(setTransportState);
+    const unbindHand = classroomTransport.onData("hand", () => {});
     return () => {
-      unbindPeer();
-      unbindLeft();
+      unbindPeers();
+      unbindState();
+      unbindHand();
     };
   }, []);
 
@@ -1618,38 +1631,158 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [authenticatedUser, isAudioMuted, isVideoOff, isScreenSharing, handRaised, localStream]);
 
-  // Ensure WebRTC Mesh Room Connection is active whenever authenticatedUser and roomId are set
+  // Join the class media room whenever the signed-in user or room changes
   useEffect(() => {
-    if (authenticatedUser && roomId) {
-      const localParticipant: Participant = {
-        id: authenticatedUser.id,
-        name: authenticatedUser.name,
-        role: authenticatedUser.role,
-        avatarColor: authenticatedUser.avatarColor || (authenticatedUser.role === "instructor" ? "#003872" : "#0082FF"),
-        isLocal: true,
-        audioEnabled: !isAudioMuted,
-        videoEnabled: !isVideoOff,
-        screenSharing: isScreenSharing,
-        handRaised: handRaised,
-        breakoutRoomId: null,
-        audioLevel: 80,
-        attendanceStatus: "present",
-        joinedAt: "Just now",
-        xpPoints: 120,
-        gradeLevel: authenticatedUser.gradeLevel,
-        section: authenticatedUser.section,
-        stream: localStream || undefined,
-      };
-      webRtcMeshService.joinRoom(roomId, localParticipant, localStream || undefined);
-    }
-  }, [authenticatedUser?.id, roomId]);
+    if (!authenticatedUser || !roomId || hasLeftClass) return;
+    let cancelled = false;
+    (async () => {
+      const device = await captureDeviceSnapshot().catch(() => undefined);
+      if (cancelled) return;
+      try {
+        setMediaJoinError(null);
+        await classroomTransport.join({
+          roomSlug: roomId,
+          user: {
+            id: authenticatedUser.id,
+            name: authenticatedUser.name,
+            role: authenticatedUser.role,
+            avatarColor: authenticatedUser.avatarColor,
+            studentCode: authenticatedUser.studentCode,
+            gradeLevel: authenticatedUser.gradeLevel,
+            email: authenticatedUser.email,
+          },
+          localStream,
+          device,
+          audioEnabled: !isAudioMuted,
+          videoEnabled: !isVideoOff,
+        });
+      } catch (err) {
+        if (!cancelled) setMediaJoinError(err instanceof DeviceBlockedError ? "device_blocked" : "join_failed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // localStream is published separately below; rejoining on every stream change would drop the call
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticatedUser?.id, roomId, hasLeftClass]);
 
-  // Sync local stream with WebRTC mesh
+  // Publish the local camera/mic whenever the stream changes (first permission grant, device switch)
   useEffect(() => {
-    if (localStream) {
-      webRtcMeshService.setLocalStream(localStream);
+    if (localStream) classroomTransport.replaceLocalStream(localStream);
+  }, [localStream, transportState.mode]);
+
+  // Whiteboard presented on the main stage (teacher-controlled, synced to everyone)
+  const [isWhiteboardPresenting, setIsWhiteboardPresenting] = useState(false);
+  const isHostRole = currentRole === "instructor" || currentRole === "admin";
+  const isHostRef = useRef(isHostRole);
+  isHostRef.current = isHostRole;
+  const setWhiteboardPresenting = (presenting: boolean) => {
+    setIsWhiteboardPresenting(presenting);
+    classroomTransport.sendData("stage", { whiteboard: presenting });
+    if (presenting) setActiveDockTab("whiteboard");
+  };
+  useEffect(() => {
+    whiteboardStore.initSync(() => isHostRef.current);
+    return classroomTransport.onData("stage", (p) => {
+      if (typeof p?.whiteboard === "boolean") setIsWhiteboardPresenting(p.whiteboard);
+    });
+  }, []);
+
+  // Late joiners learn the class status and stage state from the host
+  const remoteCount = participants.filter((p) => !p.isLocal).length;
+  useEffect(() => {
+    if (!isHostRole || remoteCount === 0) return;
+    if (classStatus !== "waiting") classroomTransport.sendData("class_status", { status: classStatus });
+    if (isWhiteboardPresenting) classroomTransport.sendData("stage", { whiteboard: true });
+  }, [remoteCount, classStatus, isHostRole, isWhiteboardPresenting]);
+
+  // Keep the screen awake during class on phones/tablets
+  useEffect(() => {
+    if (!authenticatedUser || hasLeftClass || !("wakeLock" in navigator)) return;
+    let lock: any = null;
+    const acquire = () => (navigator as any).wakeLock.request("screen").then((l: any) => (lock = l)).catch(() => {});
+    acquire();
+    const onVisible = () => document.visibilityState === "visible" && acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      lock?.release?.().catch(() => {});
+    };
+  }, [authenticatedUser?.id, hasLeftClass]);
+
+  // ---------------- Engagement analytics (on-device; auditors/analysts see the results) ----------------
+  const analyzedRole =
+    authenticatedUser?.role === "student" ? "student" : authenticatedUser?.role === "instructor" ? "instructor" : authenticatedUser?.role === "sales_rep" ? "sales_rep" : null;
+  const [analyticsConsent, setAnalyticsConsent] = useState<"unknown" | "granted" | "declined" | "not_applicable">("unknown");
+  const [isAnalyticsConsentOpen, setIsAnalyticsConsentOpen] = useState(false);
+  useEffect(() => {
+    if (!authenticatedUser || !analyzedRole) {
+      setAnalyticsConsent("not_applicable");
+      return;
     }
-  }, [localStream]);
+    let cancelled = false;
+    fetch(`/api/engagement/consent/${encodeURIComponent(authenticatedUser.id)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((b) => {
+        if (cancelled) return;
+        if (b.consent) setAnalyticsConsent(b.consent.granted ? "granted" : "declined");
+        else {
+          setAnalyticsConsent("unknown");
+          setIsAnalyticsConsentOpen(true);
+        }
+      })
+      .catch(() => !cancelled && setAnalyticsConsent("not_applicable")); // service not deployed
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticatedUser?.id, analyzedRole]);
+
+  const submitAnalyticsConsent = async (granted: boolean, guardian?: { name: string; attested: boolean }) => {
+    if (!authenticatedUser) return "Not signed in";
+    const res = await fetch("/api/engagement/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant: { id: authenticatedUser.id, name: authenticatedUser.name, role: authenticatedUser.role },
+        granted,
+        guardianName: guardian?.name,
+        guardianAttested: guardian?.attested,
+        country: authenticatedUser.country,
+      }),
+    }).catch(() => null);
+    if (!res) return "Couldn't reach the server. Try again.";
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return body?.error || "Couldn't save your choice.";
+    setAnalyticsConsent(granted ? "granted" : "declined");
+    setIsAnalyticsConsentOpen(false);
+    return null;
+  };
+
+  // Run the analyzer only with consent, while connected to a class, on the user's own camera
+  useEffect(() => {
+    if (analyticsConsent !== "granted" || !analyzedRole || !authenticatedUser || !localStream || hasLeftClass || transportState.status !== "connected") {
+      engagementRunner.stop();
+      return;
+    }
+    engagementRunner.start({
+      stream: localStream,
+      roomSlug: roomId,
+      participant: { id: authenticatedUser.id, name: authenticatedUser.name, role: authenticatedUser.role },
+      role: analyzedRole,
+      isSpeaking: () => Boolean(classroomTransport.localStatus().isSpeaking),
+    });
+    return () => engagementRunner.stop();
+  }, [analyticsConsent, analyzedRole, authenticatedUser?.id, localStream, hasLeftClass, transportState.status, roomId]);
+
+  const leaveClass = async () => {
+    await classroomTransport.leave();
+    setHasLeftClass(true);
+  };
+
+  const rejoinClass = () => setHasLeftClass(false);
+
+  const startAudioPlayback = () => classroomTransport.startAudio();
 
   const toggleAudio = () => {
     setIsAudioMuted((prev) => {
@@ -1660,6 +1793,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
       webRtcMeshService.updateMediaState(next, isVideoOff);
+      classroomTransport.setMicEnabled(!next);
       return next;
     });
   };
@@ -1673,6 +1807,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
       webRtcMeshService.updateMediaState(isAudioMuted, next);
+      classroomTransport.setCameraEnabled(!next);
       return next;
     });
   };
@@ -1684,28 +1819,39 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setScreenStream(null);
       }
       setIsScreenSharing(false);
+      classroomTransport.publishScreen(null);
       return;
     }
 
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      // Phones/tablets can't share a screen from the browser
+      alert("Screen sharing isn't supported on this device. Use a laptop or desktop browser to share your screen.");
+      return;
+    }
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-        const display = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        setScreenStream(display);
-        setIsScreenSharing(true);
-        display.getVideoTracks()[0].onended = () => {
-          setIsScreenSharing(false);
-          setScreenStream(null);
-        };
-      } else {
-        setIsScreenSharing(true);
-      }
-    } catch {
+      const display = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 15, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      const track = display.getVideoTracks()[0];
+      setScreenStream(display);
       setIsScreenSharing(true);
+      classroomTransport.publishScreen(track);
+      track.onended = () => {
+        setIsScreenSharing(false);
+        setScreenStream(null);
+        classroomTransport.publishScreen(null);
+      };
+    } catch {
+      // User cancelled the picker: stay as we were
     }
   };
 
   const toggleHandRaise = () => {
-    setHandRaised((prev) => !prev);
+    setHandRaised((prev) => {
+      classroomTransport.sendData("hand", { raised: !prev });
+      return !prev;
+    });
   };
 
   const muteAllParticipants = () => {
@@ -1881,7 +2027,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return [...prev, newLine];
         });
 
-        // Broadcast to other room participants over WebSocket
+        // Broadcast to other participants: LiveKit data channel (works everywhere media works),
+        // plus the realtime server when it's available
+        classroomTransport.sendData("caption", { caption: event });
         try {
           realtimeSocket.sendSpeechCaption(event, roomId);
         } catch {}
@@ -1990,6 +2138,24 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setIsTranslating(false);
     }
+  };
+
+  // Caption engine health (shown on the CC button) and interpreter (spoken translation) on/off
+  const [captionHealth, setCaptionHealth] = useState<CaptionHealth>(speechTranslationEngine.getHealth());
+  useEffect(() => speechTranslationEngine.subscribeHealth(setCaptionHealth), []);
+  useEffect(() => {
+    speechTranslationEngine.setSharedMicStream(localStream);
+  }, [localStream]);
+  const [isInterpreterOn, setIsInterpreterOn] = useState(false);
+  useEffect(() => {
+    speechTranslationEngine.setTtsEnabled(isInterpreterOn);
+  }, [isInterpreterOn]);
+  const toggleInterpreter = () => {
+    setIsInterpreterOn((on) => {
+      // Interpreting needs captions running
+      if (!on) setIsLiveSubtitlesActive(true);
+      return !on;
+    });
   };
 
   // Real-Time Subtitles & Multilingual Translation Functions
@@ -2120,76 +2286,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
   const [selectedAuditParticipantId, setSelectedAuditParticipantId] = useState("host-1");
 
-  // Subtle real-time drift loop for facial attention & audio quality metrics
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setAttentionAudits((prev) => {
-        const next = { ...prev };
-        Object.keys(next).forEach((id) => {
-          const item = next[id];
-          const gazeOptions: Array<"center" | "screen-left" | "screen-right" | "down"> = [
-            "center",
-            "center",
-            "center",
-            "down",
-            "screen-right",
-          ];
-          const newGaze =
-            id === "host-1"
-              ? "center"
-              : Math.random() > 0.8
-              ? gazeOptions[Math.floor(Math.random() * gazeOptions.length)]
-              : item.gaze;
-          const eyesOnScreen = newGaze !== "away";
-          const blinkDrift = Math.max(10, Math.min(28, item.blinkRate + (Math.random() > 0.5 ? 1 : -1)));
-          const attnDrift =
-            id === "host-1"
-              ? Math.max(93, Math.min(99, item.attentionScore + (Math.random() > 0.5 ? 1 : -1)))
-              : Math.max(50, Math.min(98, item.attentionScore + (Math.random() > 0.5 ? 2 : -2)));
-
-          const engagementLevel =
-            attnDrift >= 90
-              ? "High Focus"
-              : attnDrift >= 75
-              ? "Attentive"
-              : attnDrift >= 60
-              ? "Mild Distraction"
-              : "Off-Task";
-
-          next[id] = {
-            ...item,
-            gaze: newGaze,
-            blinkRate: blinkDrift,
-            eyesOnScreen,
-            attentionScore: attnDrift,
-            engagementLevel,
-            distractionAlert: attnDrift < 65,
-          };
-        });
-        return next;
-      });
-
-      setAudioMetrics((prev) => {
-        const next = { ...prev };
-        Object.keys(next).forEach((id) => {
-          const item = next[id];
-          const snrDrift = Math.max(
-            12,
-            Math.min(38, Math.round((item.snrDb + (Math.random() * 2 - 1)) * 10) / 10)
-          );
-          const paceDrift = Math.max(70, Math.min(160, item.speechPaceWpm + Math.floor(Math.random() * 5 - 2)));
-          next[id] = {
-            ...item,
-            snrDb: snrDrift,
-            speechPaceWpm: paceDrift,
-          };
-        });
-        return next;
-      });
-    }, 3500);
-
-    return () => clearInterval(timer);
-  }, []);
+  // Attention/engagement numbers now come from real on-device analysis (engagementRunner),
+  // visible to auditors/analysts only. The old random "drift" simulation was removed.
 
   const updateManualRubricScore = (
     participantId: string,
@@ -2767,8 +2865,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActivePitchRoom(null);
     setActiveView("classroom");
 
-    const localP = participants.find((p) => p.isLocal) || fallbackUser;
-    webRtcMeshService.joinRoom(roomSlug, localP, localStream || undefined);
+    // The join effect reconnects the classroom transport to the new room
 
     return parsed;
   };
@@ -3209,6 +3306,21 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         authenticatedUser,
         loginUser,
         logoutUser,
+        transportState,
+        hasLeftClass,
+        mediaJoinError,
+        leaveClass,
+        rejoinClass,
+        startAudioPlayback,
+        isWhiteboardPresenting,
+        setWhiteboardPresenting,
+        captionHealth,
+        isInterpreterOn,
+        toggleInterpreter,
+        analyticsConsent,
+        isAnalyticsConsentOpen,
+        setIsAnalyticsConsentOpen,
+        submitAnalyticsConsent,
       }}
     >
       {children}

@@ -120,7 +120,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
   return (
     <div className="space-y-6 select-none font-sans">
       {/* Overview Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#001F40] via-[#003872] to-[#00264d] text-white border border-[#003872] shadow-xl">
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#001F40] via-[#003872] to-[#00264d] text-white border border-blue-500/60 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -153,19 +153,19 @@ export const RoomHierarchyGenerator: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Form: Configuration Builder (7 Cols) */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-[#001F40] flex items-center gap-2">
+        <div className="lg:col-span-7 bg-slate-900/70 rounded-2xl border border-white/10 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-white/5">
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#0082FF]" />
               <span>Hierarchical Room Parameters</span>
             </h3>
-            <span className="text-xs font-mono text-slate-500">Tier 1 · Tier 2 · Tier 3</span>
+            <span className="text-xs font-mono text-slate-400">Tier 1 · Tier 2 · Tier 3</span>
           </div>
 
           <form onSubmit={handleCreate} className="space-y-4 text-xs">
             {/* 1. Category Selector */}
             <div>
-              <label className="block text-slate-700 font-bold mb-1.5 uppercase tracking-wider text-[11px]">
+              <label className="block text-slate-200 font-bold mb-1.5 uppercase tracking-wider text-[11px]">
                 1. Category Dimension:
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -177,7 +177,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
                     className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                       category === cat
                         ? "bg-[#001F40] text-white border-[#001F40] shadow-md font-bold"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        : "bg-white/[0.03] text-slate-200 border-white/10 hover:bg-white/[0.08]"
                     }`}
                   >
                     <p className="text-xs">{cat}</p>
@@ -191,7 +191,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
 
             {/* 2. Sub-Category Selector */}
             <div>
-              <label className="block text-slate-700 font-bold mb-1.5 uppercase tracking-wider text-[11px]">
+              <label className="block text-slate-200 font-bold mb-1.5 uppercase tracking-wider text-[11px]">
                 2. Sub-Category & Link Code:
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -204,8 +204,8 @@ export const RoomHierarchyGenerator: React.FC = () => {
                       onClick={() => setSubCategory(sub)}
                       className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                         subCategory === sub
-                          ? "bg-[#003872] text-white border-[#003872] shadow-md font-bold"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                          ? "bg-[#003872] text-white border-blue-500/60 shadow-md font-bold"
+                          : "bg-white/[0.03] text-slate-200 border-white/10 hover:bg-white/[0.08]"
                       }`}
                     >
                       <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FFBB00] text-[#001F40] mb-1">
@@ -219,8 +219,8 @@ export const RoomHierarchyGenerator: React.FC = () => {
             </div>
 
             {/* 3. Micro-Categories Dimensions */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-              <h4 className="text-[11px] font-bold text-[#003872] uppercase tracking-wider flex items-center gap-1.5">
+            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
+              <h4 className="text-[11px] font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
                 <GitFork className="w-3.5 h-3.5 text-[#0082FF]" />
                 <span>3. Micro-Category Dimensions (Granular Filters)</span>
               </h4>
@@ -228,27 +228,27 @@ export const RoomHierarchyGenerator: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Course */}
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                  <label className="block text-slate-300 font-semibold mb-1 text-[11px]">
                     Course / Subject:
                   </label>
                   <input
                     type="text"
                     value={course}
                     onChange={(e) => setCourse(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                    className="w-full p-2 rounded-lg bg-slate-900/70 border border-white/15 text-slate-100 text-xs focus:outline-none focus:border-[#0082FF]"
                     required
                   />
                 </div>
 
                 {/* Lead Teacher */}
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                  <label className="block text-slate-300 font-semibold mb-1 text-[11px]">
                     Assigned Lead Facilitator:
                   </label>
                   <select
                     value={teacherId}
                     onChange={(e) => setTeacherId(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                    className="w-full p-2 rounded-lg bg-slate-900/70 border border-white/15 text-slate-100 text-xs focus:outline-none focus:border-[#0082FF]"
                   >
                     {teachers.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -260,13 +260,13 @@ export const RoomHierarchyGenerator: React.FC = () => {
 
                 {/* Language */}
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                  <label className="block text-slate-300 font-semibold mb-1 text-[11px]">
                     Classroom Medium:
                   </label>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                    className="w-full p-2 rounded-lg bg-slate-900/70 border border-white/15 text-slate-100 text-xs focus:outline-none focus:border-[#0082FF]"
                   >
                     <option value="English (Global)">English (Global Universal)</option>
                     <option value="Spanish (Castilian & Latin)">Spanish</option>
@@ -279,13 +279,13 @@ export const RoomHierarchyGenerator: React.FC = () => {
 
                 {/* Timezone */}
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                  <label className="block text-slate-300 font-semibold mb-1 text-[11px]">
                     Timezone Cohort:
                   </label>
                   <select
                     value={timezone}
                     onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                    className="w-full p-2 rounded-lg bg-slate-900/70 border border-white/15 text-slate-100 text-xs focus:outline-none focus:border-[#0082FF]"
                   >
                     <option value="IST (UTC+5:30)">IST (UTC+5:30 · India & South Asia)</option>
                     <option value="GMT (UTC+0)">GMT (UTC+0 · UK & Europe)</option>
@@ -299,7 +299,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
 
               {/* Special Needs / Request Dimension */}
               <div>
-                <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                <label className="block text-slate-300 font-semibold mb-1 text-[11px]">
                   Special Pedagogical Request / Accommodation:
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -319,7 +319,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                         requestType === req
                           ? "bg-[#0082FF] text-white shadow-xs"
-                          : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-100"
+                          : "bg-slate-900/70 text-slate-300 border border-white/15 hover:bg-white/[0.08]"
                       }`}
                     >
                       {req}
@@ -330,9 +330,9 @@ export const RoomHierarchyGenerator: React.FC = () => {
 
               {/* Room Capacity Ratio (1:1 to 1:24) */}
               <div>
-                <label className="block text-slate-600 font-semibold mb-1 text-[11px] flex items-center justify-between">
+                <label className="block text-slate-300 font-semibold mb-1 text-[11px] flex items-center justify-between">
                   <span>Room Capacity Ratio (1:1 to 1:24 Cohorts):</span>
-                  <span className="font-mono text-[#003872] font-bold">Selected: {roomRatio}</span>
+                  <span className="font-mono text-blue-300 font-bold">Selected: {roomRatio}</span>
                 </label>
                 <div className="flex flex-wrap gap-1">
                   {(
@@ -356,7 +356,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                         roomRatio === r
                           ? "bg-[#003872] text-[#FFBB00] ring-1 ring-[#FFBB00] shadow-xs"
-                          : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-100"
+                          : "bg-slate-900/70 text-slate-300 border border-white/15 hover:bg-white/[0.08]"
                       }`}
                     >
                       {r}
@@ -366,8 +366,8 @@ export const RoomHierarchyGenerator: React.FC = () => {
               </div>
 
               {/* Room Break Scheduler */}
-              <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-700 font-semibold text-xs">
+              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-200 font-semibold text-xs">
                   <Coffee className="w-3.5 h-3.5 text-[#FFBB00]" />
                   <span>Scheduled Room Break:</span>
                 </span>
@@ -380,7 +380,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                         breakMinutes === m
                           ? "bg-[#001F40] text-white"
-                          : "bg-white text-slate-700 border border-slate-300"
+                          : "bg-slate-900/70 text-slate-200 border border-white/15"
                       }`}
                     >
                       {m} Mins
@@ -391,7 +391,7 @@ export const RoomHierarchyGenerator: React.FC = () => {
             </div>
 
             {/* Generated Shortlink Live Preview */}
-            <div className="p-4 rounded-xl bg-[#001F40] text-white space-y-2 border border-[#003872]">
+            <div className="p-4 rounded-xl bg-[#001F40] text-white space-y-2 border border-blue-500/60">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300 font-mono">
                   Standardized Shortlink Preview
@@ -422,9 +422,9 @@ export const RoomHierarchyGenerator: React.FC = () => {
         {/* Right Panel: Hierarchical Tree & Active Rooms Catalog (5 Cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Active Flow Catalog */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-[#001F40] flex items-center gap-2">
+          <div className="bg-slate-900/70 rounded-2xl border border-white/10 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-[#0082FF]" />
                 <span>Active 21K Rooms Catalog</span>
               </h3>
@@ -443,8 +443,8 @@ export const RoomHierarchyGenerator: React.FC = () => {
                     key={room.id}
                     className={`p-3.5 rounded-xl border transition-all ${
                       isCurrent
-                        ? "bg-[#E1EDFF] border-[#0082FF] shadow-xs"
-                        : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                        ? "bg-blue-500/10 border-[#0082FF] shadow-xs"
+                        : "bg-white/[0.03] border-white/10 hover:border-white/20"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -453,43 +453,43 @@ export const RoomHierarchyGenerator: React.FC = () => {
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FFBB00] text-[#001F40]">
                             {room.subCategoryCode}
                           </span>
-                          <span className="text-[11px] font-semibold text-slate-500">
+                          <span className="text-[11px] font-semibold text-slate-400">
                             {room.category}
                           </span>
                         </div>
-                        <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                        <h4 className="text-xs font-bold text-slate-100 leading-snug">
                           {room.name}
                         </h4>
                       </div>
 
                       {isCurrent && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                           Active Stage
                         </span>
                       )}
                     </div>
 
-                    <div className="text-[11px] text-slate-600 space-y-1 mb-2.5">
+                    <div className="text-[11px] text-slate-300 space-y-1 mb-2.5">
                       <p className="truncate">
                         Teacher: <strong>{room.microCategory.teacherName}</strong> · TZ:{" "}
                         {room.microCategory.timezone.split(" ")[0]}
                       </p>
                       {room.microCategory.requestType !== "General" && (
-                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-800 font-medium">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-purple-500/10 text-purple-300 font-medium">
                           {room.microCategory.requestType}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/10">
                       <button
                         onClick={() => handleCopy(room.id, room.roomUrl)}
-                        className="flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-[#0082FF] transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-[11px] font-medium text-slate-300 hover:text-[#0082FF] transition-colors cursor-pointer"
                       >
                         {isCopied ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-700 font-bold">Copied!</span>
+                            <Check className="w-3.5 h-3.5 text-emerald-300" />
+                            <span className="text-emerald-300 font-bold">Copied!</span>
                           </>
                         ) : (
                           <>

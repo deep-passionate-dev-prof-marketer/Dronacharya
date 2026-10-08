@@ -172,13 +172,6 @@ export const SidebarNavigation: React.FC<SidebarProps> = ({
             isActive: activeView === "attendance",
           },
           {
-            id: "analytics",
-            label: "Attention Analytics",
-            icon: BarChart2,
-            action: () => setActiveView("analytics"),
-            isActive: activeView === "analytics",
-          },
-          {
             id: "facilitators",
             label: "Teaching Schedule",
             icon: UserCheck,
@@ -385,7 +378,7 @@ export const SidebarNavigation: React.FC<SidebarProps> = ({
           },
           {
             id: "analytics",
-            label: "Attention Analytics",
+            label: "Engagement Analytics",
             icon: BarChart2,
             action: () => setActiveView("analytics"),
             isActive: activeView === "analytics",

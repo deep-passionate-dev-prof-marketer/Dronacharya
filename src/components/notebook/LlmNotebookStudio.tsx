@@ -264,27 +264,27 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#ECECEC] overflow-y-auto select-none font-sans">
+    <div className="flex-1 flex flex-col bg-[#070b14] overflow-y-auto select-none font-sans">
       {/* Top Banner Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0 shadow-xs">
+      <div className="bg-slate-900/70 border-b border-white/10 px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#E1EDFF] text-[#003872]">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-300">
               GOOGLE LLM NOTEBOOK · POST-CLASS VISUALIZER
             </span>
             <span className="text-xs text-slate-300">·</span>
-            <span className="text-xs font-semibold text-[#003872]">
+            <span className="text-xs font-semibold text-blue-300">
               Grounded in Classroom Transcript
             </span>
           </div>
-          <h1 className="font-headline font-bold text-xl text-[#003872] mt-0.5">
+          <h1 className="font-headline font-bold text-xl text-blue-300 mt-0.5">
             {roomTitle}
           </h1>
         </div>
 
         {/* View Tabs & Quick Navigation */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 bg-white/[0.06] p-1 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
             {[
               { id: "graph", label: "Concept Map & Flow", icon: Layers },
               { id: "summary", label: "Digest & Summary", icon: BookOpen },
@@ -302,7 +302,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                     isActive
                       ? "bg-[#003872] text-white shadow-xs"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -316,10 +316,10 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleExportNotebook}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-bold text-[#003872] hover:bg-slate-200 transition-colors shadow-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-xs font-bold text-blue-300 hover:bg-white/10 transition-colors shadow-xs"
               title="Copy formatted markdown study digest"
             >
-              {copiedExport ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Download className="w-3.5 h-3.5" />}
+              {copiedExport ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Download className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{copiedExport ? "Copied" : "Export Notes"}</span>
             </button>
 
@@ -335,11 +335,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
       </div>
 
       {/* Audio Overview Briefing Bar (NotebookLM style) */}
-      <div className="bg-[#001f40] border-b border-[#003872] px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-white shrink-0">
+      <div className="bg-[#001f40] border-b border-blue-500/60 px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-white shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-            className="w-9 h-9 rounded-full bg-[#FFBB00] text-[#003872] flex items-center justify-center font-bold hover:scale-105 transition-transform shadow-md shrink-0"
+            className="w-9 h-9 rounded-full bg-[#FFBB00] text-blue-300 flex items-center justify-center font-bold hover:scale-105 transition-transform shadow-md shrink-0"
           >
             {isPlayingAudio ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
           </button>
@@ -375,9 +375,9 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
       {/* Main Studio Body */}
       <div className="flex-1 flex flex-col p-6 max-w-7xl w-full mx-auto">
         {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-500 gap-3">
-            <RefreshCw className="w-8 h-8 text-[#003872] animate-spin" />
-            <div className="text-sm font-headline font-semibold text-[#003872]">
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400 gap-3">
+            <RefreshCw className="w-8 h-8 text-blue-300 animate-spin" />
+            <div className="text-sm font-headline font-semibold text-blue-300">
               Building Google LLM Notebook visual concept graph & derivations...
             </div>
           </div>
@@ -387,9 +387,9 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
             {activeTab === "graph" && (
               <div className="flex flex-col gap-6">
                 {/* Chronological Lecture Flow Phases */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col gap-3">
+                <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-headline font-bold text-xs text-[#003872] uppercase tracking-wider">
+                    <span className="font-headline font-bold text-xs text-blue-300 uppercase tracking-wider">
                       Chronological Lecture Flow & Pedagogical Milestones
                     </span>
                     <span className="font-mono text-xs text-slate-400">
@@ -401,26 +401,26 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                     {phases.map((phase) => (
                       <div
                         key={phase.id}
-                        className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-2 hover:border-[#003872] transition-colors"
+                        className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col justify-between gap-2 hover:border-blue-500/60 transition-colors"
                       >
                         <div>
                           <div className="flex items-center justify-between text-[11px] font-mono text-[#0082FF]">
                             <span>PHASE 0{phase.phaseNumber}</span>
                             <span>{phase.timeRange}</span>
                           </div>
-                          <h4 className="font-headline font-bold text-xs text-[#003872] mt-1 leading-snug">
+                          <h4 className="font-headline font-bold text-xs text-blue-300 mt-1 leading-snug">
                             {phase.title}
                           </h4>
-                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                          <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
                             {phase.description}
                           </p>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-1">
+                        <div className="pt-2 border-t border-white/10 flex flex-wrap gap-1">
                           {phase.keyTakeaways.map((k, i) => (
                             <span
                               key={i}
-                              className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-semibold text-slate-700"
+                              className="px-2 py-0.5 rounded-md bg-slate-900/70 border border-white/10 text-[10px] font-semibold text-slate-200"
                             >
                               {k}
                             </span>
@@ -434,11 +434,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                 {/* Interactive Visual Concept Node Graph & Inspector */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   {/* Concept Graph SVG Canvas (8 cols) */}
-                  <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col gap-3 overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="lg:col-span-8 bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-3 overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
                       <div className="flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-[#003872]" />
-                        <h3 className="font-headline font-bold text-sm text-[#003872]">
+                        <Layers className="w-4 h-4 text-blue-300" />
+                        <h3 className="font-headline font-bold text-sm text-blue-300">
                           Interactive Concept Dependency Graph
                         </h3>
                       </div>
@@ -448,7 +448,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                     </div>
 
                     {/* SVG / Canvas Graph Representation */}
-                    <div className="relative h-[420px] rounded-xl bg-[#F8FAFC] border border-slate-200 overflow-hidden">
+                    <div className="relative h-[420px] rounded-xl bg-[#070b14] border border-white/10 overflow-hidden">
                       {/* Grid background */}
                       <div className="absolute inset-0 opacity-40 pointer-events-none bg-[radial-gradient(#003872_1px,transparent_1px)] [background-size:16px_16px]" />
 
@@ -502,8 +502,8 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                             onClick={() => setSelectedNode(node)}
                             className={`absolute z-10 w-44 rounded-xl p-3 border-2 cursor-pointer transition-all ${
                               isSelected
-                                ? "bg-white border-[#003872] shadow-xl ring-4 ring-[#003872]/20 scale-105"
-                                : "bg-white/90 border-slate-300 hover:border-[#003872] hover:bg-white shadow-sm"
+                                ? "bg-slate-900/70 border-blue-500/60 shadow-xl ring-4 ring-blue-500/30 scale-105"
+                                : "bg-slate-900/90 border-white/15 hover:border-blue-500/60 hover:bg-white/10 shadow-sm"
                             }`}
                             style={{
                               left: `${Math.min(node.position.x, 620)}px`,
@@ -515,11 +515,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                                 {node.category}
                               </span>
                             </div>
-                            <h4 className="font-headline font-bold text-xs text-[#003872] leading-tight">
+                            <h4 className="font-headline font-bold text-xs text-blue-300 leading-tight">
                               {node.label}
                             </h4>
                             {node.formulas[0] && (
-                              <div className="text-[10px] font-mono text-slate-500 mt-1 truncate bg-slate-50 p-1 rounded">
+                              <div className="text-[10px] font-mono text-slate-400 mt-1 truncate bg-white/[0.03] p-1 rounded">
                                 {node.formulas[0]}
                               </div>
                             )}
@@ -530,24 +530,24 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                   </div>
 
                   {/* Inspector Drawer for selected node (4 cols) */}
-                  <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col gap-4">
+                  <div className="lg:col-span-4 bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-4">
                     {selectedNode ? (
                       <>
-                        <div className="border-b border-slate-100 pb-3">
+                        <div className="border-b border-white/5 pb-3">
                           <span className="font-mono text-[10px] font-bold uppercase text-[#0082FF]">
                             {selectedNode.category}
                           </span>
-                          <h3 className="font-headline font-bold text-lg text-[#003872] mt-0.5">
+                          <h3 className="font-headline font-bold text-lg text-blue-300 mt-0.5">
                             {selectedNode.label}
                           </h3>
                         </div>
 
                         {/* Explanation */}
                         <div>
-                          <span className="text-xs font-bold text-slate-700 block mb-1">
+                          <span className="text-xs font-bold text-slate-200 block mb-1">
                             Concept Explanation
                           </span>
-                          <p className="text-xs text-slate-600 leading-relaxed font-sans bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <p className="text-xs text-slate-300 leading-relaxed font-sans bg-white/[0.03] p-3 rounded-xl border border-white/5">
                             {selectedNode.explanation}
                           </p>
                         </div>
@@ -555,12 +555,12 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                         {/* Formulas */}
                         {selectedNode.formulas.length > 0 && (
                           <div>
-                            <span className="text-xs font-bold text-slate-700 block mb-1">
+                            <span className="text-xs font-bold text-slate-200 block mb-1">
                               Mathematical Formulation
                             </span>
-                            <div className="flex flex-col gap-1.5 font-mono text-xs text-[#003872]">
+                            <div className="flex flex-col gap-1.5 font-mono text-xs text-blue-300">
                               {selectedNode.formulas.map((f, i) => (
-                                <div key={i} className="p-2 rounded-lg bg-[#E1EDFF] border border-[#0082FF]/20">
+                                <div key={i} className="p-2 rounded-lg bg-blue-500/10 border border-[#0082FF]/20">
                                   {f}
                                 </div>
                               ))}
@@ -571,20 +571,20 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                         {/* Citations from Transcript */}
                         {selectedNode.citations.length > 0 && (
                           <div className="mt-1">
-                            <span className="text-xs font-bold text-slate-700 block mb-1">
+                            <span className="text-xs font-bold text-slate-200 block mb-1">
                               Lecture Transcript Citations
                             </span>
                             <div className="flex flex-col gap-2">
                               {selectedNode.citations.map((c, i) => (
                                 <div
                                   key={i}
-                                  className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 text-xs text-slate-700 flex flex-col gap-1"
+                                  className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-slate-200 flex flex-col gap-1"
                                 >
                                   <div className="flex items-center justify-between text-[11px] font-bold text-[#b38300]">
                                     <span>{c.speaker}</span>
                                     <span className="font-mono">{c.timestamp}</span>
                                   </div>
-                                  <p className="italic text-slate-600 font-sans">
+                                  <p className="italic text-slate-300 font-sans">
                                     "{c.quote}"
                                   </p>
                                 </div>
@@ -607,30 +607,30 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
             {activeTab === "summary" && (
               <div className="flex flex-col gap-6">
                 {/* Executive Summary Card */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-6 shadow-sm flex flex-col gap-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
                     <div className="flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-[#003872]" />
-                      <h3 className="font-headline font-bold text-base text-[#003872]">
+                      <BookOpen className="w-5 h-5 text-blue-300" />
+                      <h3 className="font-headline font-bold text-base text-blue-300">
                         Comprehensive Lecture Synthesis & Concept Explanation
                       </h3>
                     </div>
-                    <span className="text-xs font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <span className="text-xs font-mono text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
                       Full Session Digest
                     </span>
                   </div>
 
-                  <div className="prose prose-slate max-w-none text-xs sm:text-sm text-slate-700 leading-relaxed space-y-3 font-sans">
-                    <p className="bg-slate-50 p-4 rounded-xl border border-slate-200 font-medium">
+                  <div className="prose prose-slate max-w-none text-xs sm:text-sm text-slate-200 leading-relaxed space-y-3 font-sans">
+                    <p className="bg-white/[0.03] p-4 rounded-xl border border-white/10 font-medium">
                       In this Dronacharya STEM lecture on <strong>{roomTitle}</strong>, lead facilitator <strong>Dr. Evelyn Vance</strong> guided the Grade 10 cohort through the mathematical formulation of quantum state vectors in complex Hilbert space, unitary operations using the Hadamard transform, and the critical physical degradation caused by cryogenic thermal dissipation at 15 mK.
                     </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-                      <div className="p-4 rounded-xl bg-[#E1EDFF] border border-[#0082FF]/20">
-                        <h4 className="font-headline font-bold text-xs text-[#003872] uppercase tracking-wider mb-2">
+                      <div className="p-4 rounded-xl bg-blue-500/10 border border-[#0082FF]/20">
+                        <h4 className="font-headline font-bold text-xs text-blue-300 uppercase tracking-wider mb-2">
                           Core Conceptual Takeaways
                         </h4>
-                        <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-700">
+                        <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-200">
                           <li><strong>Normalization Constraint:</strong> Pure qubit state vectors strictly adhere to |α|² + |β|² = 1.</li>
                           <li><strong>Unitary Preservation:</strong> Single-qubit transformations preserve inner products without changing vector norm.</li>
                           <li><strong>Bloch Sphere Geometry:</strong> Pure states occupy the surface; thermal noise causes z-axis contraction.</li>
@@ -638,11 +638,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                         </ul>
                       </div>
 
-                      <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
                         <h4 className="font-headline font-bold text-xs text-[#b38300] uppercase tracking-wider mb-2">
                           Key Student Inquiries & Proofs
                         </h4>
-                        <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-700">
+                        <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-200">
                           <li><strong>Sophia Chen (09:04):</strong> Questioned how 15 mK thermal noise impacts the phase angle φ.</li>
                           <li><strong>Facilitator Proof (09:08):</strong> Demonstrated matrix multiplication of the Hadamard gate on ground state |0⟩.</li>
                           <li><strong>Marcus Vance (09:18):</strong> Confirmed that T2 phase damping lifetime reaches 85 μs under cryogenic shielding.</li>
@@ -653,11 +653,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                 </div>
 
                 {/* Post-Class Concept Check Quiz */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-6 shadow-sm flex flex-col gap-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
                     <div className="flex items-center gap-2">
-                      <FileQuestion className="w-5 h-5 text-[#003872]" />
-                      <h3 className="font-headline font-bold text-base text-[#003872]">
+                      <FileQuestion className="w-5 h-5 text-blue-300" />
+                      <h3 className="font-headline font-bold text-base text-blue-300">
                         Post-Class Concept Check Quiz ({QUIZ_QUESTIONS.length} Questions)
                       </h3>
                     </div>
@@ -671,8 +671,8 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
 
                   <div className="flex flex-col gap-4">
                     {QUIZ_QUESTIONS.map((q, idx) => (
-                      <div key={q.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-2.5">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#003872]">
+                      <div key={q.id} className="p-4 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col gap-2.5">
+                        <div className="flex items-center gap-2 text-xs font-bold text-blue-300">
                           <span className="font-mono text-[#0082FF]">Q{idx + 1}.</span>
                           <span>{q.question}</span>
                         </div>
@@ -687,11 +687,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                                 onClick={() => setQuizAnswers({ ...quizAnswers, [q.id]: oIdx })}
                                 className={`p-3 rounded-lg text-xs font-medium text-left border transition-all ${
                                   isSelected
-                                    ? "bg-[#003872] text-white border-[#003872]"
-                                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                    ? "bg-[#003872] text-white border-blue-500/60"
+                                    : "bg-slate-900/70 text-slate-200 border-white/10 hover:border-white/20"
                                 } ${
                                   showQuizResults && isCorrect
-                                    ? "ring-2 ring-emerald-500 bg-emerald-50 text-emerald-900 border-emerald-400"
+                                    ? "ring-2 ring-emerald-500 bg-emerald-500/10 text-emerald-300 border-emerald-400"
                                     : ""
                                 }`}
                               >
@@ -702,8 +702,8 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                         </div>
 
                         {showQuizResults && (
-                          <div className="text-[11px] font-sans text-slate-600 bg-emerald-50/60 border border-emerald-200 p-2.5 rounded-lg mt-1 flex items-center gap-1.5">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <div className="text-[11px] font-sans text-slate-300 bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-lg mt-1 flex items-center gap-1.5">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
                             <span><strong>Explanation:</strong> {q.explanation}</span>
                           </div>
                         )}
@@ -716,11 +716,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
 
             {/* TAB 3: Grounded Transcript Q&A Assistant */}
             {activeTab === "chat" && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-4 h-[600px]">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-6 shadow-sm flex flex-col gap-4 h-[600px]">
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[#003872]" />
-                    <h3 className="font-headline font-bold text-sm text-[#003872]">
+                    <Sparkles className="w-5 h-5 text-blue-300" />
+                    <h3 className="font-headline font-bold text-sm text-blue-300">
                       Grounded Lecture Transcript Assistant
                     </h3>
                   </div>
@@ -742,7 +742,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                         className={`p-4 rounded-2xl text-xs leading-relaxed ${
                           msg.sender === "user"
                             ? "bg-[#003872] text-white rounded-tr-xs"
-                            : "bg-slate-100 text-slate-800 border border-slate-200 rounded-tl-xs"
+                            : "bg-white/[0.06] text-slate-100 border border-white/10 rounded-tl-xs"
                         }`}
                       >
                         {msg.text}
@@ -754,7 +754,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                           {msg.citations.map((c, i) => (
                             <div
                               key={i}
-                              className="text-[11px] font-sans px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[#b38300] flex items-center gap-1.5"
+                              className="text-[11px] font-sans px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[#b38300] flex items-center gap-1.5"
                             >
                               <Quote className="w-3 h-3" />
                               <span>
@@ -768,21 +768,21 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                   ))}
 
                   {isAnswering && (
-                    <div className="mr-auto p-3 rounded-xl bg-slate-100 text-xs text-slate-500 font-mono flex items-center gap-2 animate-pulse">
-                      <Sparkles className="w-4 h-4 text-[#003872]" />
+                    <div className="mr-auto p-3 rounded-xl bg-white/[0.06] text-xs text-slate-400 font-mono flex items-center gap-2 animate-pulse">
+                      <Sparkles className="w-4 h-4 text-blue-300" />
                       <span>Reviewing lecture transcript citations...</span>
                     </div>
                   )}
                 </div>
 
                 {/* Chat input form */}
-                <form onSubmit={handleSendChat} className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <form onSubmit={handleSendChat} className="flex items-center gap-2 pt-2 border-t border-white/5">
                   <input
                     type="text"
                     placeholder="Ask about state vectors, Bloch sphere angles, or Dr. Vance's proof..."
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    className="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#003872]"
+                    className="flex-1 border border-white/15 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
                   />
                   <button
                     type="submit"
@@ -797,12 +797,12 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
             {/* TAB 4: Study Flashcards */}
             {activeTab === "flashcards" && (
               <div className="flex flex-col gap-4">
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between shadow-sm">
+                <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex items-center justify-between shadow-sm">
                   <div>
-                    <h3 className="font-headline font-bold text-sm text-[#003872]">
+                    <h3 className="font-headline font-bold text-sm text-blue-300">
                       Interactive Recall Flashcards ({flashcards.length})
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       Click any card to flip between conceptual question and mathematical solution.
                     </p>
                   </div>
@@ -818,7 +818,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                         className={`h-64 rounded-2xl border-2 p-6 cursor-pointer flex flex-col justify-between transition-all duration-300 shadow-sm ${
                           isFlipped
                             ? "bg-[#001f40] border-[#FFBB00] text-white rotate-0"
-                            : "bg-white border-slate-200 text-slate-800 hover:border-[#003872]"
+                            : "bg-slate-900/70 border-white/10 text-slate-100 hover:border-blue-500/60"
                         }`}
                       >
                         <div className="flex items-center justify-between text-[11px] font-mono">
@@ -834,7 +834,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                           {isFlipped ? (
                             <p className="text-sm font-medium text-slate-100">{card.answer}</p>
                           ) : (
-                            <p className="text-sm font-bold text-[#003872]">{card.question}</p>
+                            <p className="text-sm font-bold text-blue-300">{card.question}</p>
                           )}
 
                           {isFlipped && card.formulaHint && (
@@ -844,7 +844,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                           )}
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100/20 text-[10px] font-mono text-right text-slate-400">
+                        <div className="pt-2 border-t border-white/5 text-[10px] font-mono text-right text-slate-400">
                           Click to Flip ↷
                         </div>
                       </div>
@@ -860,31 +860,31 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                 {derivations.map((d, idx) => (
                   <div
                     key={idx}
-                    className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-4"
+                    className="bg-slate-900/70 rounded-2xl border border-white/10 p-6 shadow-sm flex flex-col gap-4"
                   >
-                    <div className="border-b border-slate-100 pb-3">
+                    <div className="border-b border-white/5 pb-3">
                       <span className="font-mono text-[10px] font-bold uppercase text-[#0082FF]">
                         FORMAL STEM DERIVATION
                       </span>
-                      <h3 className="font-headline font-bold text-base text-[#003872] mt-1">
+                      <h3 className="font-headline font-bold text-base text-blue-300 mt-1">
                         {d.title}
                       </h3>
-                      <div className="font-mono text-sm text-[#003872] font-bold bg-[#E1EDFF] p-3 rounded-xl mt-2 border border-[#0082FF]/20">
+                      <div className="font-mono text-sm text-blue-300 font-bold bg-blue-500/10 p-3 rounded-xl mt-2 border border-[#0082FF]/20">
                         {d.mathExpression}
                       </div>
                     </div>
 
                     <div>
-                      <span className="text-xs font-bold text-slate-700 block mb-2">
+                      <span className="text-xs font-bold text-slate-200 block mb-2">
                         Step-by-Step Mathematical Derivation
                       </span>
                       <div className="flex flex-col gap-2">
                         {d.derivationSteps.map((step, sIdx) => (
                           <div
                             key={sIdx}
-                            className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 font-sans"
+                            className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-slate-200 font-sans"
                           >
-                            <span className="font-mono font-bold text-[#003872] w-6 shrink-0">
+                            <span className="font-mono font-bold text-blue-300 w-6 shrink-0">
                               0{sIdx + 1}.
                             </span>
                             <span className="leading-relaxed">{step}</span>
@@ -894,11 +894,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                     </div>
 
                     {d.practiceProblem && (
-                      <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs flex flex-col gap-1">
+                      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col gap-1">
                         <span className="font-bold text-[#b38300]">
                           Student Practice Challenge
                         </span>
-                        <p className="text-slate-700 font-sans">{d.practiceProblem}</p>
+                        <p className="text-slate-200 font-sans">{d.practiceProblem}</p>
                       </div>
                     )}
                   </div>
@@ -908,11 +908,11 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
 
             {/* TAB 6: Interactive Python / Math Code Sandbox */}
             {activeTab === "sandbox" && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-6 shadow-sm flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
                   <div className="flex items-center gap-2">
-                    <Terminal className="w-5 h-5 text-[#003872]" />
-                    <h3 className="font-headline font-bold text-sm text-[#003872]">
+                    <Terminal className="w-5 h-5 text-blue-300" />
+                    <h3 className="font-headline font-bold text-sm text-blue-300">
                       Interactive STEM Python / Math Sandbox
                     </h3>
                   </div>
@@ -929,7 +929,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Code Editor */}
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+                    <div className="flex items-center justify-between text-xs font-mono text-slate-400">
                       <span>Python 3.11 · Bloch Sphere & Hamiltonian</span>
                       <span>Editable script</span>
                     </div>
@@ -943,7 +943,7 @@ ${transcriptLines.map((l) => `[${l.timestamp}] ${l.speakerName}: "${l.text}"`).j
 
                   {/* Output Terminal */}
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+                    <div className="flex items-center justify-between text-xs font-mono text-slate-400">
                       <span>Standard Output (stdout)</span>
                       <span>Verification Engine</span>
                     </div>

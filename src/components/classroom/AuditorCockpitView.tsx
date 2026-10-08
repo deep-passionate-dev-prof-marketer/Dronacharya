@@ -1,3 +1,4 @@
+import { EngagementInsightsPanel } from "../engagement/EngagementInsightsPanel";
 import React, { useState } from "react";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
@@ -182,7 +183,11 @@ export const AuditorCockpitView: React.FC = () => {
       </div>
 
       {/* Cockpit Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-5">
+        {/* Real, consented, on-device engagement signals for this room */}
+        <EngagementInsightsPanel />
+
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/80">Sample data below · rubric & legacy widgets</p>
         {/* Top KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">

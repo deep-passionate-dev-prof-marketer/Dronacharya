@@ -27,6 +27,13 @@ export interface Participant {
   gradeLevel?: number;
   section?: string;
   stream?: MediaStream;
+  /** Live media (set by the classroom transport). Attach returns a detach function. */
+  attachVideo?: (el: HTMLVideoElement) => () => void;
+  attachScreen?: (el: HTMLVideoElement) => () => void;
+  /** Local screen-share preview, or a remote screen stream on the peer-to-peer fallback */
+  screenStream?: MediaStream;
+  isSpeaking?: boolean;
+  connectionQuality?: "excellent" | "good" | "poor" | "lost" | "unknown";
 }
 
 export interface BreakoutRoom {
@@ -590,6 +597,9 @@ export interface AuthUser {
   academicGoals?: string;
   /** Stable learner code (e.g. "10ABCDEFGH") used to key device approvals across sessions */
   studentCode?: string;
+  /** ISO-2/ISO-3 country and BCP-47 primary language, used in role URLs and caption language */
+  country?: string;
+  languageTag?: string;
 }
 
 // -------------------------------------------------------------

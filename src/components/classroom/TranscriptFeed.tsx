@@ -36,9 +36,15 @@ export const TranscriptFeed: React.FC = () => {
   const [inputSpeech, setInputSpeech] = useState("");
   const [playingLineId, setPlayingLineId] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
+  // Follow new lines by scrolling only this list (scrollIntoView would also yank the swipe panes
+  // and page), and only when the reader is already at the bottom so reading back isn't interrupted.
   useEffect(() => {
-    feedEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    if (!list) return;
+    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+    if (nearBottom) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [transcriptLines]);
 
   const currentSpeaker = authenticatedUser ? authenticatedUser.name : "You (Participant)";
@@ -178,7 +184,7 @@ export const TranscriptFeed: React.FC = () => {
       </div>
 
       {/* Transcript Feed List */}
-      <div className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5">
+      <div ref={listRef} className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5">
         {isTranslating && (
           <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-800/40 flex items-center gap-2 text-xs text-cyan-300 font-mono animate-pulse">
             <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />

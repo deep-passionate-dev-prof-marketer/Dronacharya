@@ -143,8 +143,8 @@ export const DocumentationModal: React.FC<Props> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-slate-950/80 backdrop-blur-md font-sans">
-      <div className="w-full max-w-6xl h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md font-sans">
+      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn w-full max-w-6xl h-[94dvh] sm:h-[88vh] bg-slate-900/70 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="h-16 px-6 bg-[#001F40] text-white flex items-center justify-between shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -196,9 +196,9 @@ export const DocumentationModal: React.FC<Props> = ({
         </div>
 
         {/* Body Container */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left Index Sidebar (260px) */}
-          <div className="w-72 bg-slate-50 border-r border-slate-200 p-4 flex flex-col shrink-0">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+          {/* Index: a compact strip on phones, a sidebar from md up */}
+          <div className="w-full md:w-72 max-h-[38%] md:max-h-none overflow-y-auto bg-white/[0.03] border-b md:border-b-0 md:border-r border-white/10 p-3 md:p-4 flex flex-col shrink-0">
             {/* Search filter */}
             <div className="relative mb-3">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -207,7 +207,7 @@ export const DocumentationModal: React.FC<Props> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search specs..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 placeholder-slate-400 outline-none focus:border-[#003872]"
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder-slate-500 outline-none focus:border-blue-500"
               />
             </div>
 
@@ -225,14 +225,14 @@ export const DocumentationModal: React.FC<Props> = ({
                     className={`w-full text-left p-2.5 rounded-xl text-xs font-bold transition-all flex flex-col gap-1 cursor-pointer ${
                       isSelected
                         ? "bg-[#003872] text-white shadow-xs"
-                        : "text-slate-700 hover:bg-slate-200/60"
+                        : "text-slate-200 hover:bg-white/10"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-[11px]">{doc.id}</span>
                       <span
                         className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
-                          isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                          isSelected ? "bg-white/20 text-white" : "bg-white/10 text-slate-300"
                         }`}
                       >
                         {doc.badge}
@@ -245,35 +245,35 @@ export const DocumentationModal: React.FC<Props> = ({
             </div>
 
             {/* Storage path notice */}
-            <div className="mt-4 p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-900 font-mono">
+            <div className="mt-4 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-300 font-mono">
               <span className="block font-bold">File Location:</span>
               <span>/docs/{currentMeta.file}</span>
             </div>
           </div>
 
           {/* Right Content Viewer */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white">
+          <div className="flex-1 flex flex-col overflow-hidden bg-slate-900/70">
             {/* Active Document Subheader */}
-            <div className="h-12 px-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+            <div className="h-12 px-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
               <div className="flex items-center gap-2 text-xs">
-                <FileText className="w-4 h-4 text-[#003872]" />
-                <span className="font-bold text-slate-800">{currentMeta.title}</span>
+                <FileText className="w-4 h-4 text-blue-300" />
+                <span className="font-bold text-slate-100">{currentMeta.title}</span>
                 <span className="text-slate-300">·</span>
-                <span className="font-mono text-slate-500">/docs/{currentMeta.file}</span>
+                <span className="font-mono text-slate-400">/docs/{currentMeta.file}</span>
               </div>
-              <span className="text-xs text-slate-500 font-medium">
-                Category: <strong className="text-slate-700">{currentMeta.category}</strong>
+              <span className="text-xs text-slate-400 font-medium">
+                Category: <strong className="text-slate-200">{currentMeta.category}</strong>
               </span>
             </div>
 
             {/* Document Content */}
-            <div className="flex-1 overflow-y-auto p-6 lg:p-8 font-mono text-xs text-slate-800 leading-relaxed select-text">
+            <div className="flex-1 overflow-y-auto p-6 lg:p-8 font-mono text-xs text-slate-100 leading-relaxed select-text">
               {loading ? (
                 <div className="flex items-center justify-center h-full text-slate-400">
                   <span>Loading documentation file...</span>
                 </div>
               ) : (
-                <pre className="whitespace-pre-wrap font-sans text-sm text-slate-800 bg-transparent">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-slate-100 bg-transparent">
                   {content}
                 </pre>
               )}

@@ -200,16 +200,16 @@ export const DeviceAccessGate: React.FC<Props> = ({ user, roomId, onAllowed, onC
                 <p className="text-sm text-slate-400 leading-relaxed">{policy.reason}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 flex items-center gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 flex flex-wrap items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
                   <DeviceIcon className="w-5 h-5 text-amber-300" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">You're on a {DEVICE_TYPE_LABELS[effective].toLowerCase()}</div>
-                  <div className="text-sm text-slate-200 truncate">{device.osName} · {device.browserName} · {device.screenWidth}×{device.screenHeight}</div>
+                  <div className="text-sm text-slate-200 break-words">{device.osName} · {device.browserName} · {device.screenWidth}×{device.screenHeight}</div>
                 </div>
-                <span className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300 shrink-0 whitespace-nowrap">
-                  {describeAllowedDevices(policy.allowedDeviceTypes)}
+                <span className="w-full sm:w-auto text-center text-[11px] font-semibold px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 whitespace-nowrap">
+                  Required: {describeAllowedDevices(policy.allowedDeviceTypes).toLowerCase()}
                 </span>
               </div>
 

@@ -18,7 +18,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
   const [detectedAudit, setDetectedAudit] = useState<DeviceAuditRecord | null>(null);
 
   useEffect(() => {
-    createDeviceAuditRecord("host-1", "Dr. Evelyn Vance", "instructor", "Auto-detected during faculty portal check-in").then(
+    createDeviceAuditRecord("tch-vance", "Dr. Evelyn Vance", "instructor", "Auto-detected during faculty portal check-in").then(
       (rec) => setDetectedAudit(rec)
     );
   }, []);
@@ -28,7 +28,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
     setIsLoading(true);
     setError(null);
 
-    const audit = detectedAudit || await createDeviceAuditRecord("host-1", "Dr. Evelyn Vance", "instructor");
+    const audit = detectedAudit || await createDeviceAuditRecord("tch-vance", "Dr. Evelyn Vance", "instructor");
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -62,7 +62,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
     } catch {
       // Fallback
       onLoginSuccess({
-        id: "host-1",
+        id: "tch-vance",
         name: "Dr. Evelyn Vance",
         email,
         role: "instructor",

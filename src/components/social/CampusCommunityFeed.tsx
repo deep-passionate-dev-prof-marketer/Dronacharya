@@ -377,28 +377,28 @@ export const CampusCommunityFeed: React.FC = () => {
       : posts.filter((p) => p.category === selectedFilter);
 
   return (
-    <div className="flex-1 w-full h-full overflow-y-auto bg-[#F4F6F9] text-slate-800 font-sans p-3 md:p-6">
+    <div className="flex-1 w-full h-full overflow-y-auto bg-[#070b14] text-slate-100 font-sans p-3 md:p-6">
       <div className="max-w-6xl mx-auto flex flex-col gap-4 lg:gap-6">
         {/* ========================================================= */}
         {/* SECTION 1: PINNED UPCOMING SCHEDULE & INSTANT JOIN CLASS */}
         {/* ========================================================= */}
-        <section className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 md:p-5 relative overflow-hidden">
+        <section className="bg-slate-900/70 rounded-2xl border border-white/10 shadow-sm p-4 md:p-5 relative overflow-hidden">
           {/* Subtle 21K Top Accent Bar */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#003872] via-[#0082FF] to-[#FFBB00]" />
 
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-white/5 pb-3 mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-[#003872] flex items-center justify-center text-white shadow-xs">
                 <Calendar className="w-5 h-5 text-[#FFBB00]" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-[#003872] flex items-center gap-2">
+                <h2 className="text-base font-bold text-blue-300 flex items-center gap-2">
                   <span>Upcoming Scheduled Classes</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[11px] font-bold">
                     Live Sync Active
                   </span>
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   Direct instant access to today's live lecture halls, STEM laboratories, and 1:1 admissions breakouts.
                 </p>
               </div>
@@ -406,7 +406,7 @@ export const CampusCommunityFeed: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 font-medium">Platform Server:</span>
-              <span className="px-2 py-0.5 rounded bg-slate-100 font-mono text-xs font-bold text-slate-700">
+              <span className="px-2 py-0.5 rounded bg-white/[0.06] font-mono text-xs font-bold text-slate-200">
                 21K Global Edge Mesh
               </span>
             </div>
@@ -421,28 +421,28 @@ export const CampusCommunityFeed: React.FC = () => {
                   key={item.id}
                   className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
                     idx === 0
-                      ? "bg-gradient-to-b from-[#F0F7FF] to-white border-[#0082FF]/40 shadow-xs ring-1 ring-[#0082FF]/20"
-                      : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+                      ? "bg-gradient-to-b from-blue-500/15 to-slate-900 border-[#0082FF]/40 shadow-xs ring-1 ring-[#0082FF]/20"
+                      : "bg-slate-900/70 border-white/10 hover:border-white/20 shadow-2xs"
                   }`}
                 >
                   <div className="flex flex-col gap-2">
                     {/* Top Row: Category & Grade */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="px-2 py-0.5 rounded font-bold text-[10px] uppercase tracking-wider bg-slate-100 text-slate-700">
+                      <span className="px-2 py-0.5 rounded font-bold text-[10px] uppercase tracking-wider bg-white/[0.06] text-slate-200">
                         {item.category}
                       </span>
-                      <span className="font-mono text-[11px] font-bold text-[#003872]">
+                      <span className="font-mono text-[11px] font-bold text-blue-300">
                         Grade {item.gradeLevel} · {item.curriculum.split(" ")[0]}
                       </span>
                     </div>
 
                     {/* Class Title */}
-                    <h3 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">
+                    <h3 className="text-sm font-bold text-slate-100 line-clamp-2 leading-snug">
                       {item.title}
                     </h3>
 
                     {/* Facilitator & Date */}
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <div className="flex items-center gap-2 text-xs text-slate-300">
                       <div
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
                         style={{ backgroundColor: item.teacherAvatar }}
@@ -452,7 +452,7 @@ export const CampusCommunityFeed: React.FC = () => {
                       <span className="font-medium truncate">{item.teacherName}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
                       <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{item.timeSlot}</span>
                     </div>
@@ -461,22 +461,22 @@ export const CampusCommunityFeed: React.FC = () => {
                     <div
                       className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold mt-1 ${
                         isImminent
-                          ? "bg-amber-50 text-amber-900 border border-amber-200"
-                          : "bg-slate-100 text-slate-700"
+                          ? "bg-amber-500/10 text-amber-300 border border-amber-500/30"
+                          : "bg-white/[0.06] text-slate-200"
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                         <span>Timer:</span>
                       </div>
-                      <span className={isImminent ? "text-amber-700 font-extrabold" : ""}>
+                      <span className={isImminent ? "text-amber-200 font-extrabold" : ""}>
                         {formatCountdown(item.startsInSeconds)}
                       </span>
                     </div>
                   </div>
 
                   {/* Action Bar */}
-                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/5">
                     <button
                       onClick={() => handleJoinClass(item)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#003872] hover:bg-[#00264d] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer group"
@@ -488,11 +488,11 @@ export const CampusCommunityFeed: React.FC = () => {
 
                     <button
                       onClick={() => handleCopyLink(item.shortUrl)}
-                      className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs transition-colors cursor-pointer shrink-0"
+                      className="p-2 rounded-xl border border-white/10 hover:bg-white/[0.05] text-slate-300 text-xs transition-colors cursor-pointer shrink-0"
                       title={`Copy Shortlink: ${item.shortUrl}`}
                     >
                       {copiedLink === item.shortUrl ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <Check className="w-3.5 h-3.5 text-emerald-300" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -511,7 +511,7 @@ export const CampusCommunityFeed: React.FC = () => {
           {/* LEFT 2 COLUMNS: POST CREATOR & FEED STREAM */}
           <div className="lg:col-span-2 flex flex-col gap-5">
             {/* Post Creator Box */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-5">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 shadow-sm p-4 md:p-5">
               <div className="flex items-start gap-3">
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-xs"
@@ -527,20 +527,20 @@ export const CampusCommunityFeed: React.FC = () => {
                 <div className="flex-1 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-bold text-sm text-[#003872]">
+                      <span className="font-bold text-sm text-blue-300">
                         {authenticatedUser?.name || currentUser.name}
                       </span>
-                      <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                      <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/[0.06] text-slate-300">
                         {authenticatedUser?.role || currentRole}
                       </span>
                     </div>
 
                     {/* Safety Badge */}
                     <div
-                      className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200"
+                      className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30"
                       title="Youth protection guard: Strictly blocks 18+, adult, NSFW, explicit or abusive content."
                     >
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
                       <span>Safety Guard Active</span>
                     </div>
                   </div>
@@ -551,18 +551,18 @@ export const CampusCommunityFeed: React.FC = () => {
                     onChange={(e) => setPostContent(e.target.value)}
                     rows={3}
                     placeholder="Share an academic breakthrough, ask a STEM question, showcase a project..."
-                    className="w-full text-sm text-slate-800 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0082FF] focus:bg-white transition-all resize-none"
+                    className="w-full text-sm text-slate-100 placeholder-slate-500 bg-white/[0.03] border border-white/10 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0082FF] focus:bg-white transition-all resize-none"
                   />
 
                   {/* Optional Code Input */}
                   {showCodeInput && (
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+                      <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
                         <span>Python / LaTeX / Algorithm Snippet:</span>
                         <button
                           type="button"
                           onClick={() => setShowCodeInput(false)}
-                          className="text-slate-400 hover:text-slate-600"
+                          className="text-slate-400 hover:text-white"
                         >
                           Cancel
                         </button>
@@ -572,13 +572,13 @@ export const CampusCommunityFeed: React.FC = () => {
                         onChange={(e) => setPostCode(e.target.value)}
                         rows={3}
                         placeholder="# Paste code snippet or LaTeX formulas here..."
-                        className="w-full font-mono text-xs text-slate-800 bg-slate-900 text-slate-100 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-[#0082FF] resize-none"
+                        className="w-full font-mono text-xs text-slate-100 bg-slate-900 text-slate-100 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-[#0082FF] resize-none"
                       />
                     </div>
                   )}
 
                   {/* Bottom Toolbar */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/5">
                     <div className="flex items-center gap-2">
                       {/* Category Selector */}
                       <select
@@ -586,7 +586,7 @@ export const CampusCommunityFeed: React.FC = () => {
                         onChange={(e) =>
                           setPostCategory(e.target.value as CampusPost["category"])
                         }
-                        className="text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                        className="text-xs font-semibold bg-white/[0.06] text-slate-200 border border-white/10 rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
                       >
                         <option value="STEM Project">STEM Project</option>
                         <option value="Academic Question">Academic Question</option>
@@ -601,7 +601,7 @@ export const CampusCommunityFeed: React.FC = () => {
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                           showCodeInput
                             ? "bg-slate-800 text-white"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            : "bg-white/[0.06] text-slate-300 hover:bg-white/10"
                         }`}
                       >
                         <Code className="w-3.5 h-3.5" />
@@ -632,7 +632,7 @@ export const CampusCommunityFeed: React.FC = () => {
                     className={`px-3 py-1.5 rounded-full font-bold transition-colors cursor-pointer shrink-0 ${
                       selectedFilter === filter
                         ? "bg-[#003872] text-white shadow-xs"
-                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                        : "bg-slate-900/70 text-slate-300 border border-white/10 hover:bg-white/[0.08]"
                     }`}
                   >
                     {filter}
@@ -646,7 +646,7 @@ export const CampusCommunityFeed: React.FC = () => {
               {filteredPosts.map((post) => (
                 <article
                   key={post.id}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3 hover:border-slate-300 transition-colors"
+                  className="bg-slate-900/70 rounded-2xl border border-white/10 shadow-sm p-5 flex flex-col gap-3 hover:border-white/20 transition-colors"
                 >
                   {/* Post Header */}
                   <div className="flex items-center justify-between">
@@ -659,7 +659,7 @@ export const CampusCommunityFeed: React.FC = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-sm text-slate-900">
+                          <h4 className="font-bold text-sm text-slate-100">
                             {post.authorName}
                           </h4>
                           <span
@@ -667,8 +667,8 @@ export const CampusCommunityFeed: React.FC = () => {
                               post.authorRole === "instructor"
                                 ? "bg-[#003872] text-white"
                                 : post.authorRole === "admin"
-                                ? "bg-rose-100 text-rose-800"
-                                : "bg-sky-100 text-sky-800"
+                                ? "bg-rose-500/10 text-rose-300"
+                                : "bg-sky-500/10 text-sky-300"
                             }`}
                           >
                             {post.authorRole}
@@ -685,12 +685,12 @@ export const CampusCommunityFeed: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1 text-slate-400">
-                      <Bookmark className="w-4 h-4 hover:text-[#003872] cursor-pointer" />
+                      <Bookmark className="w-4 h-4 hover:text-blue-300 cursor-pointer" />
                     </div>
                   </div>
 
                   {/* Post Text Content */}
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
+                  <p className="text-sm text-slate-100 leading-relaxed whitespace-pre-line">
                     {post.content}
                   </p>
 
@@ -702,19 +702,19 @@ export const CampusCommunityFeed: React.FC = () => {
                   )}
 
                   {/* Post Interaction Bar (LinkedIn Style) */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-600">
+                  <div className="flex items-center justify-between pt-3 border-t border-white/5 text-xs text-slate-300">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleLikePost(post.id)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                           post.likedByMe
-                            ? "bg-rose-50 text-rose-600 font-bold"
-                            : "hover:bg-slate-100"
+                            ? "bg-rose-500/10 text-rose-300 font-bold"
+                            : "hover:bg-white/[0.08]"
                         }`}
                       >
                         <Heart
                           className={`w-4 h-4 ${
-                            post.likedByMe ? "fill-current text-rose-600" : ""
+                            post.likedByMe ? "fill-current text-rose-300" : ""
                           }`}
                         />
                         <span>{post.likes}</span>
@@ -727,21 +727,21 @@ export const CampusCommunityFeed: React.FC = () => {
                             [post.id]: !prev[post.id],
                           }))
                         }
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/[0.08] transition-colors cursor-pointer"
                       >
-                        <MessageSquare className="w-4 h-4 text-slate-500" />
+                        <MessageSquare className="w-4 h-4 text-slate-400" />
                         <span>{post.comments.length} Comments</span>
                       </button>
                     </div>
 
                     <button
                       onClick={() => handleCopyLink(buildMeetingUrl(`post/${post.id}`))}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 transition-colors cursor-pointer"
                     >
                       {copiedLink === buildMeetingUrl(`post/${post.id}`) ? (
                         <>
-                          <Check className="w-4 h-4 text-emerald-600" />
-                          <span className="text-emerald-600 font-bold">Copied!</span>
+                          <Check className="w-4 h-4 text-emerald-300" />
+                          <span className="text-emerald-300 font-bold">Copied!</span>
                         </>
                       ) : (
                         <>
@@ -754,23 +754,23 @@ export const CampusCommunityFeed: React.FC = () => {
 
                   {/* Expandable Comments Section */}
                   {openComments[post.id] && (
-                    <div className="mt-2 pt-3 border-t border-slate-100 flex flex-col gap-2.5 bg-slate-50/70 p-3 rounded-xl">
+                    <div className="mt-2 pt-3 border-t border-white/5 flex flex-col gap-2.5 bg-slate-50/70 p-3 rounded-xl">
                       {/* Comments List */}
                       {post.comments.map((comm) => (
                         <div key={comm.id} className="flex items-start gap-2.5 text-xs">
-                          <div className="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-700 shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-bold text-slate-200 shrink-0">
                             {comm.authorName.charAt(0)}
                           </div>
-                          <div className="flex-1 bg-white p-2.5 rounded-xl border border-slate-200">
+                          <div className="flex-1 bg-slate-900/70 p-2.5 rounded-xl border border-white/10">
                             <div className="flex items-center justify-between mb-0.5">
-                              <span className="font-bold text-slate-800">
+                              <span className="font-bold text-slate-100">
                                 {comm.authorName}
                               </span>
                               <span className="text-[10px] text-slate-400">
                                 {comm.timestamp}
                               </span>
                             </div>
-                            <p className="text-slate-700">{comm.text}</p>
+                            <p className="text-slate-200">{comm.text}</p>
                           </div>
                         </div>
                       ))}
@@ -790,7 +790,7 @@ export const CampusCommunityFeed: React.FC = () => {
                             if (e.key === "Enter") handleAddComment(post.id);
                           }}
                           placeholder="Write a thoughtful comment..."
-                          className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0082FF]"
+                          className="flex-1 text-xs bg-slate-900/70 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0082FF]"
                         />
                         <button
                           onClick={() => handleAddComment(post.id)}
@@ -810,8 +810,8 @@ export const CampusCommunityFeed: React.FC = () => {
           {/* RIGHT 1 COLUMN: SIDEBAR WIDGETS (TRENDING, FACULTY, PORTAL QUICK JUMP) */}
           <div className="flex flex-col gap-5">
             {/* Widget 1: Campus Trending Topics */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col gap-3">
-              <h3 className="font-bold text-sm text-[#003872] flex items-center gap-1.5">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-4 shadow-sm flex flex-col gap-3">
+              <h3 className="font-bold text-sm text-blue-300 flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-[#0082FF]" />
                 <span>Trending Academic Topics</span>
               </h3>
@@ -825,9 +825,9 @@ export const CampusCommunityFeed: React.FC = () => {
                 ].map((item) => (
                   <div
                     key={item.tag}
-                    className="p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+                    className="p-2 rounded-xl hover:bg-white/[0.05] transition-colors cursor-pointer border border-transparent hover:border-white/15"
                   >
-                    <span className="font-bold text-slate-800 block">{item.tag}</span>
+                    <span className="font-bold text-slate-100 block">{item.tag}</span>
                     <span className="text-[11px] text-slate-400">
                       {item.count} • {item.category}
                     </span>
@@ -837,8 +837,8 @@ export const CampusCommunityFeed: React.FC = () => {
             </div>
 
             {/* Widget 2: Faculty On Duty Roster */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col gap-3">
-              <h3 className="font-bold text-sm text-[#003872] flex items-center gap-1.5">
+            <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-4 shadow-sm flex flex-col gap-3">
+              <h3 className="font-bold text-sm text-blue-300 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-[#FFBB00]" />
                 <span>Faculty On Duty Today</span>
               </h3>
@@ -873,15 +873,15 @@ export const CampusCommunityFeed: React.FC = () => {
                     color: "bg-rose-500",
                   },
                 ].map((f) => (
-                  <div key={f.name} className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+                  <div key={f.name} className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03]">
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${f.color}`} />
                       <div>
-                        <span className="font-bold text-slate-800 block">{f.name}</span>
-                        <span className="text-[11px] text-slate-500">{f.subject}</span>
+                        <span className="font-bold text-slate-100 block">{f.name}</span>
+                        <span className="text-[11px] text-slate-400">{f.subject}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                    <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded border border-white/10">
                       {f.statusText}
                     </span>
                   </div>
@@ -910,26 +910,26 @@ export const CampusCommunityFeed: React.FC = () => {
       {/* Safety Violation Modal Popup */}
       {safetyViolation?.show && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-rose-200 shadow-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <ShieldAlert className="w-6 h-6 text-rose-600" />
+          <div className="bg-slate-900/70 rounded-2xl max-w-md w-full border border-rose-500/30 shadow-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-300">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6 text-rose-300" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-slate-900">
+                <h3 className="font-bold text-base text-slate-100">
                   Content Blocked by Campus Safety
                 </h3>
-                <span className="text-xs text-rose-600 font-mono font-bold uppercase">
+                <span className="text-xs text-rose-300 font-mono font-bold uppercase">
                   Flag: {safetyViolation.flaggedCategory}
                 </span>
               </div>
             </div>
 
-            <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 text-xs text-slate-700 leading-relaxed">
+            <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/30 text-xs text-slate-200 leading-relaxed">
               {safetyViolation.reason}
             </div>
 
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-400">
               21K School is an accredited global educational institution for grades K-12. Explicit, adult, NSFW, or inappropriate material is prohibited under the Student Honor Code.
             </p>
 

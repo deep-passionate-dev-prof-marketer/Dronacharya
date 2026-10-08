@@ -18,6 +18,18 @@ import {
 } from "lucide-react";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
+  ALL_DEVICE_TYPES,
+  COMPUTER_ONLY,
+  DEFAULT_DEVICE_POLICY_RULES,
+  DEVICE_TYPE_LABELS,
+  PolicyDeviceType,
+  SESSION_TYPE_LABELS,
+  SessionType,
+  describeAllowedDevices,
+  resolvePolicyFromRules,
+} from "../../services/devicePolicyEngine";
+import { actorFromUser } from "../../services/deviceAccessClient";
+import {
   SchoolBrandCode,
   CountryCode,
   CurriculumCode,
@@ -44,7 +56,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
   onClose,
   onApplyRoomSlug,
 }) => {
-  const { currentRole } = useClassroom();
+  const { currentRole, authenticatedUser } = useClassroom();
   const isAuthorized =
     currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
 
@@ -55,6 +67,17 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
   const [courseCode, setCourseCode] = useState<CourseCode>("cd");
   const [subjectCode, setSubjectCode] = useState<string>("phy");
   const [sectionOrTeacher, setSectionOrTeacher] = useState<string>("vance");
+
+  // Device access policy for the generated link
+  const [sessionType, setSessionType] = useState<SessionType>("paid");
+  const [deviceMode, setDeviceMode] = useState<"auto" | "computer" | "any" | "custom">("auto");
+  const [customDevices, setCustomDevices] = useState<PolicyDeviceType[]>(COMPUTER_ONLY);
+  const autoPolicy = resolvePolicyFromRules(
+    { sessionType, schoolBrand, courseCode: schoolBrand === "21klf" ? courseCode : undefined, subjectCode, gradeLevel },
+    DEFAULT_DEVICE_POLICY_RULES
+  );
+  const effectiveDevices: PolicyDeviceType[] =
+    deviceMode === "auto" ? autoPolicy.allowedDeviceTypes : deviceMode === "computer" ? COMPUTER_ONLY : deviceMode === "any" ? ALL_DEVICE_TYPES : customDevices;
 
   const [copiedSlug, setCopiedSlug] = useState(false);
   const [copiedShort, setCopiedShort] = useState(false);
@@ -109,6 +132,13 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
           countryCode,
           gradeLevel,
           subjectCode,
+          courseCode: schoolBrand === "21klf" ? courseCode : undefined,
+          sessionType,
+          devicePolicy:
+            deviceMode === "auto"
+              ? { mode: "auto" }
+              : { mode: "manual", allowedDeviceTypes: effectiveDevices, allowRequestOverride: true },
+          actor: actorFromUser(authenticatedUser),
         }),
       });
       const data = await res.json();
@@ -155,25 +185,25 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md font-sans">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-slate-950/80 backdrop-blur-sm font-sans" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-4xl bg-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[94dvh] sm:max-h-[90dvh] animate-sheetUp sm:animate-fadeIn">
         {/* Header */}
-        <div className="h-16 px-6 bg-[#001F40] text-white flex items-center justify-between shrink-0">
+        <div className="min-h-16 py-3 px-4 sm:px-6 bg-[#001F40] text-white flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#003872] flex items-center justify-center text-[#FFBB00]">
               <Link2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white leading-tight">
-                  Standard Room Nomenclature & Shortlink Manager
+                <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
+                  Room links & device rules
                 </h2>
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono">
                   <ShieldCheck className="w-3 h-3 text-emerald-400" />
                   <span>Authorized: {currentRole.toUpperCase()}</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="hidden sm:block text-xs text-slate-300">
                 Hierarchical URL nomenclature (21kos, 21klf, gr&#123;&#125;, curriculum & country codes) + Base62 shortlinks
               </p>
             </div>
@@ -181,45 +211,258 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            aria-label="Close"
+            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6 flex-1 text-slate-100">
+          {/* Configuration Form Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            {/* School Brand & Country Server */}
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                  1. School Entity Brand
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSchoolBrand("21kos")}
+                    className={`p-2 rounded-lg border font-bold text-xs text-center transition-colors ${
+                      schoolBrand === "21kos"
+                        ? "bg-[#003872] text-white border-blue-500/60 shadow-xs"
+                        : "bg-slate-900/70 text-slate-200 border-white/10 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    21kos (School)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSchoolBrand("21klf")}
+                    className={`p-2 rounded-lg border font-bold text-xs text-center transition-colors ${
+                      schoolBrand === "21klf"
+                        ? "bg-[#003872] text-white border-blue-500/60 shadow-xs"
+                        : "bg-slate-900/70 text-slate-200 border-white/10 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    21klf (Floww)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                  2. Country Edge Server
+                </label>
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value as CountryCode)}
+                  className="w-full px-3 py-2 rounded-lg border border-white/15 bg-slate-900/70 font-medium text-slate-100 outline-none focus:border-blue-500"
+                >
+                  {Object.entries(COUNTRIES_MAP).map(([code, c]) => (
+                    <option key={code} value={code}>
+                      [{code.toUpperCase()}] {c.name} ({c.regionServer})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Grade Level & Curriculum / Course */}
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px] flex justify-between">
+                  <span>3. Grade Level</span>
+                  <span className="font-mono text-blue-300">gr{gradeLevel}</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={12}
+                  value={gradeLevel}
+                  onChange={(e) => setGradeLevel(parseInt(e.target.value, 10))}
+                  className="w-full accent-blue-500 cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                  <span>gr1</span>
+                  <span>gr6</span>
+                  <span>gr12</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                  {schoolBrand === "21kos" ? "4. Academic Curriculum" : "4. Learning Floww Course"}
+                </label>
+                {schoolBrand === "21kos" ? (
+                  <select
+                    value={curriculumCode}
+                    onChange={(e) => setCurriculumCode(e.target.value as CurriculumCode)}
+                    className="w-full px-3 py-2 rounded-lg border border-white/15 bg-slate-900/70 font-medium text-slate-100 outline-none focus:border-blue-500"
+                  >
+                    {Object.entries(CURRICULA_MAP).map(([code, curr]) => (
+                      <option key={code} value={code}>
+                        [{code.toUpperCase()}] {curr.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={courseCode}
+                    onChange={(e) => setCourseCode(e.target.value as CourseCode)}
+                    className="w-full px-3 py-2 rounded-lg border border-white/15 bg-slate-900/70 font-medium text-slate-100 outline-none focus:border-blue-500"
+                  >
+                    {Object.entries(LEARNING_FLOWW_COURSES).map(([code, course]) => (
+                      <option key={code} value={code}>
+                        [{code.toUpperCase()}] {course.name} ({course.category})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Subject Code & Section / Teacher */}
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                  5. Subject Identifier
+                </label>
+                <input
+                  type="text"
+                  value={subjectCode}
+                  onChange={(e) => setSubjectCode(e.target.value)}
+                  placeholder="phy, math, cs, bio"
+                  className="w-full px-3 py-2 rounded-lg border border-white/15 font-mono text-xs text-slate-100 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                  6. Section / Teacher Suffix
+                </label>
+                <input
+                  type="text"
+                  value={sectionOrTeacher}
+                  onChange={(e) => setSectionOrTeacher(e.target.value)}
+                  placeholder="vance, secA, batch1"
+                  className="w-full px-3 py-2 rounded-lg border border-white/15 font-mono text-xs text-slate-100 outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Session type & device access policy */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">Session type & device access</span>
+              <span className="text-xs text-slate-400">Students on other devices must request approval</span>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-300 mb-1.5">Session type</div>
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.keys(SESSION_TYPE_LABELS) as SessionType[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSessionType(t)}
+                    className={`px-3 h-9 rounded-lg border text-xs font-semibold transition-colors ${
+                      sessionType === t ? "bg-blue-600 border-blue-500 text-white" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                    }`}
+                  >
+                    {SESSION_TYPE_LABELS[t]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-slate-300 mb-1.5">Allowed devices</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {([
+                  ["auto", "Auto (rules)"],
+                  ["computer", "Laptop & desktop"],
+                  ["any", "Any device"],
+                  ["custom", "Custom"],
+                ] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setDeviceMode(mode)}
+                    className={`h-9 rounded-lg border text-xs font-semibold transition-colors ${
+                      deviceMode === mode ? "bg-blue-600 border-blue-500 text-white" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {deviceMode === "custom" && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {ALL_DEVICE_TYPES.map((d) => {
+                    const on = customDevices.includes(d);
+                    return (
+                      <label key={d} className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-xs cursor-pointer ${on ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-white/5 border-white/10 text-slate-400"}`}>
+                        <input
+                          type="checkbox"
+                          className="accent-emerald-500"
+                          checked={on}
+                          onChange={() => setCustomDevices((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))}
+                        />
+                        {DEVICE_TYPE_LABELS[d]}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className={`rounded-lg px-3 py-2.5 text-xs flex items-start gap-2 ${effectiveDevices.length === ALL_DEVICE_TYPES.length ? "bg-white/5 text-slate-300" : "bg-amber-500/10 border border-amber-500/30 text-amber-100"}`}>
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-px" />
+              <span>
+                <strong className="font-semibold">{describeAllowedDevices(effectiveDevices.length ? effectiveDevices : COMPUTER_ONLY)}</strong>
+                {deviceMode === "auto" ? ` · ${autoPolicy.matchedRuleName}` : " · Manual override"}
+                {effectiveDevices.length < ALL_DEVICE_TYPES.length && " · Phone/tablet students can request access; you'll get a notification to approve or deny."}
+              </span>
+            </div>
+          </div>
+
           {/* Active Generated Nomenclature Display Card */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-[#003872] uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-[#0082FF]" />
                 <span>Computed Standard Room Slug</span>
               </span>
-              <span className="text-[11px] font-mono text-slate-500 font-bold">
+              <span className="text-[11px] font-mono text-slate-400 font-bold">
                 Server Node: {COUNTRIES_MAP[countryCode]?.regionServer || "Edge"}
               </span>
             </div>
 
             {/* Slug Row */}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 font-mono text-xs font-bold text-[#003872] break-all select-all">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex-1 px-3 py-2 rounded-lg bg-slate-900/70 border border-white/15 font-mono text-xs font-bold text-blue-300 break-all select-all">
                 {fullUrl}
               </div>
               <button
                 onClick={handleCopySlug}
-                className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-slate-100 text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
               >
-                {copiedSlug ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedSlug ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedSlug ? "Copied" : "Copy Slug"}</span>
               </button>
             </div>
 
             {/* Base62 Shortlink Row */}
-            <div className="flex items-center gap-2 pt-2 border-t border-slate-200/80">
-              <div className="flex-1 px-3 py-2 rounded-lg bg-blue-50/80 border border-blue-200 font-mono text-xs font-bold text-[#0082FF] break-all select-all flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-white/10">
+              <div className="flex-1 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 font-mono text-xs font-bold text-[#0082FF] break-all select-all flex items-center justify-between">
                 <span>{shortUrl}</span>
-                <span className="text-[10px] uppercase font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                <span className="text-[10px] uppercase font-bold text-blue-300 bg-slate-900/70 px-2 py-0.5 rounded border border-blue-500/30">
                   Base62 6-Char
                 </span>
               </div>
@@ -236,168 +479,37 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                 disabled={isGenerating}
                 className="px-4 py-2 rounded-lg bg-[#FFBB00] hover:bg-[#e6a800] text-[#001F40] text-xs font-black flex items-center gap-1.5 transition-colors shrink-0"
               >
-                <Plus className="w-3.5 h-3.5 text-[#001F40]" />
+                <Plus className="w-3.5 h-3.5 text-slate-100" />
                 <span>Save & Provision</span>
               </button>
-            </div>
-          </div>
-
-          {/* Configuration Form Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {/* School Brand & Country Server */}
-            <div className="space-y-3">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">
-                  1. School Entity Brand
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSchoolBrand("21kos")}
-                    className={`p-2 rounded-lg border font-bold text-xs text-center transition-colors ${
-                      schoolBrand === "21kos"
-                        ? "bg-[#003872] text-white border-[#003872] shadow-xs"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    21kos (School)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSchoolBrand("21klf")}
-                    className={`p-2 rounded-lg border font-bold text-xs text-center transition-colors ${
-                      schoolBrand === "21klf"
-                        ? "bg-[#003872] text-white border-[#003872] shadow-xs"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    21klf (Floww)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">
-                  2. Country Edge Server
-                </label>
-                <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value as CountryCode)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#003872]"
-                >
-                  {Object.entries(COUNTRIES_MAP).map(([code, c]) => (
-                    <option key={code} value={code}>
-                      [{code.toUpperCase()}] {c.name} ({c.regionServer})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Grade Level & Curriculum / Course */}
-            <div className="space-y-3">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px] flex justify-between">
-                  <span>3. Grade Level</span>
-                  <span className="font-mono text-[#003872]">gr{gradeLevel}</span>
-                </label>
-                <input
-                  type="range"
-                  min={1}
-                  max={12}
-                  value={gradeLevel}
-                  onChange={(e) => setGradeLevel(parseInt(e.target.value, 10))}
-                  className="w-full accent-[#003872] cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                  <span>gr1</span>
-                  <span>gr6</span>
-                  <span>gr12</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">
-                  {schoolBrand === "21kos" ? "4. Academic Curriculum" : "4. Learning Floww Course"}
-                </label>
-                {schoolBrand === "21kos" ? (
-                  <select
-                    value={curriculumCode}
-                    onChange={(e) => setCurriculumCode(e.target.value as CurriculumCode)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#003872]"
-                  >
-                    {Object.entries(CURRICULA_MAP).map(([code, curr]) => (
-                      <option key={code} value={code}>
-                        [{code.toUpperCase()}] {curr.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <select
-                    value={courseCode}
-                    onChange={(e) => setCourseCode(e.target.value as CourseCode)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#003872]"
-                  >
-                    {Object.entries(LEARNING_FLOWW_COURSES).map(([code, course]) => (
-                      <option key={code} value={code}>
-                        [{code.toUpperCase()}] {course.name} ({course.category})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-
-            {/* Subject Code & Section / Teacher */}
-            <div className="space-y-3">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">
-                  5. Subject Identifier
-                </label>
-                <input
-                  type="text"
-                  value={subjectCode}
-                  onChange={(e) => setSubjectCode(e.target.value)}
-                  placeholder="phy, math, cs, bio"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs text-slate-800 outline-none focus:border-[#003872]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">
-                  6. Section / Teacher Suffix
-                </label>
-                <input
-                  type="text"
-                  value={sectionOrTeacher}
-                  onChange={(e) => setSectionOrTeacher(e.target.value)}
-                  placeholder="vance, secA, batch1"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs text-slate-800 outline-none focus:border-[#003872]"
-                />
-              </div>
             </div>
           </div>
 
           {/* Active Provisioned Shortlinks Roster */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 Active Provisioned Shortlinks Directory ({linksList.length})
               </span>
             </div>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto">
+            <div className="border border-white/10 rounded-xl overflow-hidden divide-y divide-white/5 max-h-64 overflow-y-auto">
               {linksList.map((link) => (
                 <div
                   key={link.id}
-                  className="p-3 flex items-center justify-between hover:bg-slate-50 text-xs transition-colors"
+                  className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.05] text-xs transition-colors"
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-[#003872]">{link.slug}</span>
-                      <span className="font-mono text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-mono font-bold text-blue-300 break-all">{link.slug}</span>
+                      <span className="font-mono text-[10px] text-blue-300 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/30 break-all">
                         {link.shortUrl}
                       </span>
+                      {(link as any).devicePolicy?.allowedDeviceTypes && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-200">
+                          {describeAllowedDevices((link as any).devicePolicy.allowedDeviceTypes)}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
                       Teacher: {link.assignedTeacherName || "Faculty Assigned"} · {link.createdAt} · {link.clicksCount} clicks
@@ -423,8 +535,8 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
         </div>
 
         {/* Footer */}
-        <div className="h-12 px-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
-          <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+        <div className="hidden sm:flex h-12 px-6 bg-white/[0.03] border-t border-white/10 items-center justify-between text-xs text-slate-400 shrink-0">
+          <div className="flex items-center gap-1.5 text-emerald-300 font-medium">
             <ShieldCheck className="w-4 h-4" />
             <span>Deterministic URL Invariants Verified</span>
           </div>

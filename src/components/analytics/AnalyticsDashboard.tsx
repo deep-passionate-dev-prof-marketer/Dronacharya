@@ -1,3 +1,4 @@
+import { EngagementInsightsPanel } from "../engagement/EngagementInsightsPanel";
 import React, { useState } from "react";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
@@ -51,6 +52,8 @@ export const AnalyticsDashboard: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col bg-[#080c14] overflow-y-auto select-none p-3 sm:p-4 lg:p-6">
       <div className="max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
+        <EngagementInsightsPanel />
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/80">Sample data below · cohort widgets not yet connected to live data</p>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>

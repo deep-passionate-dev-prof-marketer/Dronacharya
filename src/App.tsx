@@ -32,8 +32,10 @@ import { GamifiedWaitingLobby } from "./components/classroom/GamifiedWaitingLobb
 import { RealtimeInterpreterModal } from "./components/translation/RealtimeInterpreterModal";
 import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
 import { DeviceAccessGate } from "./components/access/DeviceAccessGate";
+import { AnalyticsConsentModal } from "./components/engagement/AnalyticsConsentModal";
 import { MobileTabBar } from "./components/navigation/MobileTabBar";
 import { useBreakpoint } from "./hooks/useBreakpoint";
+import { useUrlSync } from "./hooks/useUrlSync";
 import { AuthUser } from "./types";
 import { Megaphone, X } from "lucide-react";
 
@@ -61,7 +63,18 @@ const MainLayout: React.FC = () => {
     classStatus,
     startClass,
     logoutUser,
+    activeDockTab,
+    setActiveDockTab,
   } = useClassroom();
+
+  useUrlSync({
+    user: authenticatedUser,
+    activeView,
+    setActiveView,
+    dockTab: activeDockTab,
+    setDockTab: setActiveDockTab,
+    roomId,
+  });
 
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === "mobile";
@@ -129,7 +142,7 @@ const MainLayout: React.FC = () => {
   React.useEffect(() => {
     const roleAllowedViews: Record<string, string[]> = {
       student: ["classroom", "social", "notebook", "materials", "blockchain"],
-      instructor: ["classroom", "social", "notebook", "materials", "attendance", "analytics", "facilitators", "remote_access", "device_audit"],
+      instructor: ["classroom", "social", "notebook", "materials", "attendance", "facilitators", "remote_access", "device_audit"],
       auditor: ["classroom", "analytics", "attendance", "device_audit", "blockchain"],
       sales_rep: ["sales_hub", "classroom", "room_bomber", "crm", "facilitators", "device_audit", "social"],
       admin: [
@@ -302,6 +315,7 @@ const MainLayout: React.FC = () => {
       <AnnouncementModal />
       <AiSummaryModal />
       <IncomingAccessNotification />
+      <AnalyticsConsentModal />
 
       {/* Standalone System Documentation Modal */}
       <DocumentationModal

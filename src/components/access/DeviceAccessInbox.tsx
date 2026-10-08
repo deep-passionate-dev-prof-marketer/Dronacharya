@@ -210,7 +210,7 @@ const RequestCard: React.FC<{
 
       {expanded && (
         <>
-          <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
             {details.map(([k, v]) => (
               <React.Fragment key={k}>
                 <dt className="text-slate-500">{k}</dt>

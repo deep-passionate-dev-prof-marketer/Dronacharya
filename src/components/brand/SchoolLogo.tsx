@@ -7,6 +7,8 @@ interface SchoolLogoProps {
   theme?: "light" | "dark";
   /** Hide the system badge below this breakpoint ("sm" | "md" | "lg" | "xl"); never wraps either way */
   badgeFrom?: "always" | "sm" | "md" | "lg" | "xl";
+  /** Hide the wordmark on very narrow phones (< 400px) so header actions keep their space */
+  compactOnTiny?: boolean;
 }
 
 export const SchoolLogo: React.FC<SchoolLogoProps> = ({
@@ -15,6 +17,7 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   systemName = "Dronacharya",
   theme = "light",
   badgeFrom = "always",
+  compactOnTiny = false,
 }) => {
   const badgeVisibility = {
     always: "inline-block",
@@ -74,7 +77,7 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
       </svg>
 
       {/* Brand Text Lockup */}
-      <div className="flex flex-col justify-center min-w-0">
+      <div className={`flex flex-col justify-center min-w-0 ${compactOnTiny ? "max-[399px]:hidden" : ""}`}>
         <div className="flex items-baseline gap-1.5 leading-none whitespace-nowrap">
           <span className={`font-headline font-bold text-base md:text-lg tracking-tight whitespace-nowrap ${textColor}`}>
             21K School
