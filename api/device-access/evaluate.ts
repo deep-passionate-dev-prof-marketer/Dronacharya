@@ -1,13 +1,5 @@
-import {
-  DEFAULT_DEVICE_POLICY_RULES,
-  inferContextFromSlug,
-  isDeviceAllowed,
-  resolvePolicyFromRules,
-  RoomPolicyContext,
-} from "../../src/services/devicePolicyEngine";
-
+// Self-contained Vercel serverless function for POST /api/device-access/evaluate
 export default async function handler(req: any, res: any) {
-  // Global CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -22,16 +14,22 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { roomSlug, student, device } = req.body || {};
-    const slug = String(roomSlug || "");
-    const inferred = inferContextFromSlug(slug);
-    const ctx: RoomPolicyContext = { sessionType: inferred.sessionType || "demo", ...inferred };
-    const policy = resolvePolicyFromRules(ctx, DEFAULT_DEVICE_POLICY_RULES);
     const devType = device?.deviceType || "desktop";
-    const allowed = isDeviceAllowed(policy, devType);
+    
+    // Policy rule: Live classes require a laptop or desktop for labs, whiteboard, and screen sharing
+    const allowed = devType === "laptop" || devType === "desktop";
 
     return res.status(200).json({
       decision: allowed ? "allow" : "block",
-      policy: { ...policy, allowRequestOverride: true },
+      policy: {
+        mode: "auto",
+        allowedDeviceTypes: ["laptop", "desktop"],
+        allowRequestOverride: true,
+        approverRoles: ["instructor", "admin", "sales_rep"],
+        matchedRuleId: "rule-demo-computer",
+        matchedRuleName: "Demo classes need a laptop or desktop",
+        reason: "Demo classes require a laptop or desktop so the full interactive classroom works.",
+      },
       effectiveDeviceType: devType,
       integrity: "verified",
       enforcement: "server",
