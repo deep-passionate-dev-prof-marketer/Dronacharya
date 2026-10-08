@@ -5,6 +5,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/ai/live-translate-stream",
+      "destination": "/api/ai/live-translate-stream"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
