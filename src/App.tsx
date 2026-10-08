@@ -87,6 +87,16 @@ const MainLayout: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  if (!authenticatedUser) {
+    return (
+      <AuthPortalView
+        onLoginSuccess={loginUser}
+        canDismiss={false}
+        onOpenDocs={() => setIsDocsModalOpen(true)}
+      />
+    );
+  }
+
   return (
     <div className="w-full max-w-full h-[100dvh] min-h-[100dvh] flex flex-col bg-[#070b14] text-slate-100 overflow-hidden font-sans pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
       {/* Top Bar Navigation (Deep Frosted Glassmorphism Theme) */}

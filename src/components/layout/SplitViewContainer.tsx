@@ -10,6 +10,7 @@ import {
   Video,
   Layers,
 } from "lucide-react";
+import { useClassroom } from "../../context/ClassroomContext";
 
 interface SplitViewContainerProps {
   leftContent: React.ReactNode;
@@ -22,7 +23,9 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
   rightContent,
   initialSplitRatio = 65,
 }) => {
-  const [splitRatio, setSplitRatio] = useState<number>(initialSplitRatio);
+  const { dockSplitRatio, setDockSplitRatio } = useClassroom();
+  const splitRatio = dockSplitRatio ?? initialSplitRatio;
+  const setSplitRatio = setDockSplitRatio;
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [activePreset, setActivePreset] = useState<"custom" | "50" | "65" | "80" | "leftOnly" | "rightOnly">("65");
   const [isMobile, setIsMobile] = useState<boolean>(() =>
@@ -212,7 +215,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
             ? "none"
             : "flex",
         }}
-        className="h-full flex flex-col overflow-hidden transition-[width] duration-75 relative bg-slate-950 flex-1"
+        className="h-full flex flex-col overflow-hidden transition-[width] duration-75 relative bg-slate-950 shrink-0"
       >
         {leftContent}
       </div>
@@ -249,7 +252,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
             ? "none"
             : "flex",
         }}
-        className="h-full flex flex-col overflow-hidden transition-[width] duration-75 relative bg-slate-950/70 backdrop-blur-xl border-l border-white/5 flex-1"
+        className="h-full flex flex-col overflow-hidden transition-[width] duration-75 relative bg-slate-950/70 backdrop-blur-xl border-l border-white/5 shrink-0"
       >
         {rightContent}
       </div>

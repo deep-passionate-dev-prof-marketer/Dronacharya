@@ -36,6 +36,8 @@ import {
   PitchRoomStatus,
   PitchStageNumber,
   DeviceAuditRecord,
+  GridLayoutMode,
+  TileAspectRatio,
 } from "../types";
 import { translateDualCaption } from "../services/geminiService";
 import { getParticipantsForRatio, FULL_24_STUDENT_POOL } from "../services/participantPool";
@@ -169,7 +171,20 @@ export interface ClassroomContextType {
   simulateNextClassroomUtterance: () => Promise<void>;
   isLiveSpeechStreaming: boolean;
 
-  // Device Auto-Detection & Audit System
+  // Manual Grid & Stage Layout Customization
+  layoutMode: GridLayoutMode;
+  setLayoutMode: (mode: GridLayoutMode) => void;
+  manualGridColumns: number;
+  setManualGridColumns: (cols: number) => void;
+  tileAspectRatio: TileAspectRatio;
+  setTileAspectRatio: (ratio: TileAspectRatio) => void;
+  pinnedParticipantId: string | null;
+  setPinnedParticipantId: (id: string | null) => void;
+  showSelfView: boolean;
+  setShowSelfView: (show: boolean) => void;
+  dockSplitRatio: number;
+  setDockSplitRatio: (ratio: number) => void;
+
   deviceAuditLogs: DeviceAuditRecord[];
   latestDeviceAudit: DeviceAuditRecord | null;
   logDeviceAudit: (role?: UserRole, details?: string) => Promise<DeviceAuditRecord>;
@@ -351,186 +366,11 @@ export interface ClassroomContextType {
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
-const INITIAL_PARTICIPANTS: Participant[] = [
-  {
-    id: "host-1",
-    name: "Dr. Evelyn Vance (Lead Facilitator)",
-    role: "instructor",
-    avatarColor: "#003872",
-    isLocal: true,
-    audioEnabled: true,
-    videoEnabled: true,
-    screenSharing: false,
-    handRaised: false,
-    audioLevel: 45,
-    attendanceStatus: "present",
-    joinedAt: "08:55 AM",
-    parentEmail: "coordinator@21k.school",
-    xpPoints: 3450,
-  },
-  {
-    id: "stu-1",
-    name: "Sophia Chen",
-    role: "student",
-    avatarColor: "#00C2E0",
-    audioEnabled: true,
-    videoEnabled: true,
-    screenSharing: false,
-    handRaised: false,
-    audioLevel: 12,
-    attendanceStatus: "present",
-    joinedAt: "09:00 AM",
-    parentEmail: "chen.parent@21k.family",
-    xpPoints: 2180,
-    gradeLevel: 10,
-    section: "A",
-  },
-  {
-    id: "stu-2",
-    name: "Marcus Vance",
-    role: "student",
-    avatarColor: "#FFBB00",
-    audioEnabled: false,
-    videoEnabled: true,
-    screenSharing: false,
-    handRaised: true,
-    audioLevel: 0,
-    attendanceStatus: "present",
-    joinedAt: "09:01 AM",
-    parentEmail: "vance.guardian@21k.family",
-    xpPoints: 1940,
-    gradeLevel: 10,
-    section: "A",
-  },
-  {
-    id: "stu-3",
-    name: "Aria Thorne",
-    role: "student",
-    avatarColor: "#FF7176",
-    audioEnabled: true,
-    videoEnabled: false,
-    screenSharing: false,
-    handRaised: false,
-    audioLevel: 28,
-    attendanceStatus: "late",
-    joinedAt: "09:14 AM",
-    parentEmail: "thorne.parent@21k.family",
-    xpPoints: 1520,
-    gradeLevel: 10,
-    section: "B",
-  },
-  {
-    id: "stu-4",
-    name: "Liam O'Connor",
-    role: "student",
-    avatarColor: "#0082FF",
-    audioEnabled: false,
-    videoEnabled: false,
-    screenSharing: false,
-    handRaised: false,
-    audioLevel: 0,
-    attendanceStatus: "absent",
-    joinedAt: "Unrecorded",
-    parentEmail: "oconnor.guardian@21k.family",
-    xpPoints: 890,
-    gradeLevel: 10,
-    section: "B",
-  },
-  {
-    id: "ta-1",
-    name: "Kaelen Ray (Co-Facilitator)",
-    role: "ta",
-    avatarColor: "#FDB9CF",
-    audioEnabled: true,
-    videoEnabled: true,
-    screenSharing: false,
-    handRaised: false,
-    audioLevel: 5,
-    attendanceStatus: "present",
-    joinedAt: "08:58 AM",
-    parentEmail: "k.ray@faculty.21k.school",
-    xpPoints: 2890,
-  },
-];
-
-const INITIAL_WAITING: WaitingParticipant[] = [
-  {
-    id: "wait-1",
-    name: "Devon Miller (Grade 10)",
-    role: "student",
-    requestedAt: "09:16 AM",
-    cameraReady: true,
-    micReady: true,
-  },
-  {
-    id: "wait-2",
-    name: "Priya Sharma (Grade 10)",
-    role: "student",
-    requestedAt: "09:18 AM",
-    cameraReady: true,
-    micReady: false,
-  },
-];
-
-const INITIAL_BREAKOUTS: BreakoutRoom[] = [
-  {
-    id: "bo-1",
-    name: "Breakout 1: Qubit Superposition Lab",
-    topic: "Calculate Bloch sphere rotations for Hadamard transform",
-    participantIds: ["stu-1", "stu-2"],
-    isActive: true,
-  },
-  {
-    id: "bo-2",
-    name: "Breakout 2: Quantum Error Mitigation",
-    topic: "Analyze decoherence times T1 and T2 from experimental noise",
-    participantIds: ["stu-3", "ta-1"],
-    isActive: true,
-  },
-];
-
-const INITIAL_TRANSCRIPT: TranscriptLine[] = [
-  {
-    id: "t-1",
-    speakerId: "host-1",
-    speakerName: "Dr. Evelyn Vance",
-    timestamp: "09:02",
-    text: "Welcome to 21K School. Today we're exploring quantum state vectors and topological qubit error mitigation.",
-    language: "en",
-  },
-  {
-    id: "t-2",
-    speakerId: "stu-1",
-    speakerName: "Sophia Chen",
-    timestamp: "09:04",
-    text: "Facilitator, how does thermal noise at 15 millikelvin impact the superposition phase angle?",
-    language: "en",
-  },
-  {
-    id: "t-3",
-    speakerId: "host-1",
-    speakerName: "Dr. Evelyn Vance",
-    timestamp: "09:05",
-    text: "Excellent inquiry, Sophia. Look at the 3D Bloch sphere—notice how thermal dissipation causes drift toward the z-axis pole.",
-    language: "en",
-  },
-];
-
-const INITIAL_POLLS: Poll[] = [
-  {
-    id: "p-1",
-    question: "What is the expected outcome when measuring (|0⟩ + |1⟩)/√2 in the computational Z-basis?",
-    options: [
-      { id: "opt-1", text: "Deterministic 0 every time", votes: 1 },
-      { id: "opt-2", text: "50% probability 0, 50% probability 1", votes: 7 },
-      { id: "opt-3", text: "Deterministic 1 every time", votes: 0 },
-      { id: "opt-4", text: "Decoherence forbids measurement", votes: 0 },
-    ],
-    active: true,
-    createdAt: "09:08 AM",
-    totalVotes: 8,
-  },
-];
+const INITIAL_PARTICIPANTS: Participant[] = [];
+const INITIAL_WAITING: WaitingParticipant[] = [];
+const INITIAL_BREAKOUTS: BreakoutRoom[] = [];
+const INITIAL_TRANSCRIPT: TranscriptLine[] = [];
+const INITIAL_POLLS: Poll[] = [];
 
 const INITIAL_MATERIALS: StudyMaterial[] = [
   {
@@ -919,17 +759,18 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLiveSubtitlesActive, setIsLiveSubtitlesActive] = useState(true);
   const [subtitleLanguage, setSubtitleLanguage] = useState<LanguageCode>("es");
   const [subtitleMode, setSubtitleMode] = useState<"dual" | "target_only" | "english_only">("dual");
-  const [currentLiveCaption, setCurrentLiveCaption] = useState<LiveCaption | null>({
-    speakerName: "Dr. Evelyn Vance (Lead Facilitator)",
-    englishText: "Notice how cryogenic thermal noise at 15 millikelvin induces phase damping along the z-axis of the 3D Bloch sphere.",
-    translatedText: "Observen cómo el ruido térmico criogénico a 15 milikelvin induce amortiguamiento de fase a lo largo del eje z de la esfera 3D de Bloch.",
-    targetLanguage: "es",
-    timestamp: "Live",
-  });
+  const [currentLiveCaption, setCurrentLiveCaption] = useState<LiveCaption | null>(null);
   const [isSpeechRecognitionActive, setIsSpeechRecognitionActive] = useState(true);
   const [isLiveSpeechStreaming, setIsLiveSpeechStreaming] = useState(true);
   const speechRecognitionInstanceRef = useRef<any>(null);
-  const simulatedSpeechIndexRef = useRef(0);
+
+  // Manual Grid & Stage Layout Customization State
+  const [layoutMode, setLayoutMode] = useState<GridLayoutMode>("auto");
+  const [manualGridColumns, setManualGridColumns] = useState<number>(0); // 0 = auto
+  const [tileAspectRatio, setTileAspectRatio] = useState<TileAspectRatio>("16:9");
+  const [pinnedParticipantId, setPinnedParticipantId] = useState<string | null>(null);
+  const [showSelfView, setShowSelfView] = useState<boolean>(true);
+  const [dockSplitRatio, setDockSplitRatio] = useState<number>(65);
 
   // Device Auto-Detection & Audit Telemetry State
   const [deviceAuditLogs, setDeviceAuditLogs] = useState<DeviceAuditRecord[]>(() => {
@@ -1717,14 +1558,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Synchronize subtitle engine listening state
   useEffect(() => {
     if (isLiveSubtitlesActive) {
-      const activeSpeaker =
-        currentRole === "instructor"
-          ? "Dr. Evelyn Vance (Lead Facilitator)"
-          : currentRole === "sales_rep"
-          ? "Admissions Counselor"
-          : currentRole === "auditor"
-          ? "Academic Auditor (Observer)"
-          : "Sophia Chen (Student)";
+      const activeSpeaker = authenticatedUser ? authenticatedUser.name : "Participant";
       realtimeSpeechEngine.startListening(activeSpeaker);
       setIsSpeechRecognitionActive(true);
       setIsLiveSpeechStreaming(true);
@@ -1811,7 +1645,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [subtitleLanguage]);
 
   const simulateNextClassroomUtterance = async () => {
-    realtimeSpeechEngine.stepNextLectureDialogue();
+    const speaker = authenticatedUser ? authenticatedUser.name : "Active Speaker";
+    await realtimeSpeechEngine.injectSpeech(speaker, "Hello, welcome to class! Real-time captions and transcripts are active.");
   };
 
   const toggleSpeechRecognition = () => {
@@ -1820,14 +1655,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsSpeechRecognitionActive(false);
       setIsLiveSpeechStreaming(false);
     } else {
-      const activeSpeaker =
-        currentRole === "instructor"
-          ? "Dr. Evelyn Vance (Lead Facilitator)"
-          : currentRole === "sales_rep"
-          ? "Admissions Counselor"
-          : currentRole === "auditor"
-          ? "Academic Auditor (Observer)"
-          : "Sophia Chen (Student)";
+      const activeSpeaker = authenticatedUser ? authenticatedUser.name : "Active Participant";
       realtimeSpeechEngine.startListening(activeSpeaker);
       setIsSpeechRecognitionActive(true);
       setIsLiveSpeechStreaming(true);
@@ -2836,6 +2664,18 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleSpeechRecognition,
         simulateNextClassroomUtterance,
         isLiveSpeechStreaming,
+        layoutMode,
+        setLayoutMode,
+        manualGridColumns,
+        setManualGridColumns,
+        tileAspectRatio,
+        setTileAspectRatio,
+        pinnedParticipantId,
+        setPinnedParticipantId,
+        showSelfView,
+        setShowSelfView,
+        dockSplitRatio,
+        setDockSplitRatio,
         deviceAuditLogs,
         latestDeviceAudit,
         logDeviceAudit,

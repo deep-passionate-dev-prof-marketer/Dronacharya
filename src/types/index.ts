@@ -4,6 +4,9 @@ export type LanguageCode = "en" | "es" | "fr" | "de" | "zh" | "hi" | "ar" | "ja"
 
 export type RoomRatio = "1:1" | "1:2" | "1:3" | "1:4" | "1:5" | "1:6" | "1:8" | "1:12" | "1:16" | "1:24";
 
+export type GridLayoutMode = "auto" | "spotlight" | "filmstrip" | "presentation" | "custom_grid";
+export type TileAspectRatio = "16:9" | "4:3" | "1:1";
+
 export interface Participant {
   id: string;
   name: string;

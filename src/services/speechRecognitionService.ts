@@ -21,60 +21,12 @@ class RealtimeSpeechRecognitionEngine {
   private isSupported = false;
   private listeners: Set<SpeechCallback> = new Set();
   private restartTimeout: any = null;
-  private simulationTimer: any = null;
-  private interimTimer: any = null;
-  private currentSpeaker = "Dr. Evelyn Vance (Lead Facilitator)";
+  private currentSpeaker = "You (Local Speaker)";
   private activeTargetLanguage: LanguageCode = "es";
-  private isSimulationMode = false;
-  private lectureIndex = 0;
-
-  private LECTURE_SEQUENCE = [
-    {
-      speaker: "Dr. Evelyn Vance (Lead Facilitator)",
-      english: "Welcome to 21K School. Today we're exploring quantum state vectors and topological qubit error mitigation.",
-      preview: "Welcome to 21K School...",
-    },
-    {
-      speaker: "Sophia Chen (Student)",
-      english: "Facilitator, how does cryogenic thermal dissipation at 15 millikelvin impact the superposition phase angle?",
-      preview: "Facilitator, how does thermal dissipation...",
-    },
-    {
-      speaker: "Dr. Evelyn Vance (Lead Facilitator)",
-      english: "Notice on the 3D Bloch sphere—thermal dissipation induces phase damping along the z-axis pole.",
-      preview: "Notice on the 3D Bloch sphere...",
-    },
-    {
-      speaker: "Marcus Vance (Student)",
-      english: "Does applying the Hadamard gate rotate the pure state vector by pi radians around the X+Z diagonal axis?",
-      preview: "Does applying the Hadamard gate...",
-    },
-    {
-      speaker: "Dr. Evelyn Vance (Lead Facilitator)",
-      english: "Precisely Marcus. The unitary matrix maps the orthogonal basis into an equal probability superposition.",
-      preview: "Precisely Marcus. The unitary matrix...",
-    },
-    {
-      speaker: "Liam O'Connor (Student)",
-      english: "Can surface code stabilizers correct bit-flip and phase-flip errors concurrently below the threshold?",
-      preview: "Can surface code stabilizers...",
-    },
-    {
-      speaker: "Dr. Evelyn Vance (Lead Facilitator)",
-      english: "Yes Liam. Surface code braids maintain fault tolerance without destroying quantum entanglement.",
-      preview: "Yes Liam. Surface code braids...",
-    },
-    {
-      speaker: "Sophia Chen (Student)",
-      english: "I have loaded the Python Hamiltonian simulation into our collaborative dock notebook for verification.",
-      preview: "I have loaded the Python simulation...",
-    },
-    {
-      speaker: "Dr. Evelyn Vance (Lead Facilitator)",
-      english: "Excellent. Let us observe the density matrix eigenvalues as we increase the transmon coupling frequency.",
-      preview: "Excellent. Let us observe...",
-    },
-  ];
+  private audioStream: MediaStream | null = null;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private isPermissionGranted = false;
 
   constructor() {
     this.initNativeSpeechRecognition();
@@ -115,7 +67,9 @@ class RealtimeSpeechRecognitionEngine {
             try {
               const res = await translateDualCaption(text, this.activeTargetLanguage, this.currentSpeaker);
               translated = res.translatedText;
-            } catch {}
+            } catch {
+              translated = text;
+            }
 
             this.emit({
               id: `speech-${Date.now()}`,
@@ -141,44 +95,49 @@ class RealtimeSpeechRecognitionEngine {
         };
 
         rec.onerror = (event: any) => {
-          console.warn("[SpeechRecognition] Native recognition event:", event.error);
-          this.isNativeMicActive = false;
-
-          // If mic hardware is unavailable or denied in sandbox, only stream if explicitly in simulation mode
-          if (
-            (event.error === "not-allowed" ||
-              event.error === "service-not-allowed" ||
-              event.error === "audio-capture") &&
-            this.isSimulationMode
-          ) {
-            this.startClassroomLectureStream();
+          // "no-speech" is a normal silence event in Web Speech API - do not stop listening
+          if (event.error === "no-speech") {
+            return;
           }
+          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            console.warn("[SpeechRecognition] Microphone permission denied:", event.error);
+            this.isNativeMicActive = false;
+            return;
+          }
+          console.warn("[SpeechRecognition] Native recognition event:", event.error);
         };
 
         rec.onend = () => {
           this.isNativeMicActive = false;
           if (this.isListening) {
-            clearTimeout(this.restartTimeout);
-            this.restartTimeout = setTimeout(() => {
-              if (this.isListening) {
-                try {
-                  this.recognition.start();
-                  this.isNativeMicActive = true;
-                } catch {
-                  this.startClassroomLectureStream();
-                }
-              }
-            }, 500);
+            this.scheduleRestart();
           }
         };
 
         this.recognition = rec;
         this.isSupported = true;
       } catch (err) {
-        console.warn("[SpeechRecognition] Native recognition unavailable, using real-time streaming engine:", err);
+        console.warn("[SpeechRecognition] SpeechRecognition initialization:", err);
         this.isSupported = false;
       }
     }
+  }
+
+  private scheduleRestart() {
+    clearTimeout(this.restartTimeout);
+    this.restartTimeout = setTimeout(() => {
+      if (this.isListening && this.recognition) {
+        try {
+          this.recognition.start();
+          this.isNativeMicActive = true;
+        } catch (e: any) {
+          // If already started or transitioning, retry cleanly
+          if (e?.name !== "InvalidStateError") {
+            this.restartTimeout = setTimeout(() => this.scheduleRestart(), 1000);
+          }
+        }
+      }
+    }, 400);
   }
 
   public setTargetLanguage(lang: LanguageCode) {
@@ -203,53 +162,42 @@ class RealtimeSpeechRecognitionEngine {
   }
 
   /**
-   * Start the live speech recognition and caption engine.
-   * If native browser microphone is available, uses native speech.
-   * Seamlessly runs classroom speech stream so captions and transcripts are ALWAYS working.
+   * Start live speech recognition using real microphone hardware.
    */
-  public startListening(speaker = "Dr. Evelyn Vance (Lead Facilitator)") {
+  public async startListening(speaker = "You (Local Speaker)") {
     this.currentSpeaker = speaker;
     this.isListening = true;
 
-    // Try starting native speech recognition if supported
+    // Request actual microphone hardware permission if available
+    if (typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        if (!this.audioStream) {
+          this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.isPermissionGranted = true;
+        }
+      } catch (micErr) {
+        console.warn("[SpeechRecognition] Microphone access prompt:", micErr);
+      }
+    }
+
+    // Start native Web Speech recognition
     if (this.recognition && this.isSupported) {
       try {
         this.recognition.start();
         this.isNativeMicActive = true;
-      } catch {
-        // Native recognition already active or unavailable
+      } catch (startErr: any) {
+        if (startErr?.name !== "InvalidStateError") {
+          this.scheduleRestart();
+        }
       }
     }
-
-    // Note: Do NOT automatically start canned lecture stream; prioritize authentic real speech
-    if (this.isSimulationMode) {
-      this.startClassroomLectureStream();
-    }
-  }
-
-  public setSimulationMode(enabled: boolean) {
-    this.isSimulationMode = enabled;
-    if (enabled && this.isListening) {
-      this.startClassroomLectureStream();
-    } else if (!enabled && this.simulationTimer) {
-      clearInterval(this.simulationTimer);
-      this.simulationTimer = null;
-    }
-  }
-
-  public getIsSimulationMode(): boolean {
-    return this.isSimulationMode;
   }
 
   public stopListening() {
     this.isListening = false;
     this.isNativeMicActive = false;
     clearTimeout(this.restartTimeout);
-    clearTimeout(this.interimTimer);
-    if (this.simulationTimer) {
-      clearInterval(this.simulationTimer);
-      this.simulationTimer = null;
-    }
+
     if (this.recognition) {
       try {
         this.recognition.stop();
@@ -258,110 +206,46 @@ class RealtimeSpeechRecognitionEngine {
   }
 
   /**
-   * Trigger an immediate speech utterance (from mic, user input, or simulation button)
+   * Broadcast an authentic real-time utterance (from mic dictation or user input).
+   * Fully real-time with Google AI dual language translation.
    */
   public async injectSpeech(speaker: string, englishText: string, customTranslation?: string) {
+    if (!englishText || !englishText.trim()) return;
+    const cleanText = englishText.trim();
     const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-    // Emit brief interim
+    // 1. Emit live typing/interim feedback
     this.emit({
-      id: `inj-interim-${Date.now()}`,
+      id: `live-interim-${Date.now()}`,
       speaker,
-      text: englishText.slice(0, Math.min(25, englishText.length)),
+      text: cleanText,
       isFinal: false,
       targetLanguage: this.activeTargetLanguage,
-      audioLevel: 70,
+      audioLevel: 75,
       timestamp,
     });
 
     let translated = customTranslation;
     if (!translated) {
       try {
-        const res = await translateDualCaption(englishText, this.activeTargetLanguage, speaker);
+        const res = await translateDualCaption(cleanText, this.activeTargetLanguage, speaker);
         translated = res.translatedText;
       } catch {
-        translated = englishText;
+        translated = cleanText;
       }
     }
 
-    setTimeout(() => {
-      this.emit({
-        id: `inj-${Date.now()}`,
-        speaker,
-        text: englishText,
-        isFinal: true,
-        translatedText: translated,
-        targetLanguage: this.activeTargetLanguage,
-        audioLevel: 90,
-        timestamp,
-      });
-    }, 400);
-  }
-
-  /**
-   * Continuous classroom lecture streamer with realistic educational cadence
-   */
-  private startClassroomLectureStream() {
-    if (this.simulationTimer) return;
-
-    // Dispatch initial immediate statement if starting fresh
-    setTimeout(() => {
-      if (this.isListening) {
-        this.stepNextLectureDialogue();
-      }
-    }, 1500);
-
-    this.simulationTimer = setInterval(() => {
-      if (!this.isListening) {
-        clearInterval(this.simulationTimer);
-        this.simulationTimer = null;
-        return;
-      }
-      this.stepNextLectureDialogue();
-    }, 7000);
-  }
-
-  public stepNextLectureDialogue() {
-    const item = this.LECTURE_SEQUENCE[this.lectureIndex % this.LECTURE_SEQUENCE.length];
-    this.lectureIndex++;
-
-    const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
-    // 1. Emit live interim speech typing
+    // 2. Emit final verified utterance
     this.emit({
-      id: `seq-interim-${Date.now()}`,
-      speaker: item.speaker,
-      text: item.preview,
-      isFinal: false,
+      id: `live-speech-${Date.now()}`,
+      speaker,
+      text: cleanText,
+      isFinal: true,
+      translatedText: translated,
       targetLanguage: this.activeTargetLanguage,
-      audioLevel: 65,
+      audioLevel: 90,
       timestamp,
     });
-
-    // 2. Concurrently translate and emit final caption after realistic utterance duration
-    clearTimeout(this.interimTimer);
-    this.interimTimer = setTimeout(async () => {
-      if (!this.isListening) return;
-
-      let translated = item.english;
-      try {
-        const res = await translateDualCaption(item.english, this.activeTargetLanguage, item.speaker);
-        translated = res.translatedText;
-      } catch {
-        translated = item.english;
-      }
-
-      this.emit({
-        id: `seq-final-${Date.now()}`,
-        speaker: item.speaker,
-        text: item.english,
-        isFinal: true,
-        translatedText: translated,
-        targetLanguage: this.activeTargetLanguage,
-        audioLevel: 80,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      });
-    }, 1200);
   }
 
   public getIsListening(): boolean {

@@ -22,7 +22,8 @@ import {
   Calendar,
   Layers,
   ExternalLink,
-  Laptop
+  Laptop,
+  LogOut,
 } from "lucide-react";
 import { UserRole } from "../../types";
 import { SchoolLogo } from "../brand/SchoolLogo";
@@ -231,22 +232,23 @@ export const TopBar: React.FC<TopBarProps> = ({
           {isOfflineMode ? <WifiOff className="w-3.5 h-3.5 text-amber-400" /> : <Wifi className="w-3.5 h-3.5 text-emerald-400" />}
         </button>
 
-        {/* Quick Role Segmented Switcher */}
-        <div className="hidden lg:flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5">
-          {(["instructor", "student", "auditor", "sales_rep", "admin"] as UserRole[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => setCurrentRole(r)}
-              className={`px-2 py-1 text-[10px] font-semibold rounded-lg uppercase transition-all ${
-                currentRole === r
-                  ? "bg-blue-600 text-white shadow-sm font-bold"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {r === "instructor" ? "Teacher" : r === "sales_rep" ? "Sales" : r}
-            </button>
-          ))}
+        {/* Active Role Indicator */}
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+          <span className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+            {currentRole === "instructor" ? "Teacher" : currentRole === "sales_rep" ? "Sales Admissions" : currentRole}
+          </span>
         </div>
+
+        {/* Quick Sign Out Action */}
+        <button
+          onClick={logoutUser}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/15 hover:bg-rose-600/25 border border-rose-500/30 text-rose-300 hover:text-white transition-all text-xs font-semibold"
+          title="Sign Out of Dronacharya"
+        >
+          <LogOut className="w-3.5 h-3.5 text-rose-400" />
+          <span className="hidden sm:inline">Sign Out</span>
+        </button>
 
         {/* User Profile & Workspace Dropdown */}
         <div className="relative">
@@ -275,16 +277,29 @@ export const TopBar: React.FC<TopBarProps> = ({
               </div>
 
               <div className="space-y-0.5 text-xs">
-                <button
-                  onClick={() => {
-                    setIsAuthModalOpen(true);
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-colors text-left"
-                >
-                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Switch Role Portals</span>
-                </button>
+                {currentRole === "admin" ? (
+                  <button
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Switch Role Portals</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      logoutUser();
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Sign Out & Switch Role</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setIsDocsModalOpen(true);
