@@ -14,7 +14,9 @@ import {
   RefreshCw,
   QrCode,
   ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
+import { useClassroom } from "../../context/ClassroomContext";
 import {
   SchoolBrandCode,
   CountryCode,
@@ -42,6 +44,10 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
   onClose,
   onApplyRoomSlug,
 }) => {
+  const { currentRole } = useClassroom();
+  const isAuthorized =
+    currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
+
   const [schoolBrand, setSchoolBrand] = useState<SchoolBrandCode>("21kos");
   const [countryCode, setCountryCode] = useState<CountryCode>("in");
   const [gradeLevel, setGradeLevel] = useState<number>(10);
@@ -123,6 +129,31 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  if (!isAuthorized) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-sans">
+        <div className="w-full max-w-md bg-slate-900 border border-rose-500/30 rounded-2xl p-6 text-center flex flex-col items-center gap-3 shadow-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-white">Restricted Authorization Required</h3>
+          <p className="text-xs text-rose-200/80 leading-relaxed">
+            Creating and modifying standard room links and shortlinks is restricted to certified Instructors, Admissions Officers, and Platform Administrators.
+          </p>
+          <div className="text-[11px] font-mono text-slate-400 bg-black/40 px-3 py-1 rounded-full border border-white/10">
+            Current Role: <span className="text-amber-400 font-bold uppercase">{currentRole}</span> (Unauthorized)
+          </div>
+          <button
+            onClick={onClose}
+            className="mt-2 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md font-sans">
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
@@ -133,9 +164,15 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
               <Link2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white leading-tight">
-                Standard Room Nomenclature & Shortlink Manager
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white leading-tight">
+                  Standard Room Nomenclature & Shortlink Manager
+                </h2>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>Authorized: {currentRole.toUpperCase()}</span>
+                </span>
+              </div>
               <p className="text-xs text-slate-300">
                 Hierarchical URL nomenclature (21kos, 21klf, gr&#123;&#125;, curriculum & country codes) + Base62 shortlinks
               </p>

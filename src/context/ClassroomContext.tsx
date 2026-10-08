@@ -798,7 +798,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return authenticatedUser?.role || "instructor";
   });
 
-  const [activeView, setActiveView] = useState<ClassroomView>("classroom");
+  const [activeView, setActiveView] = useState<ClassroomView>(() => {
+    if (typeof window === "undefined") return "classroom";
+    const view = new URLSearchParams(window.location.search).get("view");
+    return (view as ClassroomView) || "classroom";
+  });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
   const [isInterpreterModalOpen, setIsInterpreterModalOpen] = useState(false);

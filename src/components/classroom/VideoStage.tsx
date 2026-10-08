@@ -29,6 +29,7 @@ import {
   GraduationCap,
   Briefcase,
   Cloud,
+  Sliders,
 } from "lucide-react";
 import { generateDemoMeetingUrl } from "../../services/demoClassService";
 import { SubtitleOverlay } from "./SubtitleOverlay";
@@ -80,6 +81,7 @@ export const VideoStage: React.FC = () => {
     connectDemoStudent,
     triggerRoomBomber,
     roomRatio,
+    setIsScheduleModalOpen,
   } = useClassroom();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -421,13 +423,25 @@ export const VideoStage: React.FC = () => {
                 <p className="text-xs text-slate-400 max-w-sm mb-4">
                   Share the student invite link below to connect real-time peers with audio and video.
                 </p>
-                <button
-                  onClick={handleCopyStudentLink}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors"
-                >
-                  {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <button
+                    onClick={handleCopyStudentLink}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
+                  </button>
+
+                  {(currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep") && (
+                    <button
+                      onClick={() => setIsScheduleModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-cyan-200 border border-cyan-500/30 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      <Sliders className="w-4 h-4 text-[#FFBB00]" />
+                      <span>Manual Link & Room Builder (No CRM)</span>
+                    </button>
+                  )}
+                </div>
               </div>
             ) : displayParticipants.length === 1 && displayParticipants[0].isLocal && classStatus === "waiting" ? (
               /* Pre-Class Waiting State (Zoom/Meet Waiting Room & Launchpad) */
@@ -515,6 +529,16 @@ export const VideoStage: React.FC = () => {
                           {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
                           <span>{copiedLink ? "Student Link Copied!" : "🔗 Copy Student Invite Link"}</span>
                         </button>
+
+                        {(currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep") && (
+                          <button
+                            onClick={() => setIsScheduleModalOpen(true)}
+                            className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 hover:from-blue-900/60 hover:to-indigo-900/60 border border-blue-500/30 text-cyan-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Sliders className="w-3.5 h-3.5 text-[#FFBB00]" />
+                            <span>⚡ Manual Link & Room Builder (No CRM)</span>
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
