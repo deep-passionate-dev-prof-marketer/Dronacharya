@@ -38,6 +38,7 @@ import {
   DeviceAuditRecord,
   GridLayoutMode,
   TileAspectRatio,
+  LiveClassStatus,
 } from "../types";
 import { translateDualCaption } from "../services/geminiService";
 import { getParticipantsForRatio, FULL_24_STUDENT_POOL } from "../services/participantPool";
@@ -107,6 +108,14 @@ export interface ClassroomContextType {
   activeProductionMeeting: NormalizedProductionMeeting | null;
   joinProductionMeetingUrl: (urlOrCode: string) => NormalizedProductionMeeting;
   leaveProductionMeeting: () => void;
+
+  // Live Class Session Lifecycle (Zoom & Google Meet style)
+  classStatus: LiveClassStatus;
+  setClassStatus: (status: LiveClassStatus) => void;
+  classDurationSeconds: number;
+  startClass: () => void;
+  endClass: () => void;
+  connectDemoStudent: () => void;
 
   // Media & Devices
   localStream: MediaStream | null;
@@ -807,6 +816,88 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [streamingQuality, setStreamingQuality] = useState<"1080p 60fps" | "720p 30fps" | "Low Bandwidth">("1080p 60fps");
   const [roomRatio, setRoomRatioState] = useState<RoomRatio>("1:4");
 
+  // Live Class Session Lifecycle (Zoom & Google Meet style)
+  const [classStatus, setClassStatus] = useState<LiveClassStatus>("waiting");
+  const [classDurationSeconds, setClassDurationSeconds] = useState<number>(0);
+
+  // Dynamic Class Timer
+  useEffect(() => {
+    if (classStatus !== "in_progress") return;
+    const interval = setInterval(() => {
+      setClassDurationSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [classStatus]);
+
+  // Synchronize Live Class Status via WebRTC mesh
+  useEffect(() => {
+    const unbind = webRtcMeshService.onClassStatusChanged((status) => {
+      setClassStatus(status);
+    });
+    return () => unbind();
+  }, []);
+
+  const connectDemoStudent = () => {
+    setParticipants((prev) => {
+      if (prev.some((p) => p.role === "student" && !p.isLocal)) return prev;
+      const demoStudent: Participant = {
+        id: "stu-sophia-1",
+        name: "Sophia Chen",
+        role: "student",
+        avatarColor: "#0082FF",
+        isLocal: false,
+        audioEnabled: true,
+        videoEnabled: true,
+        screenSharing: false,
+        handRaised: false,
+        breakoutRoomId: null,
+        audioLevel: 65,
+        attendanceStatus: "present",
+        joinedAt: "Just now",
+        xpPoints: 340,
+        gradeLevel: 10,
+        section: "A",
+      };
+      return [...prev, demoStudent];
+    });
+  };
+
+  const startClass = () => {
+    setClassStatus("in_progress");
+    webRtcMeshService.broadcastClassStatus("in_progress");
+    // If teacher is alone on stage, pair Sophia Chen so the teacher can lecture and test translation right away
+    setParticipants((prev) => {
+      const hasRemote = prev.some((p) => !p.isLocal);
+      if (!hasRemote) {
+        const demoStudent: Participant = {
+          id: "stu-sophia-1",
+          name: "Sophia Chen",
+          role: "student",
+          avatarColor: "#0082FF",
+          isLocal: false,
+          audioEnabled: true,
+          videoEnabled: true,
+          screenSharing: false,
+          handRaised: false,
+          breakoutRoomId: null,
+          audioLevel: 65,
+          attendanceStatus: "present",
+          joinedAt: "Just now",
+          xpPoints: 340,
+          gradeLevel: 10,
+          section: "A",
+        };
+        return [...prev, demoStudent];
+      }
+      return prev;
+    });
+  };
+
+  const endClass = () => {
+    setClassStatus("ended");
+    webRtcMeshService.broadcastClassStatus("ended");
+  };
+
   // Media
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -1455,7 +1546,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     const unbindPeer = webRtcMeshService.onPeerStream((peerInfo: RemotePeerInfo) => {
       setParticipants((prev) => {
-        const existingIdx = prev.findIndex((p) => p.id === peerInfo.peerId);
+        // Remove synthetic demo student if a real remote peer connects
+        const base = prev.filter((p) => p.id !== "stu-sophia-1");
+        const existingIdx = base.findIndex((p) => p.id === peerInfo.peerId);
         const remoteParticipant: Participant = {
           id: peerInfo.peerId,
           name: peerInfo.name,
@@ -1474,11 +1567,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           stream: peerInfo.stream,
         };
         if (existingIdx >= 0) {
-          const updated = [...prev];
+          const updated = [...base];
           updated[existingIdx] = remoteParticipant;
           return updated;
         }
-        return [...prev, remoteParticipant];
+        return [...base, remoteParticipant];
       });
     });
 
@@ -2874,10 +2967,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const fallbackUser: Participant = {
-    id: authenticatedUser?.id || "local-user-1",
-    name: authenticatedUser?.name || "Dr. Evelyn Vance",
+    id: authenticatedUser?.id || (currentRole === "student" ? "student-local-1" : "local-user-1"),
+    name: authenticatedUser?.name || (currentRole === "student" ? "Sophia Chen" : "Dr. Evelyn Vance"),
     role: authenticatedUser?.role || currentRole || "instructor",
-    avatarColor: authenticatedUser?.avatarColor || "#0082FF",
+    avatarColor: authenticatedUser?.avatarColor || (currentRole === "instructor" ? "#003872" : "#0082FF"),
     isLocal: true,
     audioEnabled: !isAudioMuted,
     videoEnabled: !isVideoOff,
@@ -2888,11 +2981,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     attendanceStatus: "present",
     joinedAt: "Just now",
     xpPoints: 120,
-    gradeLevel: authenticatedUser?.gradeLevel,
-    section: authenticatedUser?.section,
+    gradeLevel: authenticatedUser?.gradeLevel || (currentRole === "student" ? 10 : undefined),
+    section: authenticatedUser?.section || (currentRole === "student" ? "A" : undefined),
   };
 
-  const currentUser: Participant = participants[0] || fallbackUser;
+  const currentUser: Participant = participants.find((p) => p.isLocal) || fallbackUser;
 
   return (
     <ClassroomContext.Provider
@@ -2914,6 +3007,12 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setStreamingQuality,
         roomRatio,
         setRoomRatio,
+        classStatus,
+        setClassStatus,
+        classDurationSeconds,
+        startClass,
+        endClass,
+        connectDemoStudent,
         localStream,
         screenStream,
         isAudioMuted,

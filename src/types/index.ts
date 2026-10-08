@@ -6,6 +6,7 @@ export type RoomRatio = "1:1" | "1:2" | "1:3" | "1:4" | "1:5" | "1:6" | "1:8" | 
 
 export type GridLayoutMode = "auto" | "spotlight" | "filmstrip" | "presentation" | "custom_grid";
 export type TileAspectRatio = "16:9" | "4:3" | "1:1";
+export type LiveClassStatus = "waiting" | "in_progress" | "paused" | "ended";
 
 export interface Participant {
   id: string;

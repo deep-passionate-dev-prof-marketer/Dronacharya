@@ -24,7 +24,7 @@ interface Props {
 
 export const PreJoinLobbyModal: React.FC<Props> = ({
   initialRole = "instructor",
-  initialRoomId = "dronacharya-live",
+  initialRoomId = "dronacharya-gr10-phy",
   onJoinSuccess,
 }) => {
   // Compute initial state synchronously from URL query and pathname
@@ -211,7 +211,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
       gradeLevel: selectedRole === "student" ? 10 : undefined,
     };
 
-    onJoinSuccess(user, targetRoomId.trim() || "dronacharya-live");
+    onJoinSuccess(user, targetRoomId.trim() || "dronacharya-gr10-phy");
   };
 
   return (

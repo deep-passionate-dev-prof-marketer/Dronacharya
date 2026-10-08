@@ -15,7 +15,7 @@ export type PeerStreamCallback = (peer: RemotePeerInfo) => void;
 export type PeerLeftCallback = (peerId: string) => void;
 
 interface SignalPayload {
-  type: "join" | "leave" | "offer" | "answer" | "ice-candidate" | "state-update";
+  type: "join" | "leave" | "offer" | "answer" | "ice-candidate" | "state-update" | "heartbeat" | "class-status";
   senderId: string;
   senderName: string;
   senderRole: UserRole;
@@ -26,6 +26,7 @@ interface SignalPayload {
   candidate?: RTCIceCandidateInit;
   isAudioMuted?: boolean;
   isVideoOff?: boolean;
+  classStatus?: "waiting" | "in_progress" | "paused" | "ended";
   timestamp: number;
 }
 
@@ -49,10 +50,12 @@ class WebRtcMeshService {
 
   private broadcastChannel: BroadcastChannel | null = null;
   private wsRelay: WebSocket | null = null;
+  private heartbeatTimer: any = null;
 
   private onPeerStreamListeners: Set<PeerStreamCallback> = new Set();
   private onPeerLeftListeners: Set<PeerLeftCallback> = new Set();
   private onPeerStateChangeListeners: Set<(peers: RemotePeerInfo[]) => void> = new Set();
+  private onClassStatusChangedListeners: Set<(status: "waiting" | "in_progress" | "paused" | "ended") => void> = new Set();
 
   private isConnected: boolean = false;
   private audioAnalyserContext: AudioContext | null = null;
@@ -108,12 +111,14 @@ class WebRtcMeshService {
     this.localUser = user;
     if (localStream) {
       this.localStream = localStream;
-    } else if (!this.localStream) {
-      await this.startLocalMedia();
     }
 
     this.initSignaling(roomId);
     this.isConnected = true;
+
+    if (!this.localStream) {
+      this.startLocalMedia().catch(console.warn);
+    }
 
     // Broadcast join event to mesh
     this.broadcastSignal({
@@ -130,6 +135,11 @@ class WebRtcMeshService {
   }
 
   public leaveRoom(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+
     if (this.localUser && this.isConnected) {
       this.broadcastSignal({
         type: "leave",
@@ -162,6 +172,24 @@ class WebRtcMeshService {
     this.isConnected = false;
   }
 
+  public broadcastClassStatus(status: "waiting" | "in_progress" | "paused" | "ended"): void {
+    if (!this.localUser) return;
+    this.broadcastSignal({
+      type: "class-status",
+      senderId: this.localUser.id,
+      senderName: this.localUser.name,
+      senderRole: this.localUser.role,
+      roomId: this.currentRoomId,
+      classStatus: status,
+      timestamp: Date.now(),
+    });
+  }
+
+  public onClassStatusChanged(cb: (status: "waiting" | "in_progress" | "paused" | "ended") => void): () => void {
+    this.onClassStatusChangedListeners.add(cb);
+    return () => this.onClassStatusChangedListeners.delete(cb);
+  }
+
   public updateMediaState(isAudioMuted: boolean, isVideoOff: boolean): void {
     if (!this.localUser) return;
     this.broadcastSignal({
@@ -191,6 +219,24 @@ class WebRtcMeshService {
         console.warn("[WebRTC] BroadcastChannel not supported in environment:", e);
       }
     }
+
+    // Start 2-second heartbeat presence broadcast to self-heal multi-tab handshakes
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = setInterval(() => {
+      if (this.localUser && this.isConnected) {
+        this.broadcastSignal({
+          type: "heartbeat",
+          senderId: this.localUser.id,
+          senderName: this.localUser.name,
+          senderRole: this.localUser.role,
+          senderAvatarColor: this.localUser.avatarColor,
+          roomId: this.currentRoomId,
+          isAudioMuted: !this.localUser.audioEnabled,
+          isVideoOff: !this.localUser.videoEnabled,
+          timestamp: Date.now(),
+        });
+      }
+    }, 2000);
 
     // Public Internet WebSocket Signaling Relay (Cross-Device)
     this.connectWsRelay(roomId);
@@ -382,6 +428,41 @@ class WebRtcMeshService {
         }
         break;
       }
+      case "heartbeat": {
+        const existing = this.remotePeers.get(remoteId);
+        if (existing) {
+          existing.isAudioMuted = !!signal.isAudioMuted;
+          existing.isVideoOff = !!signal.isVideoOff;
+          this.notifyStateChanged();
+        } else {
+          const initialPeer: RemotePeerInfo = {
+            peerId: remoteId,
+            name: signal.senderName,
+            role: signal.senderRole,
+            avatarColor: signal.senderAvatarColor || "#0082FF",
+            isAudioMuted: !!signal.isAudioMuted,
+            isVideoOff: !!signal.isVideoOff,
+            audioLevel: 50,
+          };
+          this.remotePeers.set(remoteId, initialPeer);
+          this.notifyPeerStream(initialPeer);
+        }
+
+        // Auto-heal WebRTC connection if missing: peer with lexicographically lower ID initiates
+        if (!this.peerConnections.has(remoteId) && this.localUser) {
+          const shouldInitiate = this.localUser.id < remoteId;
+          if (shouldInitiate) {
+            await this.createPeerConnection(remoteId, signal.senderName, signal.senderRole, signal.senderAvatarColor || "#0082FF", true);
+          }
+        }
+        break;
+      }
+      case "class-status": {
+        if (signal.classStatus) {
+          this.notifyClassStatusChanged(signal.classStatus);
+        }
+        break;
+      }
       case "leave": {
         const pc = this.peerConnections.get(remoteId);
         if (pc) {
@@ -423,6 +504,12 @@ class WebRtcMeshService {
 
     const pc = new RTCPeerConnection(RTC_CONFIG);
     this.peerConnections.set(remoteId, pc);
+
+    // Add unified plan transceivers to guarantee audio/video negotiation even before tracks attach
+    try {
+      pc.addTransceiver("audio", { direction: "sendrecv" });
+      pc.addTransceiver("video", { direction: "sendrecv" });
+    } catch {}
 
     // Add local tracks to peer connection
     if (this.localStream) {
@@ -590,6 +677,16 @@ class WebRtcMeshService {
   private notifyPeerLeft(peerId: string) {
     this.onPeerLeftListeners.forEach((cb) => cb(peerId));
     this.notifyStateChanged();
+  }
+
+  private notifyClassStatusChanged(status: "waiting" | "in_progress" | "paused" | "ended") {
+    this.onClassStatusChangedListeners.forEach((cb) => {
+      try {
+        cb(status);
+      } catch (err) {
+        console.warn("[WebRTC] class status listener error:", err);
+      }
+    });
   }
 
   private notifyStateChanged() {

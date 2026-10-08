@@ -22,6 +22,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   ChevronUp,
+  Play,
 } from "lucide-react";
 import { LayoutCustomizerModal } from "./LayoutCustomizerModal";
 
@@ -51,10 +52,23 @@ export const BottomMeetingControls: React.FC = () => {
     setDockSplitRatio,
     roomTitle,
     latencyMs,
+    classStatus,
+    classDurationSeconds,
+    startClass,
+    endClass,
   } = useClassroom();
 
   const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
-  const [meetingTimer, setMeetingTimer] = useState("00:14:28");
+
+  const formatDuration = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const toggleDock = () => {
     if (dockSplitRatio === 100) {
@@ -70,8 +84,10 @@ export const BottomMeetingControls: React.FC = () => {
         {/* Left Section: Live Meeting Info & Security Badge */}
         <div className="hidden lg:flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono font-bold text-slate-200">{meetingTimer}</span>
+            <span className={`w-2 h-2 rounded-full ${classStatus === "in_progress" ? "bg-rose-400 animate-pulse" : "bg-amber-400"}`} />
+            <span className="font-mono font-bold text-slate-200">
+              {classStatus === "in_progress" ? formatDuration(classDurationSeconds) : "Waiting"}
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 text-[11px] text-slate-300">
@@ -223,6 +239,28 @@ export const BottomMeetingControls: React.FC = () => {
                 <span>Help CX</span>
               </button>
             </>
+          )}
+
+          {/* Teacher Start / End Live Class Controls */}
+          {(currentRole === "instructor" || currentRole === "admin") && classStatus === "waiting" && (
+            <button
+              onClick={startClass}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer"
+              title="Start Live Class (Zoom/Meet Mode)"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>Start Class</span>
+            </button>
+          )}
+
+          {(currentRole === "instructor" || currentRole === "admin") && classStatus === "in_progress" && (
+            <button
+              onClick={endClass}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-bold text-xs border border-amber-500/40 transition-all cursor-pointer"
+              title="End Live Class"
+            >
+              <span>End Class</span>
+            </button>
           )}
 
           {/* Leave / Exit Meeting Button */}

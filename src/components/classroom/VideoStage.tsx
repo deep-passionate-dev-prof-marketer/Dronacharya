@@ -25,6 +25,8 @@ import {
   Copy,
   Check,
   Link2,
+  Play,
+  GraduationCap,
 } from "lucide-react";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 import { FloatingAttentionHUD } from "./FloatingAttentionHUD";
@@ -68,6 +70,11 @@ export const VideoStage: React.FC = () => {
     pinnedParticipantId,
     setPinnedParticipantId,
     showSelfView,
+    classStatus,
+    classDurationSeconds,
+    startClass,
+    endClass,
+    connectDemoStudent,
   } = useClassroom();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -175,6 +182,12 @@ export const VideoStage: React.FC = () => {
   // Pinned or spotlighted participant
   const pinnedParticipant = displayParticipants.find((p) => p.id === pinnedParticipantId) || displayParticipants[0];
 
+  const formatDuration = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
   return (
     <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
       {/* Laser Pointer Overlay */}
@@ -199,6 +212,57 @@ export const VideoStage: React.FC = () => {
         className="flex-1 p-3 md:p-4 overflow-y-auto flex flex-col relative"
         onClick={handleStageClick}
       >
+        {/* Zoom & Google Meet Style Live Class Top Status HUD */}
+        <div className="flex items-center justify-between px-3 md:px-4 py-2 rounded-2xl bg-slate-900/90 border border-white/10 backdrop-blur-xl mb-3 shadow-lg shrink-0">
+          <div className="flex items-center gap-2.5">
+            {classStatus === "in_progress" ? (
+              <>
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-xs font-black tracking-wider uppercase text-rose-400 font-mono">
+                  LIVE CLASS IN PROGRESS
+                </span>
+                <span className="text-xs font-mono font-bold text-white bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-500/30">
+                  {formatDuration(classDurationSeconds)}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-xs font-black tracking-wider uppercase text-amber-300 font-mono">
+                  WAITING ROOM · CLASS NOT STARTED
+                </span>
+              </>
+            )}
+            <span className="hidden sm:inline text-xs text-slate-400">· {roomTitle.split("·")[0]}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>AI Speech Translation Ready</span>
+            </span>
+
+            {currentRole === "instructor" && classStatus === "waiting" && (
+              <button
+                onClick={startClass}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Start Live Class</span>
+              </button>
+            )}
+
+            {currentRole === "instructor" && classStatus === "in_progress" && (
+              <button
+                onClick={endClass}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-600/30 hover:bg-rose-600 text-rose-200 hover:text-white font-bold text-xs border border-rose-500/40 transition-all cursor-pointer"
+              >
+                End Class
+              </button>
+            )}
+          </div>
+        </div>
+
         {isScreenSharing ? (
           /* Screen Presentation View */
           <div className="w-full h-full flex flex-col gap-3">
@@ -310,8 +374,8 @@ export const VideoStage: React.FC = () => {
                   <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
                 </button>
               </div>
-            ) : displayParticipants.length === 1 && displayParticipants[0].isLocal ? (
-              /* Single User (You are the only one in room) -> Hero + Fast Student Invite Card */
+            ) : displayParticipants.length === 1 && displayParticipants[0].isLocal && classStatus === "waiting" ? (
+              /* Pre-Class Waiting State (Zoom/Meet Waiting Room & Launchpad) */
               <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 items-center max-w-4xl mx-auto my-auto p-2">
                 {/* Local User Tile */}
                 <div className="w-full h-full max-h-[380px]">
@@ -327,28 +391,34 @@ export const VideoStage: React.FC = () => {
                   />
                 </div>
 
-                {/* Invite & Classroom Status Card */}
-                <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-6 flex flex-col justify-between shadow-2xl min-h-[260px] backdrop-blur-xl">
+                {/* Pre-Class Launchpad & Status Card */}
+                <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-6 flex flex-col justify-between shadow-2xl min-h-[300px] backdrop-blur-xl">
                   {currentRole === "student" ? (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                          Live In Class · Room {roomId}
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-amber-300 font-mono">
+                          Class Waiting Room · Room {roomId}
                         </span>
                       </div>
-                      <h3 className="text-base sm:text-lg font-bold text-white mb-2">{roomTitle}</h3>
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-2">
+                        Waiting for Teacher to Start Class
+                      </h3>
                       <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                        Welcome to your live class! Your camera and microphone are connected via in-house WebRTC. You will see the instructor and classmates as soon as they join.
+                        Dr. Evelyn Vance hasn't started the live class yet. Your camera and microphone are tested and connected. You will automatically enter the live stage as soon as the teacher starts the lecture.
                       </p>
-                      <div className="p-3 bg-blue-950/50 border border-blue-500/30 rounded-xl space-y-1.5">
+                      <div className="p-3 bg-blue-950/50 border border-blue-500/30 rounded-xl space-y-1.5 mb-4">
                         <div className="flex items-center gap-2 text-xs font-semibold text-cyan-300">
                           <Sparkles className="w-4 h-4 text-cyan-400" />
                           <span>AI Real-time Interpreter & Dual Subtitles Ready</span>
                         </div>
                         <p className="text-[11px] text-slate-400 leading-normal">
-                          When your teacher speaks in Hindi, English, Spanish or any of 50+ languages, live translated speech and captions will automatically stream to you.
+                          When your teacher speaks in Hindi, English, Spanish or 50+ languages, live translated speech and captions will stream directly to your headphones.
                         </p>
+                      </div>
+                      <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span>Ready to learn as <strong className="text-white">{displayParticipants[0].name}</strong></span>
                       </div>
                     </div>
                   ) : (
@@ -357,33 +427,63 @@ export const VideoStage: React.FC = () => {
                         <div className="flex items-center gap-2 mb-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                            Classroom Active · Room {roomId}
+                            Classroom Ready · Room {roomId}
                           </span>
                         </div>
-                        <h3 className="text-base sm:text-lg font-bold text-white mb-2">{roomTitle}</h3>
+                        <h3 className="text-base sm:text-lg font-bold text-white mb-1">{roomTitle}</h3>
                         <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          You are live in the classroom with in-house WebRTC. Click below to copy the direct Student joining link to test or start the lesson with your scholar!
+                          Your camera, mic, and real-time AI interpreter are ready. Start the live class to lecture, or connect a test student right now.
                         </p>
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
+                        <button
+                          onClick={startClass}
+                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Play className="w-4 h-4 fill-current" />
+                          <span>🚀 Start Live Class (Zoom/Meet Mode)</span>
+                        </button>
+
+                        <button
+                          onClick={connectDemoStudent}
+                          className="w-full py-2.5 px-4 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <GraduationCap className="w-4 h-4 text-cyan-400" />
+                          <span>⚡ Pair Demo Student (Sophia Chen)</span>
+                        </button>
+
                         <button
                           onClick={handleCopyStudentLink}
-                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-xs transition-all shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                          className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                           {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                          <span>{copiedLink ? "Student Invite Link Copied!" : "🔗 Copy Student Invite Link"}</span>
+                          <span>{copiedLink ? "Student Link Copied!" : "🔗 Copy Student Invite Link"}</span>
                         </button>
-                        <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-white/10 text-[11px] text-slate-400 font-mono truncate">
-                          <span className="truncate flex-1">{typeof window !== "undefined" ? `${window.location.origin}/?room=${encodeURIComponent(roomId)}&role=student` : roomLink}</span>
-                        </div>
                       </div>
                     </>
                   )}
                 </div>
               </div>
+            ) : displayParticipants.length === 2 ? (
+              /* Two Participants: Zoom & Google Meet Style Equal 50/50 Gallery Grid */
+              <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-center auto-rows-fr overflow-y-auto p-1 max-h-full">
+                {displayParticipants.map((p) => (
+                  <ParticipantVideoTile
+                    key={p.id}
+                    participant={p}
+                    isLocal={!!p.isLocal}
+                    localStream={localStream}
+                    isAudioMuted={isAudioMuted}
+                    isVideoOff={isVideoOff}
+                    isPinned={pinnedParticipantId === p.id}
+                    onPinToggle={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
+                    aspectClass={getAspectClass()}
+                  />
+                ))}
+              </div>
             ) : (
-              /* Multi-Participant Adaptive Grid (Real WebRTC Peers) */
+              /* Adaptive Multi-Participant Grid */
               <div className={`w-full grid ${getGridClasses()} gap-3 auto-rows-fr overflow-y-auto p-1 max-h-full`}>
                 {displayParticipants.map((p) => (
                   <ParticipantVideoTile
