@@ -27,7 +27,10 @@ import {
   Link2,
   Play,
   GraduationCap,
+  Briefcase,
+  Cloud,
 } from "lucide-react";
+import { generateDemoMeetingUrl } from "../../services/demoClassService";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 import { FloatingAttentionHUD } from "./FloatingAttentionHUD";
 import { ParticipantTileActions } from "./ParticipantTileActions";
@@ -75,6 +78,8 @@ export const VideoStage: React.FC = () => {
     startClass,
     endClass,
     connectDemoStudent,
+    triggerRoomBomber,
+    roomRatio,
   } = useClassroom();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -102,9 +107,15 @@ export const VideoStage: React.FC = () => {
   };
 
   const handleCopyStudentLink = () => {
-    const studentUrl = typeof window !== "undefined"
-      ? `${window.location.origin}/?room=${roomId}&role=student`
-      : roomLink;
+    const studentUrl = generateDemoMeetingUrl({
+      roomCode: roomId,
+      studentId: "21SCHOLARX",
+      grade: 10,
+      course: roomTitle.split("·")[0]?.trim() || "Physics",
+      language: "en",
+      ratio: roomRatio || "1:4",
+      teacherName: "Dr. Evelyn Vance",
+    });
     navigator.clipboard.writeText(studentUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
@@ -253,15 +264,59 @@ export const VideoStage: React.FC = () => {
             )}
 
             {currentRole === "instructor" && classStatus === "in_progress" && (
-              <button
-                onClick={endClass}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-600/30 hover:bg-rose-600 text-rose-200 hover:text-white font-bold text-xs border border-rose-500/40 transition-all cursor-pointer"
-              >
-                End Class
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    triggerRoomBomber({
+                      salesRepName: "Marcus Sterling (Lead Admissions)",
+                      discountPct: 20,
+                      studentName: "Demo Student",
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-md shadow-purple-600/30 transition-all cursor-pointer"
+                  title="Break room for Sales Pitch - Admissions Officer enters"
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Break for Sales Pitch</span>
+                  <span className="sm:hidden">Sales Pitch</span>
+                </button>
+
+                <button
+                  onClick={endClass}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-600/30 hover:bg-rose-600 text-rose-200 hover:text-white font-bold text-xs border border-rose-500/40 transition-all cursor-pointer"
+                >
+                  End Class
+                </button>
+              </>
             )}
           </div>
         </div>
+
+        {/* End-of-Session Cloud Recording / Google Drive Archival Indicator */}
+        {classStatus === "ended" && (
+          <div className="p-4 mb-3 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-blue-950/80 border border-emerald-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl backdrop-blur-xl shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <Cloud className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Demo & Sales Pitch Recordings Secured</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono">Google Drive Synced</span>
+                </h4>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Teacher lecture & admissions sales pitch audio/video archived to <code className="text-cyan-300">/21K-Dronacharya/Demos/2026-10-12-{roomId}.mp4</code>.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors shrink-0"
+            >
+              Close & Teardown Room
+            </button>
+          </div>
+        )}
 
         {isScreenSharing ? (
           /* Screen Presentation View */

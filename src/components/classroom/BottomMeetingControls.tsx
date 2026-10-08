@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   ChevronUp,
   Play,
+  Briefcase,
 } from "lucide-react";
 import { LayoutCustomizerModal } from "./LayoutCustomizerModal";
 
@@ -56,6 +57,7 @@ export const BottomMeetingControls: React.FC = () => {
     classDurationSeconds,
     startClass,
     endClass,
+    triggerRoomBomber,
   } = useClassroom();
 
   const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
@@ -80,7 +82,7 @@ export const BottomMeetingControls: React.FC = () => {
 
   return (
     <>
-      <div className="h-16 md:h-18 w-full bg-[#080d19]/95 backdrop-blur-2xl border-t border-white/10 px-3 md:px-6 flex items-center justify-between shrink-0 z-30 select-none">
+      <div className="h-16 md:h-18 w-full bg-[#080d19]/95 backdrop-blur-2xl border-t border-white/10 px-2 sm:px-3 md:px-6 flex items-center justify-between shrink-0 z-30 select-none overflow-x-auto no-scrollbar gap-2">
         {/* Left Section: Live Meeting Info & Security Badge */}
         <div className="hidden lg:flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
@@ -254,13 +256,30 @@ export const BottomMeetingControls: React.FC = () => {
           )}
 
           {(currentRole === "instructor" || currentRole === "admin") && classStatus === "in_progress" && (
-            <button
-              onClick={endClass}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-bold text-xs border border-amber-500/40 transition-all cursor-pointer"
-              title="End Live Class"
-            >
-              <span>End Class</span>
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  triggerRoomBomber({
+                    salesRepName: "Marcus Sterling (Lead Admissions)",
+                    discountPct: 20,
+                    studentName: "Demo Student",
+                  });
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-md shadow-purple-900/40 transition-all cursor-pointer shrink-0"
+                title="Break room for Sales Pitch - Admissions Officer enters"
+              >
+                <Briefcase className="w-4 h-4" />
+                <span className="hidden sm:inline">Sales Pitch</span>
+              </button>
+
+              <button
+                onClick={endClass}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-bold text-xs border border-amber-500/40 transition-all cursor-pointer shrink-0"
+                title="End Live Class"
+              >
+                <span>End Class</span>
+              </button>
+            </>
           )}
 
           {/* Leave / Exit Meeting Button */}

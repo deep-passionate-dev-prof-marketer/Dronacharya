@@ -5,7 +5,7 @@ export interface RemotePeerInfo {
   name: string;
   role: UserRole;
   avatarColor: string;
-  stream: MediaStream;
+  stream?: MediaStream;
   isAudioMuted: boolean;
   isVideoOff: boolean;
   audioLevel: number;

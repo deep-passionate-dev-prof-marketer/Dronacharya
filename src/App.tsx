@@ -27,8 +27,10 @@ import { SidebarNavigation } from "./components/navigation/SidebarNavigation";
 import { SplitViewContainer } from "./components/layout/SplitViewContainer";
 import { RoomLinkManagerModal } from "./components/links/RoomLinkManagerModal";
 import { SalesHub } from "./components/sales/SalesHub";
-import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
+import { DedicatedStudentLogin } from "./components/classroom/DedicatedStudentLogin";
+import { GamifiedWaitingLobby } from "./components/classroom/GamifiedWaitingLobby";
 import { RealtimeInterpreterModal } from "./components/translation/RealtimeInterpreterModal";
+import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
 import { Megaphone, X } from "lucide-react";
 
 const MainLayout: React.FC = () => {
@@ -49,6 +51,8 @@ const MainLayout: React.FC = () => {
     activePitchRoom,
     currentRole,
     roomId,
+    classStatus,
+    startClass,
   } = useClassroom();
 
   const [mobilePane, setMobilePane] = React.useState<"video" | "dock">("video");
@@ -57,6 +61,12 @@ const MainLayout: React.FC = () => {
     typeof window !== "undefined" ? window.innerWidth < 1024 : false
   );
   const [isLinkModalOpen, setIsLinkModalOpen] = React.useState(false);
+
+  const isStudentPortal = React.useMemo(() => {
+    if (typeof window === "undefined") return currentRole === "student";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("role") === "student" || Boolean(params.get("sid")) || currentRole === "student";
+  }, [currentRole]);
 
   // Strict Role-Based View Protection and Auto-redirection
   React.useEffect(() => {
@@ -93,6 +103,17 @@ const MainLayout: React.FC = () => {
   }, []);
 
   if (!authenticatedUser) {
+    if (isStudentPortal) {
+      return (
+        <DedicatedStudentLogin
+          initialRoomId={roomId}
+          onJoinSuccess={(user, targetRoomId) => {
+            loginUser(user, targetRoomId);
+          }}
+        />
+      );
+    }
+
     return (
       <PreJoinLobbyModal
         initialRole={currentRole}
@@ -159,11 +180,15 @@ const MainLayout: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col overflow-hidden relative bg-[#070b14]">
           {activeView === "classroom" && (
-            <SplitViewContainer
-              initialSplitRatio={65}
-              leftContent={<VideoStage />}
-              rightContent={<CollaborativeDock />}
-            />
+            authenticatedUser?.role === "student" && classStatus === "waiting" ? (
+              <GamifiedWaitingLobby onEnterClassroom={() => startClass()} />
+            ) : (
+              <SplitViewContainer
+                initialSplitRatio={65}
+                leftContent={<VideoStage />}
+                rightContent={<CollaborativeDock />}
+              />
+            )
           )}
 
           {activeView === "social" && <CampusCommunityFeed />}

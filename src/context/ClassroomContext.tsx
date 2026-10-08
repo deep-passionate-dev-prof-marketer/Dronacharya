@@ -742,15 +742,23 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const params = new URLSearchParams(window.location.search);
         const urlRole = params.get("role")?.toLowerCase();
 
-        // If the URL explicitly requests a role (e.g. ?role=student)
-        if (urlRole) {
+        // If the URL explicitly requests student role or student ID, require Dedicated Student Login
+        if (urlRole === "student" || params.get("sid")) {
           const tabSaved = sessionStorage.getItem("21k_dronacharya_auth");
           if (tabSaved) {
             const parsed = JSON.parse(tabSaved);
-            if (parsed.role === urlRole) return parsed;
+            if (parsed.role === "student") return parsed;
           }
-          // Do NOT load teacher from localStorage when the URL specifies a student role!
           return null;
+        } else if (urlRole === "instructor" || urlRole === "teacher") {
+          return {
+            id: "tch-1",
+            name: "Dr. Evelyn Vance",
+            email: "e.vance@21k.school",
+            role: "instructor",
+            avatarColor: "#003872",
+            department: "Physics & STEM",
+          };
         }
 
         // Normal load (no ?role= in URL): check tab sessionStorage first, then fallback to localStorage
@@ -758,7 +766,17 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (tabSaved) return JSON.parse(tabSaved);
 
         const localSaved = localStorage.getItem("21k_dronacharya_auth");
-        return localSaved ? JSON.parse(localSaved) : null;
+        if (localSaved) return JSON.parse(localSaved);
+
+        // Default to certified Lead Teacher session so user never lands on a blocked screen
+        return {
+          id: "tch-1",
+          name: "Dr. Evelyn Vance",
+          email: "e.vance@21k.school",
+          role: "instructor",
+          avatarColor: "#003872",
+          department: "Physics & STEM",
+        };
       }
       return null;
     } catch {
@@ -770,7 +788,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get("role")?.toLowerCase();
-      if (urlRole === "student" || urlRole === "instructor" || urlRole === "auditor" || urlRole === "sales_rep") {
+      if (urlRole === "student" || params.get("sid")) {
+        return "student";
+      }
+      if (urlRole === "instructor" || urlRole === "auditor" || urlRole === "sales_rep") {
         return urlRole as UserRole;
       }
     }
@@ -865,32 +886,6 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const startClass = () => {
     setClassStatus("in_progress");
     webRtcMeshService.broadcastClassStatus("in_progress");
-    // If teacher is alone on stage, pair Sophia Chen so the teacher can lecture and test translation right away
-    setParticipants((prev) => {
-      const hasRemote = prev.some((p) => !p.isLocal);
-      if (!hasRemote) {
-        const demoStudent: Participant = {
-          id: "stu-sophia-1",
-          name: "Sophia Chen",
-          role: "student",
-          avatarColor: "#0082FF",
-          isLocal: false,
-          audioEnabled: true,
-          videoEnabled: true,
-          screenSharing: false,
-          handRaised: false,
-          breakoutRoomId: null,
-          audioLevel: 65,
-          attendanceStatus: "present",
-          joinedAt: "Just now",
-          xpPoints: 340,
-          gradeLevel: 10,
-          section: "A",
-        };
-        return [...prev, demoStudent];
-      }
-      return prev;
-    });
   };
 
   const endClass = () => {
