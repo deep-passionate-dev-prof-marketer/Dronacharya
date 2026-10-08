@@ -265,6 +265,14 @@ class RealtimeSpeechAndTtsEngine {
         return resolve();
       }
 
+      // Ensure voices are freshly fetched and synth is not paused
+      if (this.availableVoices.length === 0) {
+        this.availableVoices = window.speechSynthesis.getVoices();
+      }
+      if (window.speechSynthesis.paused) {
+        try { window.speechSynthesis.resume(); } catch {}
+      }
+
       // Stop any prior overlapping speech to maintain fluid conversational cadence
       try {
         window.speechSynthesis.cancel();
@@ -324,6 +332,10 @@ class RealtimeSpeechAndTtsEngine {
     return () => {
       this.listeners.delete(callback);
     };
+  }
+
+  public injectUtterance(event: SpeechUtteranceEvent) {
+    this.emit(event);
   }
 
   private emit(event: SpeechUtteranceEvent) {

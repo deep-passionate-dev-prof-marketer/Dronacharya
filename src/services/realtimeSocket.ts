@@ -9,6 +9,23 @@ class RealtimeSocketClient {
   private reconnectTimer: any = null;
   private currentRoomId = "default-room";
   private currentUser: any = null;
+  private broadcastChannel: BroadcastChannel | null = null;
+
+  constructor() {
+    if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {
+      try {
+        this.broadcastChannel = new BroadcastChannel("dronacharya_realtime_mesh_bus");
+        this.broadcastChannel.onmessage = (event) => {
+          try {
+            const data = event.data;
+            if (data && data.type) {
+              this.emitLocal(data.type, data.payload || data);
+            }
+          } catch {}
+        };
+      } catch {}
+    }
+  }
 
   public connect(user?: any, roomId: string = "default-room") {
     if (user) this.currentUser = user;
@@ -104,14 +121,24 @@ class RealtimeSocketClient {
   }
 
   public send(type: string, payload: any) {
+    const message = {
+      type,
+      payload,
+      timestamp: new Date().toISOString(),
+    };
+
+    // 1. Send over WebSocket if connected
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(
-        JSON.stringify({
-          type,
-          payload,
-          timestamp: new Date().toISOString(),
-        })
-      );
+      try {
+        this.socket.send(JSON.stringify(message));
+      } catch {}
+    }
+
+    // 2. Broadcast across all browser tabs and windows in real-time
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage(message);
+      } catch {}
     }
   }
 

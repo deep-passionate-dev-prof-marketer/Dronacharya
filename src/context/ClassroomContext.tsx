@@ -378,7 +378,35 @@ const ClassroomContext = createContext<ClassroomContextType | undefined>(undefin
 const INITIAL_PARTICIPANTS: Participant[] = [];
 const INITIAL_WAITING: WaitingParticipant[] = [];
 const INITIAL_BREAKOUTS: BreakoutRoom[] = [];
-const INITIAL_TRANSCRIPT: TranscriptLine[] = [];
+const INITIAL_TRANSCRIPT: TranscriptLine[] = [
+  {
+    id: "t-init-1",
+    speakerId: "host-1",
+    speakerName: "Prof. Vance (Teacher)",
+    timestamp: "10:14:02 AM",
+    text: "आज हम fractions के बारे में सीखेंगे।",
+    translatedText: "Hoy aprenderemos sobre las fracciones.",
+    language: "es",
+  },
+  {
+    id: "t-init-2",
+    speakerId: "stu-1",
+    speakerName: "Sofia (Student)",
+    timestamp: "10:14:18 AM",
+    text: "No entiendo esta parte.",
+    translatedText: "मुझे यह हिस्सा समझ नहीं आया।",
+    language: "hi",
+  },
+  {
+    id: "t-init-3",
+    speakerId: "host-1",
+    speakerName: "Prof. Vance (Teacher)",
+    timestamp: "10:14:35 AM",
+    text: "Take the square root of 16 to find the common denominator.",
+    translatedText: "Tomen la raíz cuadrada de 16 para encontrar el común denominador.",
+    language: "es",
+  },
+];
 const INITIAL_POLLS: Poll[] = [];
 
 const INITIAL_MATERIALS: StudyMaterial[] = [
@@ -769,7 +797,13 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLiveSubtitlesActive, setIsLiveSubtitlesActive] = useState(true);
   const [subtitleLanguage, setSubtitleLanguage] = useState<LanguageCode>("es");
   const [subtitleMode, setSubtitleMode] = useState<"dual" | "target_only" | "english_only">("dual");
-  const [currentLiveCaption, setCurrentLiveCaption] = useState<LiveCaption | null>(null);
+  const [currentLiveCaption, setCurrentLiveCaption] = useState<LiveCaption | null>({
+    speakerName: "Prof. Vance (Teacher)",
+    englishText: "आज हम fractions के बारे में सीखेंगे।",
+    translatedText: "Hoy aprenderemos sobre las fracciones.",
+    targetLanguage: "es",
+    timestamp: "Live",
+  });
   const [isSpeechRecognitionActive, setIsSpeechRecognitionActive] = useState(true);
   const [isLiveSpeechStreaming, setIsLiveSpeechStreaming] = useState(true);
   const speechRecognitionInstanceRef = useRef<any>(null);

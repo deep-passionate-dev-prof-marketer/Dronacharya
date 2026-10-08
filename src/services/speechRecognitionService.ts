@@ -1,7 +1,13 @@
+/**
+ * Dronacharya Real-Time Speech Recognition Engine
+ * Unified with the Translation & Interpreter Pipeline.
+ * Eliminates duplicate mic stream / Web Speech API conflicts.
+ */
+
 import { LanguageCode } from "../types";
-import { translateDualCaption } from "./geminiService";
+import { speechTranslationEngine, SpeechUtteranceEvent } from "./translation/speechTranslationEngine";
+import { realtimeInterpreterService } from "./translation/realtimeInterpreterService";
 import { TranslationEngine } from "./translation/translationEngine";
-import { getLanguageBcp47 } from "./translation/languageConfig";
 
 export interface SpeechCaptionEvent {
   id: string;
@@ -17,151 +23,59 @@ export interface SpeechCaptionEvent {
 export type SpeechCallback = (event: SpeechCaptionEvent) => void;
 
 class RealtimeSpeechRecognitionEngine {
-  private recognition: any = null;
-  private isListening = false;
-  private isNativeMicActive = false;
-  private isSupported = false;
   private listeners: Set<SpeechCallback> = new Set();
-  private restartTimeout: any = null;
   private currentSpeaker = "You (Local Speaker)";
-  private activeSourceLanguage: string = "hi";
+  private activeSourceLanguage = "hi";
   private activeTargetLanguage: LanguageCode = "es";
-  private audioStream: MediaStream | null = null;
-  private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private isPermissionGranted = false;
 
   constructor() {
-    this.initNativeSpeechRecognition();
+    this.setupPipelineBridge();
   }
 
-  private initNativeSpeechRecognition() {
-    if (typeof window === "undefined") return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      try {
-        const rec = new SpeechRecognition();
-        rec.continuous = true;
-        rec.interimResults = true;
-        rec.lang = getLanguageBcp47(this.activeSourceLanguage);
-        rec.maxAlternatives = 1;
-
-        rec.onresult = async (event: any) => {
-          let interim = "";
-          let final = "";
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              final += transcript;
-            } else {
-              interim += transcript;
-            }
-          }
-
-          const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
-          if (final.trim()) {
-            const text = final.trim();
-            let translated = text;
-            try {
-              const res = await TranslationEngine.translate(
-                text,
-                this.activeSourceLanguage,
-                this.activeTargetLanguage,
-                "general"
-              );
-              translated = res.translatedText;
-            } catch {
-              try {
-                const res = await translateDualCaption(text, this.activeTargetLanguage, this.currentSpeaker);
-                translated = res.translatedText;
-              } catch {
-                translated = text;
-              }
-            }
-
-            this.emit({
-              id: `speech-${Date.now()}`,
-              speaker: this.currentSpeaker,
-              text,
-              isFinal: true,
-              translatedText: translated,
-              targetLanguage: this.activeTargetLanguage,
-              audioLevel: 85,
-              timestamp: now,
-            });
-          } else if (interim.trim()) {
-            this.emit({
-              id: `interim-${Date.now()}`,
-              speaker: this.currentSpeaker,
-              text: interim.trim(),
-              isFinal: false,
-              targetLanguage: this.activeTargetLanguage,
-              audioLevel: 60,
-              timestamp: now,
-            });
-          }
-        };
-
-        rec.onerror = (event: any) => {
-          // "no-speech" is a normal silence event in Web Speech API - do not stop listening
-          if (event.error === "no-speech") {
-            return;
-          }
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            console.warn("[SpeechRecognition] Microphone permission denied:", event.error);
-            this.isNativeMicActive = false;
-            return;
-          }
-          console.warn("[SpeechRecognition] Native recognition event:", event.error);
-        };
-
-        rec.onend = () => {
-          this.isNativeMicActive = false;
-          if (this.isListening) {
-            this.scheduleRestart();
-          }
-        };
-
-        this.recognition = rec;
-        this.isSupported = true;
-      } catch (err) {
-        console.warn("[SpeechRecognition] SpeechRecognition initialization:", err);
-        this.isSupported = false;
-      }
-    }
-  }
-
-  private scheduleRestart() {
-    clearTimeout(this.restartTimeout);
-    this.restartTimeout = setTimeout(() => {
-      if (this.isListening && this.recognition) {
+  private setupPipelineBridge() {
+    // Listen to unified speech engine utterances
+    speechTranslationEngine.subscribe(async (event: SpeechUtteranceEvent) => {
+      let translated = event.text;
+      if (event.isFinal && event.text.trim()) {
         try {
-          this.recognition.start();
-          this.isNativeMicActive = true;
-        } catch (e: any) {
-          // If already started or transitioning, retry cleanly
-          if (e?.name !== "InvalidStateError") {
-            this.restartTimeout = setTimeout(() => this.scheduleRestart(), 1000);
-          }
+          const res = await TranslationEngine.translate(
+            event.text,
+            this.activeSourceLanguage,
+            this.activeTargetLanguage,
+            "general"
+          );
+          translated = res.translatedText;
+        } catch {
+          translated = event.text;
         }
       }
-    }, 400);
+
+      this.emit({
+        id: `speech-${Date.now()}`,
+        speaker: event.speaker || this.currentSpeaker,
+        text: event.text,
+        isFinal: event.isFinal,
+        translatedText: translated,
+        targetLanguage: this.activeTargetLanguage,
+        audioLevel: event.audioLevel || 80,
+        timestamp: event.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      });
+    });
   }
 
   public setTargetLanguage(lang: LanguageCode) {
     this.activeTargetLanguage = lang;
+    realtimeInterpreterService.updatePreferences({
+      targetTranslationLanguage: lang,
+    });
   }
 
   public setSourceLanguage(lang: string) {
     this.activeSourceLanguage = lang.toLowerCase();
-    if (this.recognition) {
-      this.recognition.lang = getLanguageBcp47(this.activeSourceLanguage);
-    }
+    speechTranslationEngine.setSpokenLanguage(this.activeSourceLanguage);
+    realtimeInterpreterService.updatePreferences({
+      mySpokenLanguage: this.activeSourceLanguage,
+    });
   }
 
   public subscribe(callback: SpeechCallback): () => void {
@@ -181,60 +95,24 @@ class RealtimeSpeechRecognitionEngine {
     });
   }
 
-  /**
-   * Start live speech recognition using real microphone hardware.
-   */
   public async startListening(speaker = "You (Local Speaker)") {
     this.currentSpeaker = speaker;
-    this.isListening = true;
-
-    // Request actual microphone hardware permission if available
-    if (typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        if (!this.audioStream) {
-          this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          this.isPermissionGranted = true;
-        }
-      } catch (micErr) {
-        console.warn("[SpeechRecognition] Microphone access prompt:", micErr);
-      }
-    }
-
-    // Start native Web Speech recognition
-    if (this.recognition && this.isSupported) {
-      try {
-        this.recognition.start();
-        this.isNativeMicActive = true;
-      } catch (startErr: any) {
-        if (startErr?.name !== "InvalidStateError") {
-          this.scheduleRestart();
-        }
-      }
-    }
+    speechTranslationEngine.startListening(speaker);
   }
 
   public stopListening() {
-    this.isListening = false;
-    this.isNativeMicActive = false;
-    clearTimeout(this.restartTimeout);
-
-    if (this.recognition) {
-      try {
-        this.recognition.stop();
-      } catch {}
-    }
+    speechTranslationEngine.stopListening();
   }
 
   /**
-   * Broadcast an authentic real-time utterance (from mic dictation or user input).
-   * Fully real-time with Google AI dual language translation.
+   * Inject or dictate an utterance manually
    */
-  public async injectSpeech(speaker: string, englishText: string, customTranslation?: string) {
-    if (!englishText || !englishText.trim()) return;
-    const cleanText = englishText.trim();
-    const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  public async injectSpeech(speaker: string, text: string, customTranslation?: string) {
+    if (!text || !text.trim()) return;
+    const cleanText = text.trim();
+    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-    // 1. Emit live typing/interim feedback
+    // 1. Emit live interim feedback
     this.emit({
       id: `live-interim-${Date.now()}`,
       speaker,
@@ -242,9 +120,10 @@ class RealtimeSpeechRecognitionEngine {
       isFinal: false,
       targetLanguage: this.activeTargetLanguage,
       audioLevel: 75,
-      timestamp,
+      timestamp: now,
     });
 
+    // 2. Perform translation
     let translated = customTranslation;
     if (!translated) {
       try {
@@ -256,17 +135,12 @@ class RealtimeSpeechRecognitionEngine {
         );
         translated = res.translatedText;
       } catch {
-        try {
-          const res = await translateDualCaption(cleanText, this.activeTargetLanguage, speaker);
-          translated = res.translatedText;
-        } catch {
-          translated = cleanText;
-        }
+        translated = cleanText;
       }
     }
 
-    // 2. Emit final verified utterance
-    this.emit({
+    // 3. Emit verified final event
+    const finalEvent: SpeechCaptionEvent = {
       id: `live-speech-${Date.now()}`,
       speaker,
       text: cleanText,
@@ -274,16 +148,25 @@ class RealtimeSpeechRecognitionEngine {
       translatedText: translated,
       targetLanguage: this.activeTargetLanguage,
       audioLevel: 90,
-      timestamp,
-    });
+      timestamp: now,
+    };
+
+    this.emit(finalEvent);
+
+    // 4. Play audio synthesis if translation is active
+    speechTranslationEngine.speakTranslatedAudio(
+      translated,
+      this.activeTargetLanguage,
+      1.0
+    );
   }
 
   public getIsListening(): boolean {
-    return this.isListening;
+    return speechTranslationEngine.getIsListening();
   }
 
   public getIsNativeMicActive(): boolean {
-    return this.isNativeMicActive;
+    return speechTranslationEngine.getIsListening();
   }
 
   public getCurrentSpeaker(): string {
