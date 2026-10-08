@@ -1081,11 +1081,17 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Real Full-Stack WebSocket & Room Bomber Synchronization
   // -------------------------------------------------------------
   useEffect(() => {
-    const userPayload = authenticatedUser || {
-      id: currentUser.id,
-      name: currentUser.name,
-      role: currentRole,
-    };
+    const userPayload = authenticatedUser
+      ? {
+          id: authenticatedUser.id,
+          name: authenticatedUser.name,
+          role: authenticatedUser.role,
+        }
+      : {
+          id: currentUser?.id || "guest-user-1",
+          name: currentUser?.name || "Guest User",
+          role: currentRole || "instructor",
+        };
 
     realtimeSocket.connect(userPayload, roomId);
 
@@ -1304,6 +1310,30 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       localStorage.setItem("21k_dronacharya_auth", JSON.stringify(user));
     } catch {}
     setIsAuthModalOpen(false);
+
+    const localParticipant: Participant = {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      avatarColor: user.avatarColor || "#0082FF",
+      isLocal: true,
+      audioEnabled: !isAudioMuted,
+      videoEnabled: !isVideoOff,
+      screenSharing: isScreenSharing,
+      handRaised: false,
+      breakoutRoomId: null,
+      audioLevel: 80,
+      attendanceStatus: "present",
+      joinedAt: "Just now",
+      xpPoints: 120,
+      gradeLevel: user.gradeLevel,
+      section: user.section,
+    };
+    setParticipants((prev) => {
+      const rest = prev.filter((p) => p.id !== user.id);
+      return [localParticipant, ...rest];
+    });
+
     realtimeSocket.joinRoom(user, roomId);
   };
 
@@ -1312,8 +1342,42 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       localStorage.removeItem("21k_dronacharya_auth");
     } catch {}
+    setParticipants([]);
     setIsAuthModalOpen(true);
   };
+
+  // Keep authenticated user updated in participants list when media state changes
+  useEffect(() => {
+    if (authenticatedUser) {
+      setParticipants((prev) => {
+        const existingIdx = prev.findIndex((p) => p.id === authenticatedUser.id);
+        const localParticipant: Participant = {
+          id: authenticatedUser.id,
+          name: authenticatedUser.name,
+          role: authenticatedUser.role,
+          avatarColor: authenticatedUser.avatarColor || "#0082FF",
+          isLocal: true,
+          audioEnabled: !isAudioMuted,
+          videoEnabled: !isVideoOff,
+          screenSharing: isScreenSharing,
+          handRaised: handRaised,
+          breakoutRoomId: null,
+          audioLevel: 80,
+          attendanceStatus: "present",
+          joinedAt: "Just now",
+          xpPoints: 120,
+          gradeLevel: authenticatedUser.gradeLevel,
+          section: authenticatedUser.section,
+        };
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = { ...updated[existingIdx], ...localParticipant };
+          return updated;
+        }
+        return [localParticipant, ...prev];
+      });
+    }
+  }, [authenticatedUser, isAudioMuted, isVideoOff, isScreenSharing, handRaised]);
 
   const toggleAudio = () => {
     setIsAudioMuted((prev) => {
@@ -2592,7 +2656,26 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActiveEscalationToast(null);
   };
 
-  const currentUser = participants[0];
+  const fallbackUser: Participant = {
+    id: authenticatedUser?.id || "local-user-1",
+    name: authenticatedUser?.name || "Dr. Evelyn Vance",
+    role: authenticatedUser?.role || currentRole || "instructor",
+    avatarColor: authenticatedUser?.avatarColor || "#0082FF",
+    isLocal: true,
+    audioEnabled: !isAudioMuted,
+    videoEnabled: !isVideoOff,
+    screenSharing: isScreenSharing,
+    handRaised: handRaised,
+    breakoutRoomId: null,
+    audioLevel: 80,
+    attendanceStatus: "present",
+    joinedAt: "Just now",
+    xpPoints: 120,
+    gradeLevel: authenticatedUser?.gradeLevel,
+    section: authenticatedUser?.section,
+  };
+
+  const currentUser: Participant = participants[0] || fallbackUser;
 
   return (
     <ClassroomContext.Provider
