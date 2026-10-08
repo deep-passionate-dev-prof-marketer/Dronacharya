@@ -191,13 +191,13 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
     };
 
     // Science Lab
-    drawBuilding(80, 80, 140, 100, "🧪 Quantum STEM Lab", "#1e1b4b", "#6366f1");
+    drawBuilding(80, 80, 140, 100, "Quantum STEM Lab", "#1e1b4b", "#6366f1");
     // Library
-    drawBuilding(500, 80, 140, 100, "📚 21K Digital Library", "#0f372e", "#10b981");
+    drawBuilding(500, 80, 140, 100, "21K Digital Library", "#0f372e", "#10b981");
     // Robotics Arena
-    drawBuilding(80, 310, 140, 100, "🤖 Robotics Arena", "#3b1717", "#f43f5e");
+    drawBuilding(80, 310, 140, 100, "Robotics Arena", "#3b1717", "#f43f5e");
     // Amphitheater
-    drawBuilding(500, 310, 140, 100, "🎓 Lecture Hall", "#312e81", "#8b5cf6");
+    drawBuilding(500, 310, 140, 100, "Lecture Hall", "#312e81", "#8b5cf6");
 
     // Central Fountain / Campus Logo
     ctx.fillStyle = "#0284c7";
@@ -273,7 +273,7 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
     ctx.strokeRect(playerX - 10, playerY - 33, 20, 20);
 
     // Floating Overhead Nameplate for Local User (with glowing border)
-    const myTag = `★ [${mySid}] ${myName} (YOU)`;
+    const myTag = `[${mySid}] ${myName} (YOU)`;
     ctx.font = "bold 10px monospace";
     const myTagWidth = ctx.measureText(myTag).width;
 

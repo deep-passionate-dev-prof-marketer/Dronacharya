@@ -50,100 +50,104 @@ export async function detectClientDeviceEnvironment(): Promise<DetectionResult> 
   const maxTouchPoints = navigator.maxTouchPoints || 0;
   const hasTouch = maxTouchPoints > 0 || "ontouchstart" in window;
 
-  // OS Detection
+  const coarsePointer = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  const uaData = (navigator as any).userAgentData as { mobile?: boolean; platform?: string } | undefined;
+  const isIPad = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && maxTouchPoints > 1);
+  const isIPhone = /iPhone|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+
+  // OS Detection (versions only when the UA actually exposes them)
   let osName = "Unknown OS";
-  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && maxTouchPoints > 1)) {
-    osName = "iPadOS 18.2";
-  } else if (/iPhone/i.test(ua)) {
-    osName = "iOS 18.2";
-  } else if (/Android/i.test(ua)) {
+  const iosVer = ua.match(/OS (\d+)[_.](\d+)/i);
+  if (isIPad) {
+    osName = iosVer && !/Macintosh/i.test(ua) ? `iPadOS ${iosVer[1]}.${iosVer[2]}` : "iPadOS";
+  } else if (isIPhone) {
+    osName = iosVer ? `iOS ${iosVer[1]}.${iosVer[2]}` : "iOS";
+  } else if (isAndroid) {
     const androidVer = ua.match(/Android\s([0-9.]+)/i);
-    osName = androidVer ? `Android ${androidVer[1]}` : "Android 15";
+    osName = androidVer ? `Android ${androidVer[1]}` : "Android";
   } else if (/Macintosh|Mac OS X/i.test(ua)) {
-    osName = "macOS Sequoia (Apple Silicon)";
-  } else if (/Windows NT 10.0/i.test(ua)) {
-    osName = "Windows 11 (24H2 Pro)";
+    osName = "macOS";
   } else if (/Windows NT/i.test(ua)) {
-    osName = "Windows 10 / 11";
+    osName = "Windows";
   } else if (/CrOS/i.test(ua)) {
-    osName = "Chrome OS";
+    osName = "ChromeOS";
   } else if (/Linux/i.test(ua)) {
-    osName = "Linux 6.x (Ubuntu/Debian)";
+    osName = "Linux";
   }
 
   // Browser Detection
-  let browserName = "Chrome";
-  let browserVersion = "128.0";
-  if (/Edg\//i.test(ua)) {
+  let browserName = "Unknown browser";
+  let browserVersion = "";
+  const pick = (re: RegExp) => ua.match(re)?.[1] || "";
+  if (/Edg(A|iOS)?\//i.test(ua)) {
     browserName = "Microsoft Edge";
-    const m = ua.match(/Edg\/([0-9.]+)/i);
-    if (m) browserVersion = m[1];
-  } else if (/Firefox\//i.test(ua)) {
+    browserVersion = pick(/Edg(?:A|iOS)?\/([0-9.]+)/i);
+  } else if (/OPR\//i.test(ua)) {
+    browserName = "Opera";
+    browserVersion = pick(/OPR\/([0-9.]+)/i);
+  } else if (/SamsungBrowser\//i.test(ua)) {
+    browserName = "Samsung Internet";
+    browserVersion = pick(/SamsungBrowser\/([0-9.]+)/i);
+  } else if (/Firefox\/|FxiOS\//i.test(ua)) {
     browserName = "Mozilla Firefox";
-    const m = ua.match(/Firefox\/([0-9.]+)/i);
-    if (m) browserVersion = m[1];
-  } else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) {
-    browserName = "Apple Safari";
-    const m = ua.match(/Version\/([0-9.]+)/i);
-    if (m) browserVersion = m[1];
+    browserVersion = pick(/(?:Firefox|FxiOS)\/([0-9.]+)/i);
+  } else if (/CriOS\//i.test(ua)) {
+    browserName = "Google Chrome";
+    browserVersion = pick(/CriOS\/([0-9.]+)/i);
   } else if (/Chrome\//i.test(ua)) {
     browserName = "Google Chrome";
-    const m = ua.match(/Chrome\/([0-9.]+)/i);
-    if (m) browserVersion = m[1];
+    browserVersion = pick(/Chrome\/([0-9.]+)/i);
+  } else if (/Safari\//i.test(ua)) {
+    browserName = "Apple Safari";
+    browserVersion = pick(/Version\/([0-9.]+)/i);
   }
 
-  // Form factor classification
+  // Form factor classification. Order matters: explicit mobile signals first, then
+  // touch-first devices that hide behind a desktop UA ("Request desktop site").
   let deviceType: DeviceType = "laptop";
-  let deviceModel = "Standard Educational Laptop";
-
-  const isIPad = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && maxTouchPoints > 1);
-  const isIPhone = /iPhone/i.test(ua);
-  const isAndroid = /Android/i.test(ua);
+  let deviceModel = "Laptop / notebook";
 
   if (isIPad) {
     deviceType = "tablet";
-    deviceModel = 'Apple iPad Pro 13" (M4 Ultra Retina XDR)';
+    deviceModel = "Apple iPad";
   } else if (isIPhone) {
     deviceType = "phone";
-    deviceModel = "Apple iPhone 15 Pro (A17 Pro)";
+    deviceModel = "Apple iPhone";
+  } else if (uaData?.mobile) {
+    deviceType = "phone";
+    deviceModel = isAndroid ? "Android phone" : "Mobile phone";
   } else if (isAndroid) {
-    if (minDim >= 600 || /Tablet/i.test(ua)) {
+    if (!/Mobile/i.test(ua) || minDim >= 600) {
       deviceType = "tablet";
-      deviceModel = "Samsung Galaxy Tab S9 Ultra (14.6\")";
+      deviceModel = "Android tablet";
     } else {
       deviceType = "phone";
-      deviceModel = "Samsung Galaxy S24 Ultra / Google Pixel";
+      deviceModel = "Android phone";
     }
-  } else if (hasTouch && minDim >= 600 && maxDim <= 1366) {
+  } else if (hasTouch && coarsePointer && minDim < 600) {
+    deviceType = "phone";
+    deviceModel = "Touch phone (desktop-mode browser)";
+  } else if (hasTouch && coarsePointer && minDim >= 600) {
     deviceType = "tablet";
-    deviceModel = "Microsoft Surface Pro 11 (Copilot+ PC)";
+    deviceModel = /Windows/i.test(ua) ? "Windows tablet / 2-in-1 (tablet mode)" : "Touch tablet";
+  } else if (maxDim >= 2560 || (!hasTouch && maxDim >= 1920 && (window.screen?.availHeight || 0) >= 1000)) {
+    deviceType = "desktop";
+    deviceModel = /Macintosh/i.test(ua) ? "Mac desktop / external display" : "Desktop PC / external display";
   } else {
-    // Desktop vs Laptop
-    if (maxDim >= 2560 || window.screen?.width >= 2560) {
-      deviceType = "desktop";
-      deviceModel = 'Dual-Monitor Workstation (4K UltraHD 144Hz)';
-    } else if (maxTouchPoints === 0 && window.screen?.availHeight > 950 && width > 1600) {
-      deviceType = "desktop";
-      deviceModel = '21K School Certified Desktop PC (Intel Core i7 / RTX)';
-    } else {
-      deviceType = "laptop";
-      deviceModel = /Macintosh/i.test(ua)
-        ? 'Apple MacBook Pro 14" (M3 Max Liquid Retina)'
-        : 'Lenovo ThinkPad X1 Carbon Gen 12 (OLED)';
-    }
+    deviceType = "laptop";
+    deviceModel = /Macintosh/i.test(ua) ? "Mac laptop" : /CrOS/i.test(ua) ? "Chromebook" : /Windows/i.test(ua) ? "Windows laptop" : "Laptop";
   }
 
   // Hardware specs
-  const hardwareConcurrency = navigator.hardwareConcurrency || 8;
-  const deviceMemoryGb = (navigator as any).deviceMemory || 8;
-  const networkType =
-    (navigator as any).connection?.effectiveType ||
-    ((navigator as any).connection?.type ? "WiFi Low-Latency" : "Broadband WiFi");
+  const hardwareConcurrency = navigator.hardwareConcurrency || 0;
+  const deviceMemoryGb = (navigator as any).deviceMemory;
+  const networkType = (navigator as any).connection?.effectiveType || (navigator as any).connection?.type || undefined;
 
   // Media devices probe
-  let audioInputsCount = 1;
-  let videoInputsCount = 1;
-  let audioOutputsCount = 1;
+  let audioInputsCount = 0;
+  let videoInputsCount = 0;
+  let audioOutputsCount = 0;
 
   try {
     if (navigator.mediaDevices?.enumerateDevices) {
@@ -152,12 +156,12 @@ export async function detectClientDeviceEnvironment(): Promise<DetectionResult> 
       const cams = devices.filter((d) => d.kind === "videoinput").length;
       const spks = devices.filter((d) => d.kind === "audiooutput").length;
 
-      if (mics > 0) audioInputsCount = mics;
-      if (cams > 0) videoInputsCount = cams;
-      if (spks > 0) audioOutputsCount = spks;
+      audioInputsCount = mics;
+      videoInputsCount = cams;
+      audioOutputsCount = spks;
     }
   } catch {
-    // Media devices enumeration may require permissions; default values stand
+    // Media devices enumeration may require permissions; counts stay 0 (unknown)
   }
 
   const screenResolution = `${width}x${height} @${pixelRatio}x (Effective ${Math.round(width * pixelRatio)}x${Math.round(height * pixelRatio)})`;

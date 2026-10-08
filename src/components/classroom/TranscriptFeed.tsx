@@ -12,6 +12,8 @@ import {
   VolumeX,
   Play,
   RotateCcw,
+  GraduationCap,
+  BookOpen,
 } from "lucide-react";
 import { LanguageCode } from "../../types";
 import { SUPPORTED_LANGUAGES, getLanguage } from "../../services/translation/languageConfig";
@@ -108,7 +110,7 @@ export const TranscriptFeed: React.FC = () => {
             >
               {SUPPORTED_LANGUAGES.map((l) => (
                 <option key={l.code} value={l.code} className="bg-slate-900 text-white">
-                  {l.flag} {l.name}
+                  [{l.code.toUpperCase()}] {l.name}
                 </option>
               ))}
             </select>
@@ -138,9 +140,10 @@ export const TranscriptFeed: React.FC = () => {
               tgt
             );
           }}
-          className="px-2 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 rounded-md shrink-0 flex items-center gap-1 transition"
+          className="px-2 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 rounded-md shrink-0 flex items-center gap-1.5 transition"
         >
-          <span>🇮🇳</span> Teacher: Fractions → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}
+          <Languages className="w-3.5 h-3.5 text-amber-400" />
+          <span>Teacher: Fractions → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}</span>
         </button>
         <button
           onClick={() => {
@@ -152,9 +155,10 @@ export const TranscriptFeed: React.FC = () => {
               tgt
             );
           }}
-          className="px-2 py-1 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 rounded-md shrink-0 flex items-center gap-1 transition"
+          className="px-2 py-1 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 rounded-md shrink-0 flex items-center gap-1.5 transition"
         >
-          <span>🎓</span> Student Query → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}
+          <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Student Query → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}</span>
         </button>
         <button
           onClick={() => {
@@ -166,9 +170,10 @@ export const TranscriptFeed: React.FC = () => {
               tgt
             );
           }}
-          className="px-2 py-1 bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/30 text-indigo-300 rounded-md shrink-0 flex items-center gap-1 transition"
+          className="px-2 py-1 bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/30 text-indigo-300 rounded-md shrink-0 flex items-center gap-1.5 transition"
         >
-          <span>🇬🇧</span> STEM → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}
+          <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+          <span>STEM → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}</span>
         </button>
       </div>
 

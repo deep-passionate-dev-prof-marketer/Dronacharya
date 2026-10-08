@@ -223,12 +223,12 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                     >
                       {SUPPORTED_LANGUAGES.map((l) => (
                         <option key={`src-${l.code}`} value={l.code}>
-                          {l.flag} {l.name} ({l.nativeName})
+                          [{l.code.toUpperCase()}] {l.name} ({l.nativeName})
                         </option>
                       ))}
                     </select>
                     <p className="text-[11px] text-slate-400">
-                      Currently set: <span className="text-cyan-300">{myLang.flag} {myLang.name}</span>
+                      Currently set: <span className="text-cyan-300 font-semibold">{myLang.name}</span>
                     </p>
                   </div>
 
@@ -247,12 +247,12 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                     >
                       {SUPPORTED_LANGUAGES.map((l) => (
                         <option key={`tgt-${l.code}`} value={l.code}>
-                          {l.flag} {l.name} ({l.nativeName})
+                          [{l.code.toUpperCase()}] {l.name} ({l.nativeName})
                         </option>
                       ))}
                     </select>
                     <p className="text-[11px] text-slate-400">
-                      Currently set: <span className="text-emerald-300">{targetLang.flag} {targetLang.name}</span>
+                      Currently set: <span className="text-emerald-300 font-semibold">{targetLang.name}</span>
                     </p>
                   </div>
                 </div>
@@ -488,7 +488,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-white flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                      Test Current Selection: {myLang.flag} {myLang.name} → {targetLang.flag} {targetLang.name}
+                      Test Current Selection: {myLang.name} → {targetLang.name}
                     </span>
                     <button
                       onClick={() =>
@@ -516,7 +516,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                     Spoken ({myLang.name}): <span className="text-white font-medium">"{myLang.code === 'hi' ? 'आज हम fractions के बारे में सीखेंगे।' : 'Today we will learn about fractions.'}"</span>
                   </div>
                   <div className="text-xs text-emerald-400">
-                    Translates into: <span className="font-bold">{targetLang.flag} {targetLang.name}</span>
+                    Translates into: <span className="font-bold">{targetLang.name}</span>
                   </div>
                 </div>
 
@@ -524,7 +524,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                 <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-amber-300">
-                      Test 1: Teacher speaks Hindi 🇮🇳 → Student receives Spanish 🇪🇸
+                      Test 1: Teacher speaks Hindi → Student receives Spanish
                     </span>
                     <button
                       onClick={() =>
@@ -554,7 +554,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                 <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-cyan-300">
-                      Test 2: Student replies in Spanish 🇪🇸 → Teacher receives Hindi 🇮🇳
+                      Test 2: Student replies in Spanish → Teacher receives Hindi
                     </span>
                     <button
                       onClick={() =>
@@ -584,7 +584,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                 <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-indigo-300">
-                      Test 3: English STEM 🇬🇧 → Spanish 🇪🇸 (Mathematical Protection)
+                      Test 3: English STEM → Spanish (Mathematical Protection)
                     </span>
                     <button
                       onClick={() =>

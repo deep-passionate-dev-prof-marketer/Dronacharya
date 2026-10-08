@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Sparkles,
   BookOpen,
+  X,
 } from "lucide-react";
 import { VisualFlowBuilder } from "./VisualFlowBuilder";
 import { RoomHierarchyGenerator } from "./RoomHierarchyGenerator";
@@ -114,14 +115,18 @@ export const DronacharyaAdminHub: React.FC = () => {
       {roomCreatedToast && (
         <div className="bg-emerald-600 text-white px-6 py-2 text-xs font-semibold flex items-center justify-between">
           <span>New encrypted virtual classroom generated and bound to 21K School timetable!</span>
-          <button onClick={() => setRoomCreatedToast(false)}>✕</button>
+          <button onClick={() => setRoomCreatedToast(false)} className="hover:opacity-80 p-0.5" aria-label="Close toast">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
       {failoverToast && (
         <div className="bg-[#FFBB00] text-[#003872] px-6 py-2 text-xs font-bold flex items-center justify-between">
           <span>Emergency substitute facilitator successfully reassigned. Student lobby notified.</span>
-          <button onClick={() => setFailoverToast(false)}>✕</button>
+          <button onClick={() => setFailoverToast(false)} className="hover:opacity-80 p-0.5" aria-label="Close toast">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -136,7 +141,7 @@ export const DronacharyaAdminHub: React.FC = () => {
 
         {/* Tab 2: Grade-Wise & Course-Wise Auto Room Creation */}
         {activeTab === "gradeRooms" && (
-          <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-6">
+          <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
             {/* Quick Batch Generator Banner */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
               <div>
@@ -299,7 +304,7 @@ export const DronacharyaAdminHub: React.FC = () => {
 
         {/* Tab 3: Teachers Directory & Emergency Failover */}
         {activeTab === "teachers" && (
-          <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-6">
+          <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
             {/* Emergency Substitute Failover Control */}
             <div className="bg-gradient-to-r from-rose-50 to-amber-50 rounded-2xl border border-rose-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
               <div className="flex items-start gap-3">
@@ -412,7 +417,7 @@ export const DronacharyaAdminHub: React.FC = () => {
 
         {/* Tab 4: Cohorts & Student Batches */}
         {activeTab === "cohorts" && (
-          <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-6">
+          <div className="p-6 max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between shadow-sm">
               <div>
                 <h3 className="font-headline font-bold text-sm text-[#003872]">

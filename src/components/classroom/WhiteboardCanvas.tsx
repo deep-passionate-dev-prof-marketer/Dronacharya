@@ -27,49 +27,70 @@ export const WhiteboardCanvas: React.FC = () => {
   const [startY, setStartY] = useState(0);
   const [snapshot, setSnapshot] = useState<ImageData | null>(null);
 
-  // Initialize canvas
+  // Initialize the canvas and keep its backing store matched to its on-screen size.
+  // Resizes (split-pane drag, rotation, tablet keyboard) keep existing strokes.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
-    // Set high DPI scale
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
+    const paintBackground = (w: number, h: number) => {
+      ctx.fillStyle = "#0b101d";
+      ctx.fillRect(0, 0, w, h);
+      // Grid lines for STEM equations and graphs
+      ctx.strokeStyle = "#141c2e";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+    };
 
-    // Initial dark studio chalkboard canvas
-    ctx.fillStyle = "#0b101d";
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    let seeded = false;
+    const fit = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const prev = seeded ? document.createElement("canvas") : null;
+      if (prev) {
+        prev.width = canvas.width;
+        prev.height = canvas.height;
+        prev.getContext("2d")?.drawImage(canvas, 0, 0);
+      }
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paintBackground(rect.width, rect.height);
+      if (prev) {
+        ctx.drawImage(prev, 0, 0, prev.width / dpr, prev.height / dpr);
+      } else {
+        // Pre-seed a sample quantum formula annotation
+        ctx.font = "14px 'JetBrains Mono', monospace";
+        ctx.fillStyle = "#818cf8";
+        ctx.fillText("H|0⟩ = (|0⟩ + |1⟩) / √2", 40, 50);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px 'Plus Jakarta Sans', sans-serif";
+        ctx.fillText("Hadamard Transform: Equal superposition state vector", 40, 75);
+        seeded = true;
+      }
+    };
 
-    // Grid lines for STEM equations and graphs
-    ctx.strokeStyle = "#141c2e";
-    ctx.lineWidth = 1;
-    for (let x = 0; x < rect.width; x += 30) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, rect.height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < rect.height; y += 30) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(rect.width, y);
-      ctx.stroke();
-    }
-
-    // Pre-seed a sample quantum formula annotation
-    ctx.font = "14px 'JetBrains Mono', monospace";
-    ctx.fillStyle = "#818cf8";
-    ctx.fillText("H|0⟩ = (|0⟩ + |1⟩) / √2", 40, 50);
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "12px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText("Hadamard Transform: Equal superposition state vector", 40, 75);
+    fit();
+    const observer = new ResizeObserver(() => fit());
+    observer.observe(canvas);
+    return () => observer.disconnect();
   }, []);
 
-  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -79,7 +100,8 @@ export const WhiteboardCanvas: React.FC = () => {
     };
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     const { x, y } = getCanvasCoords(e);
     setIsDrawing(true);
     setStartX(x);
@@ -107,7 +129,7 @@ export const WhiteboardCanvas: React.FC = () => {
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -198,7 +220,7 @@ export const WhiteboardCanvas: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col bg-[#0b101d] overflow-hidden select-none">
       {/* Top Whiteboard Toolbar */}
-      <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-3 flex items-center justify-between gap-2 shrink-0">
+      <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-2 sm:px-3 flex items-center justify-between gap-2 shrink-0 overflow-x-auto no-scrollbar">
         {/* Tool selector */}
         <div className="flex items-center gap-1">
           {[
@@ -280,15 +302,15 @@ export const WhiteboardCanvas: React.FC = () => {
       <div className="relative flex-1 overflow-hidden cursor-crosshair">
         <canvas
           ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className="w-full h-full block"
+          onPointerDown={handleMouseDown}
+          onPointerMove={handleMouseMove}
+          onPointerUp={handleMouseUp}
+          onPointerCancel={handleMouseUp}
+          className="absolute inset-0 w-full h-full block touch-none"
         />
 
         {/* Quiet footer guide */}
-        <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/60 backdrop-blur text-[10px] font-mono text-slate-400 pointer-events-none">
+        <div className="hidden sm:block absolute bottom-2 right-2 px-2 py-1 rounded bg-black/60 text-[10px] font-mono text-slate-400 pointer-events-none">
           Live Whiteboard Sync · Multi-User Canvas
         </div>
       </div>

@@ -157,7 +157,7 @@ export const CrmRoomIntegrationView: React.FC = () => {
 
   return (
     <div className="flex-1 w-full h-full overflow-y-auto bg-[#F4F6F9] text-slate-800 font-sans p-4 md:p-6">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-4 lg:gap-6">
         {/* Header */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">

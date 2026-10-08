@@ -28,8 +28,10 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
   const setSplitRatio = setDockSplitRatio;
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [activePreset, setActivePreset] = useState<"custom" | "50" | "65" | "80" | "leftOnly" | "rightOnly">("65");
+  // Below 1024px there isn't room for a usable side-by-side dock, so the panes become tabs
+  const STACK_BELOW = 1024;
   const [isMobile, setIsMobile] = useState<boolean>(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false
+    typeof window !== "undefined" ? window.innerWidth < STACK_BELOW : false
   );
   const [mobileTab, setMobileTab] = useState<"stage" | "dock">("stage");
 
@@ -37,7 +39,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobile(window.innerWidth < STACK_BELOW);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -117,35 +119,39 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full flex flex-col md:flex-row overflow-hidden select-none ${
+      className={`relative w-full h-full flex ${isMobile ? "flex-col" : "flex-row"} overflow-hidden select-none ${
         isDragging ? "cursor-col-resize pointer-events-none" : ""
       }`}
     >
-      {/* Mobile Switcher Segmented Bar (Screens < 768px) */}
+      {/* Stage / Tools switcher for phones and tablets (< 1024px) */}
       {isMobile && (
-        <div className="h-11 bg-slate-900/95 border-b border-white/10 px-3 flex items-center justify-center shrink-0 z-30 backdrop-blur-md">
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 w-full max-w-xs">
+        <div className="h-12 bg-slate-950 border-b border-white/10 px-2 sm:px-3 flex items-center justify-center shrink-0 z-20" role="tablist">
+          <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10 w-full max-w-sm">
             <button
               onClick={() => setMobileTab("stage")}
-              className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-1.5 font-bold text-xs rounded-lg transition-all min-h-[36px] ${
+              role="tab"
+              aria-selected={mobileTab === "stage"}
+              className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-1.5 font-semibold text-xs rounded-lg transition-all min-h-[36px] ${
                 mobileTab === "stage"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-slate-400 hover:text-white"
               }`}
             >
               <Video className="w-3.5 h-3.5" />
-              <span>Video Stage</span>
+              <span>Stage</span>
             </button>
             <button
               onClick={() => setMobileTab("dock")}
-              className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-1.5 font-bold text-xs rounded-lg transition-all min-h-[36px] ${
+              role="tab"
+              aria-selected={mobileTab === "dock"}
+              className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-1.5 font-semibold text-xs rounded-lg transition-all min-h-[36px] ${
                 mobileTab === "dock"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-slate-400 hover:text-white"
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Tools & Dock</span>
+              <span>Tools</span>
             </button>
           </div>
         </div>
@@ -153,7 +159,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
 
       {/* Desktop Quick Layout Mode Pill Bar on Top Right */}
       {!isMobile && (
-        <div className="absolute top-2.5 right-6 z-30 hidden lg:flex items-center gap-1 bg-slate-900/90 backdrop-blur-xl border border-white/10 px-1.5 py-1 rounded-xl shadow-xl">
+        <div className="hidden">
           <span className="text-[10px] text-slate-400 font-semibold px-1.5 uppercase tracking-wider">
             Split
           </span>
@@ -206,7 +212,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
       {/* Left Pane (Live Stage) */}
       <div
         style={{
-          width: isMobile ? "100%" : `${splitRatio}%`,
+          flex: isMobile ? "1 1 0%" : `${splitRatio} 1 0%`,
           display: isMobile
             ? mobileTab === "stage"
               ? "flex"
@@ -215,7 +221,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
             ? "none"
             : "flex",
         }}
-        className="h-full flex flex-col overflow-hidden transition-[width] duration-75 relative bg-slate-950 shrink-0"
+        className="min-w-0 min-h-0 flex flex-col overflow-hidden relative bg-slate-950"
       >
         {leftContent}
       </div>
@@ -225,7 +231,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
         <div
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
-          className={`hidden md:flex items-center justify-center relative w-2.5 hover:w-3.5 bg-slate-900/80 hover:bg-blue-600/30 transition-all cursor-col-resize group shrink-0 z-20 border-x border-white/5 backdrop-blur-md ${
+          className={`flex items-center justify-center relative w-2 hover:w-3 bg-slate-900/80 hover:bg-blue-600/30 transition-all cursor-col-resize group shrink-0 z-20 border-x border-white/5 ${
             isDragging ? "bg-blue-600 w-3.5 shadow-lg shadow-blue-500/50" : ""
           }`}
           title="Drag to resize Stage vs Dock (or double-click to center)"
@@ -243,7 +249,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
       {/* Right Pane (Collaborative Dock & Labs) */}
       <div
         style={{
-          width: isMobile ? "100%" : `${100 - splitRatio}%`,
+          flex: isMobile ? "1 1 0%" : `${100 - splitRatio} 1 0%`,
           display: isMobile
             ? mobileTab === "dock"
               ? "flex"
@@ -252,7 +258,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
             ? "none"
             : "flex",
         }}
-        className="h-full flex flex-col overflow-hidden transition-[width] duration-75 relative bg-slate-950/70 backdrop-blur-xl border-l border-white/5 shrink-0"
+        className={`min-h-0 flex flex-col overflow-hidden relative bg-slate-950/70 border-l border-white/5 ${isMobile ? "min-w-0" : "min-w-[320px]"}`}
       >
         {rightContent}
       </div>

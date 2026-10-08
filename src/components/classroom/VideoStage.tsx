@@ -169,21 +169,21 @@ export const VideoStage: React.FC = () => {
   });
 
   // Calculate grid column classes based on layout mode and manual controls
+  // Container-query columns: the stage lives in a resizable pane, so columns follow the pane width
   const getGridClasses = () => {
     if (manualGridColumns > 0) {
       if (manualGridColumns === 1) return "grid-cols-1";
-      if (manualGridColumns === 2) return "grid-cols-1 sm:grid-cols-2";
-      if (manualGridColumns === 3) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
-      if (manualGridColumns === 4) return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
-      return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5";
+      if (manualGridColumns === 2) return "grid-cols-1 @md:grid-cols-2";
+      if (manualGridColumns === 3) return "grid-cols-1 @md:grid-cols-2 @3xl:grid-cols-3";
+      if (manualGridColumns === 4) return "grid-cols-2 @xl:grid-cols-3 @4xl:grid-cols-4";
+      return "grid-cols-2 @xl:grid-cols-3 @5xl:grid-cols-5";
     }
 
     const count = displayParticipants.length;
     if (count <= 1) return "grid-cols-1";
-    if (count === 2) return "grid-cols-1 sm:grid-cols-2";
-    if (count <= 4) return "grid-cols-1 sm:grid-cols-2";
-    if (count <= 6) return "grid-cols-2 sm:grid-cols-3";
-    return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+    if (count <= 4) return "grid-cols-1 @md:grid-cols-2";
+    if (count <= 6) return "grid-cols-2 @2xl:grid-cols-3";
+    return "grid-cols-2 @xl:grid-cols-3 @4xl:grid-cols-4";
   };
 
   const getAspectClass = () => {
@@ -222,17 +222,17 @@ export const VideoStage: React.FC = () => {
 
       {/* Main Video Viewport Area */}
       <div
-        className="flex-1 p-3 md:p-4 overflow-y-auto flex flex-col relative"
+        className="@container flex-1 min-h-0 p-2 sm:p-3 md:p-4 pb-14 overflow-y-auto flex flex-col relative"
         onClick={handleStageClick}
       >
         {/* Zoom & Google Meet Style Live Class Top Status HUD */}
-        <div className="flex items-center justify-between px-3 md:px-4 py-2 rounded-2xl bg-slate-900/90 border border-white/10 backdrop-blur-xl mb-3 shadow-lg shrink-0">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between gap-2 px-3 md:px-4 py-2 rounded-2xl bg-slate-900/90 border border-white/10 mb-2 @md:mb-3 shadow-lg shrink-0 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             {classStatus === "in_progress" ? (
               <>
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                <span className="text-xs font-black tracking-wider uppercase text-rose-400 font-mono">
-                  LIVE CLASS IN PROGRESS
+                <span className="text-xs font-black tracking-wider uppercase text-rose-400 font-mono whitespace-nowrap">
+                  Live
                 </span>
                 <span className="text-xs font-mono font-bold text-white bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-500/30">
                   {formatDuration(classDurationSeconds)}
@@ -241,57 +241,18 @@ export const VideoStage: React.FC = () => {
             ) : (
               <>
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-xs font-black tracking-wider uppercase text-amber-300 font-mono">
-                  WAITING ROOM · CLASS NOT STARTED
+                <span className="text-xs font-black tracking-wider uppercase text-amber-300 font-mono whitespace-nowrap">
+                  Waiting room
                 </span>
               </>
             )}
-            <span className="hidden sm:inline text-xs text-slate-400">· {roomTitle.split("·")[0]}</span>
+            <span className="truncate text-xs text-slate-400 min-w-0">· {roomTitle.split("·")[0]}</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>AI Speech Translation Ready</span>
-            </span>
-
-            {currentRole === "instructor" && classStatus === "waiting" && (
-              <button
-                onClick={startClass}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Start Live Class</span>
-              </button>
-            )}
-
-            {currentRole === "instructor" && classStatus === "in_progress" && (
-              <>
-                <button
-                  onClick={() => {
-                    triggerRoomBomber({
-                      salesRepName: "Marcus Sterling (Lead Admissions)",
-                      discountPct: 20,
-                      studentName: "Demo Student",
-                    });
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-md shadow-purple-600/30 transition-all cursor-pointer"
-                  title="Break room for Sales Pitch - Admissions Officer enters"
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Break for Sales Pitch</span>
-                  <span className="sm:hidden">Sales Pitch</span>
-                </button>
-
-                <button
-                  onClick={endClass}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-600/30 hover:bg-rose-600 text-rose-200 hover:text-white font-bold text-xs border border-rose-500/40 transition-all cursor-pointer"
-                >
-                  End Class
-                </button>
-              </>
-            )}
-          </div>
+          <span className="hidden @lg:flex items-center gap-1.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30 whitespace-nowrap">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            AI translation ready
+          </span>
         </div>
 
         {/* End-of-Session Cloud Recording / Google Drive Archival Indicator */}
@@ -410,7 +371,7 @@ export const VideoStage: React.FC = () => {
           </div>
         ) : (
           /* Standard & Custom Grid View */
-          <div className="w-full h-full flex flex-col justify-center">
+          <div className="w-full flex-1 min-h-0 flex flex-col justify-center-safe">
             {displayParticipants.length === 0 ? (
               /* Completely Empty Stage */
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-slate-900/40 rounded-3xl border border-white/5 my-auto">
@@ -445,9 +406,9 @@ export const VideoStage: React.FC = () => {
               </div>
             ) : displayParticipants.length === 1 && displayParticipants[0].isLocal && classStatus === "waiting" ? (
               /* Pre-Class Waiting State (Zoom/Meet Waiting Room & Launchpad) */
-              <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 items-center max-w-4xl mx-auto my-auto p-2">
+              <div className="w-full grid grid-cols-1 @2xl:grid-cols-2 gap-3 @2xl:gap-4 items-center max-w-4xl mx-auto my-auto p-1 @md:p-2">
                 {/* Local User Tile */}
-                <div className="w-full h-full max-h-[380px]">
+                <div className="w-full max-w-md @2xl:max-w-none mx-auto max-h-[38vh] @2xl:max-h-[380px]">
                   <ParticipantVideoTile
                     participant={displayParticipants[0]}
                     isLocal={true}
@@ -461,7 +422,7 @@ export const VideoStage: React.FC = () => {
                 </div>
 
                 {/* Pre-Class Launchpad & Status Card */}
-                <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-6 flex flex-col justify-between shadow-2xl min-h-[300px] backdrop-blur-xl">
+                <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-4 @md:p-6 flex flex-col justify-between gap-4 shadow-2xl">
                   {currentRole === "student" ? (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -511,7 +472,7 @@ export const VideoStage: React.FC = () => {
                           className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <Play className="w-4 h-4 fill-current" />
-                          <span>🚀 Start Live Class (Zoom/Meet Mode)</span>
+                          <span>Start Live Class (Zoom/Meet Mode)</span>
                         </button>
 
                         <button
@@ -519,7 +480,7 @@ export const VideoStage: React.FC = () => {
                           className="w-full py-2.5 px-4 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <GraduationCap className="w-4 h-4 text-cyan-400" />
-                          <span>⚡ Pair Demo Student (Sophia Chen)</span>
+                          <span>Pair Demo Student (Sophia Chen)</span>
                         </button>
 
                         <button
@@ -527,7 +488,7 @@ export const VideoStage: React.FC = () => {
                           className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                           {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                          <span>{copiedLink ? "Student Link Copied!" : "🔗 Copy Student Invite Link"}</span>
+                          <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
                         </button>
 
                         {(currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep") && (
@@ -536,7 +497,7 @@ export const VideoStage: React.FC = () => {
                             className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 hover:from-blue-900/60 hover:to-indigo-900/60 border border-blue-500/30 text-cyan-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <Sliders className="w-3.5 h-3.5 text-[#FFBB00]" />
-                            <span>⚡ Manual Link & Room Builder (No CRM)</span>
+                            <span>Manual Link & Room Builder (No CRM)</span>
                           </button>
                         )}
                       </div>
@@ -546,7 +507,7 @@ export const VideoStage: React.FC = () => {
               </div>
             ) : displayParticipants.length === 2 ? (
               /* Two Participants: Zoom & Google Meet Style Equal 50/50 Gallery Grid */
-              <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-center auto-rows-fr overflow-y-auto p-1 max-h-full">
+              <div className="w-full h-full grid grid-cols-1 @xl:grid-cols-2 gap-3 @xl:gap-4 items-center auto-rows-fr overflow-y-auto p-1 max-h-full">
                 {displayParticipants.map((p) => (
                   <ParticipantVideoTile
                     key={p.id}
@@ -582,14 +543,16 @@ export const VideoStage: React.FC = () => {
           </div>
         )}
 
-        {/* Real-Time Live Captions & Multilingual Subtitle Overlay */}
-        <SubtitleOverlay />
 
         {/* Synchronized Room Break Countdown & Mindfulness Overlay */}
         <RoomBreakOverlay />
       </div>
 
       {/* Modern Redesigned Bottom Meeting Controls Dock */}
+      {/* Live captions float just above the control bar, outside the scrolling stage */}
+      <div className="relative shrink-0 h-0 z-30">
+        <SubtitleOverlay />
+      </div>
       <BottomMeetingControls />
 
       {/* Slide-over Deep Biometric Attention & Audio Audit Drawer */}

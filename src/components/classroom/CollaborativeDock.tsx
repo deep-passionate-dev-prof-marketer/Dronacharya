@@ -105,7 +105,7 @@ export const CollaborativeDock: React.FC = () => {
   }
 
   return (
-    <div className="w-full lg:w-[480px] xl:w-[540px] 2xl:w-[600px] border-l border-slate-200 bg-white flex flex-col shrink-0 select-none overflow-hidden font-sans transition-all">
+    <div className="w-full flex-1 min-h-0 border-l border-slate-200 bg-white flex flex-col select-none overflow-hidden font-sans">
       {/* Dock Navigation Tab Bar (21K School Light Style) */}
       <div className="h-12 border-b border-slate-200 bg-slate-50 px-2 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar shrink-0">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
@@ -149,7 +149,7 @@ export const CollaborativeDock: React.FC = () => {
       </div>
 
       {/* Render Active Tool */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-white">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-white">
         {activeDockTab === "whiteboard" && <WhiteboardCanvas />}
         {activeDockTab === "stem3d" && <StemArVisualizer />}
         {activeDockTab === "notes" && <DeckAndNotes />}

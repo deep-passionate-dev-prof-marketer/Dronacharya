@@ -12,6 +12,7 @@ import {
   WifiOff,
   Wifi,
   ExternalLink,
+  X,
 } from "lucide-react";
 import { StudyMaterial } from "../../types";
 
@@ -90,7 +91,9 @@ export const OfflineRepository: React.FC = () => {
       {uploadToast && (
         <div className="bg-emerald-950/80 border-b border-emerald-800 text-emerald-300 px-6 py-2 text-xs flex items-center justify-between">
           <span>Encrypted file uploaded & synced to student cloud repositories.</span>
-          <button onClick={() => setUploadToast(false)} className="text-emerald-400">✕</button>
+          <button onClick={() => setUploadToast(false)} className="text-emerald-400 hover:text-emerald-300 p-0.5" aria-label="Close toast">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -209,7 +212,7 @@ export const OfflineRepository: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2 md:shrink-0">
                   <button
                     onClick={() => toggleMaterialDownload(activeMaterial.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${

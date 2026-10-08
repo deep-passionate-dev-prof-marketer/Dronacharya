@@ -378,7 +378,7 @@ export const CampusCommunityFeed: React.FC = () => {
 
   return (
     <div className="flex-1 w-full h-full overflow-y-auto bg-[#F4F6F9] text-slate-800 font-sans p-3 md:p-6">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-4 lg:gap-6">
         {/* ========================================================= */}
         {/* SECTION 1: PINNED UPCOMING SCHEDULE & INSTANT JOIN CLASS */}
         {/* ========================================================= */}

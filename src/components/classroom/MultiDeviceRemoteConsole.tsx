@@ -294,7 +294,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
         </div>
 
         {/* Right: View Mode Toggle & Close Console */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2 md:shrink-0">
           {/* Split Dual Grid Mode Switcher */}
           <button
             onClick={() => setIsSplitDualView((prev) => !prev)}

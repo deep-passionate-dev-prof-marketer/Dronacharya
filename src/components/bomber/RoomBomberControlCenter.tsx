@@ -73,17 +73,17 @@ export const RoomBomberControlCenter: React.FC = () => {
   const selectedRoom = pitchRooms.find((r) => r.roomId === selectedRoomId) || pitchRooms[0];
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#F8FAFC] overflow-y-auto font-sans p-6">
+    <div className="w-full h-full flex flex-col bg-[#F8FAFC] overflow-y-auto font-sans p-3 sm:p-4 lg:p-6">
       {/* Top Header Card */}
-      <div className="bg-linear-to-r from-[#991B1B] via-[#DC2626] to-[#EF4444] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden mb-6 shrink-0">
+      <div className="bg-linear-to-r from-[#991B1B] via-[#DC2626] to-[#EF4444] rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-xs font-bold uppercase tracking-wider mb-2 border border-white/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
               <Flame className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>Room Bomber 1:1 High-Conversion Sales Engine</span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-black">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black leading-tight">
               Executive Sales Partition & Pitch HUD Command
             </h1>
             <p className="text-sm text-rose-100 max-w-2xl mt-1">
@@ -92,7 +92,7 @@ export const RoomBomberControlCenter: React.FC = () => {
           </div>
 
           {/* Trigger Action Cluster */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:shrink-0">
             {isRoomBomberActive ? (
               <button
                 onClick={handleRecallAll}
@@ -108,21 +108,22 @@ export const RoomBomberControlCenter: React.FC = () => {
                 className="px-6 py-3.5 rounded-xl bg-[#FFBB00] hover:bg-[#e6a800] text-[#001F40] font-black text-sm flex items-center gap-2.5 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider"
               >
                 <Zap className="w-5 h-5 text-[#001F40] fill-current animate-bounce" />
-                <span>{isTriggering ? "Bombing Room..." : "💣 Execute Room Bomb"}</span>
+                <span>{isTriggering ? "Initiating Admissions Pitch..." : "Execute Admissions Breakout"}</span>
               </button>
             )}
           </div>
         </div>
 
         {/* Live Metrics Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/20">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
             <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
               Students Available
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#FFBB00]" />
-              <span>{studentCount} Prospective Families</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Users className="shrink-0 self-center w-4 h-4 text-[#FFBB00]" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{studentCount}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Prospective Families</span>
             </div>
           </div>
 
@@ -130,9 +131,10 @@ export const RoomBomberControlCenter: React.FC = () => {
             <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
               1:1 Breakout Partition
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-300" />
-              <span>{calculatedRoomsNeeded} Isolated Rooms</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Sparkles className="shrink-0 self-center w-4 h-4 text-amber-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{calculatedRoomsNeeded}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Isolated Rooms</span>
             </div>
           </div>
 
@@ -140,9 +142,10 @@ export const RoomBomberControlCenter: React.FC = () => {
             <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
               Target Ratio
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-emerald-300" />
-              <span>1 Rep : 1 Family</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <UserCheck className="shrink-0 self-center w-4 h-4 text-emerald-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">1:1</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">rep per family</span>
             </div>
           </div>
 
@@ -150,11 +153,10 @@ export const RoomBomberControlCenter: React.FC = () => {
             <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
               Conversion Status
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-cyan-300" />
-              <span>
-                {pitchRooms.filter((r) => r.contractStatus === "signed").length} / {pitchRooms.length || calculatedRoomsNeeded} Closed
-              </span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <TrendingUp className="shrink-0 self-center w-4 h-4 text-cyan-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{pitchRooms.filter((r) => r.contractStatus === "signed").length}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">/ {pitchRooms.length || calculatedRoomsNeeded} Closed</span>
             </div>
           </div>
         </div>

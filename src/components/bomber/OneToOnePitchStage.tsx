@@ -35,6 +35,7 @@ import {
   ExternalLink,
   Laptop,
   HelpCircle,
+  Check,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import {
@@ -681,9 +682,9 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                   {leadIntelligence.keySellingPoints.map((point, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 leading-normal flex items-start gap-2"
+                      className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 leading-normal flex items-start gap-2 text-xs"
                     >
-                      <span className="text-blue-400 font-bold">✓</span>
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
                       <span>{point}</span>
                     </div>
                   ))}

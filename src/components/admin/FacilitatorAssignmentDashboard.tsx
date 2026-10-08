@@ -20,6 +20,7 @@ import {
   Activity,
   Layers,
   Flame,
+  Check,
 } from "lucide-react";
 import {
   FACILITATOR_ROSTER,
@@ -131,7 +132,7 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
 
   return (
     <div className="flex-1 w-full h-full overflow-y-auto bg-[#F4F6F9] text-slate-800 font-sans p-4 md:p-6">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-4 lg:gap-6">
         {/* Header Banner */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -447,9 +448,10 @@ export const FacilitatorAssignmentDashboard: React.FC = () => {
                       {result.matchReasons.map((reason, rIdx) => (
                         <span
                           key={rIdx}
-                          className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px]"
+                          className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] inline-flex items-center gap-1"
                         >
-                          ✓ {reason}
+                          <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span>{reason}</span>
                         </span>
                       ))}
                     </div>

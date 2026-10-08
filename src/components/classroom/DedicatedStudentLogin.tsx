@@ -16,6 +16,8 @@ import {
   Globe,
   Radio,
   Volume2,
+  Check,
+  LogIn,
 } from "lucide-react";
 import { demoClassService, generatePassword } from "../../services/demoClassService";
 
@@ -137,6 +139,7 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
       avatarColor: "#0082FF",
       gradeLevel: urlGrade,
       section: "A",
+      studentCode: cleanSid,
     };
 
     onJoinSuccess(authUser, urlRoom);
@@ -281,8 +284,9 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
                     <User className="w-3.5 h-3.5 text-blue-400" />
                     <span>Student ID (2-Digit + 8-Char Alpha)</span>
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono font-normal">
-                    ✓ Pre-Filled from CRM
+                  <span className="text-[10px] text-emerald-400 font-mono font-normal flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span>Pre-Filled Credentials</span>
                   </span>
                 </label>
                 <div className="relative">
@@ -349,7 +353,8 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
                 type="submit"
                 className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-extrabold text-sm shadow-xl shadow-cyan-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer mt-2"
               >
-                <span>🚀 Enter 21K School Demo Class</span>
+                <LogIn className="w-4 h-4 text-white" />
+                <span>Enter 21K School Demo Class</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

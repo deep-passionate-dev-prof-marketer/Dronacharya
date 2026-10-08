@@ -129,17 +129,17 @@ export const DeviceAuditCenter: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#070b14] overflow-y-auto text-slate-100 font-sans p-6 select-none">
+    <div className="w-full h-full flex flex-col bg-[#070b14] overflow-y-auto text-slate-100 font-sans p-3 sm:p-4 lg:p-6 select-none">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#001F40] via-[#003872] to-[#0082FF] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden mb-6 shrink-0">
+      <div className="bg-gradient-to-r from-[#001F40] via-[#003872] to-[#0082FF] rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-xs font-bold uppercase tracking-wider mb-2 border border-white/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
               <ShieldCheck className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>Zero-Friction Hardware Verification & Telemetry Audit Engine</span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-black">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black leading-tight">
               Device Audit & Peripheral Telemetry Center
             </h1>
             <p className="text-sm text-blue-100 max-w-2xl mt-1">
@@ -147,7 +147,7 @@ export const DeviceAuditCenter: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 md:shrink-0">
             <button
               onClick={handleRunManualScan}
               disabled={isScanning}
@@ -174,14 +174,15 @@ export const DeviceAuditCenter: React.FC = () => {
         </div>
 
         {/* Top KPI Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/20">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
             <span className="text-[11px] font-bold text-blue-200 uppercase tracking-wider block">
               Compliance Pass Rate
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              <span>{complianceRate}% Verified</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <CheckCircle2 className="shrink-0 self-center w-4 h-4 text-emerald-400" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{complianceRate}%</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Verified</span>
             </div>
           </div>
 
@@ -189,9 +190,10 @@ export const DeviceAuditCenter: React.FC = () => {
             <span className="text-[11px] font-bold text-blue-200 uppercase tracking-wider block">
               Monitored Endpoints
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-[#FFBB00]" />
-              <span>{deviceAuditLogs.length} Records</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Layers className="shrink-0 self-center w-4 h-4 text-[#FFBB00]" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{deviceAuditLogs.length}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Records</span>
             </div>
           </div>
 
@@ -199,9 +201,10 @@ export const DeviceAuditCenter: React.FC = () => {
             <span className="text-[11px] font-bold text-blue-200 uppercase tracking-wider block">
               Audio & Mic Integrity
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Mic className="w-5 h-5 text-cyan-300" />
-              <span>100% Signal Pass</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Mic className="shrink-0 self-center w-4 h-4 text-cyan-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">100%</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Signal Pass</span>
             </div>
           </div>
 
@@ -209,9 +212,10 @@ export const DeviceAuditCenter: React.FC = () => {
             <span className="text-[11px] font-bold text-blue-200 uppercase tracking-wider block">
               Zero-Prompt Mode
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-300" />
-              <span>100% Background</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Sparkles className="shrink-0 self-center w-4 h-4 text-amber-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">100%</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Background</span>
             </div>
           </div>
         </div>

@@ -31,7 +31,14 @@ import { DedicatedStudentLogin } from "./components/classroom/DedicatedStudentLo
 import { GamifiedWaitingLobby } from "./components/classroom/GamifiedWaitingLobby";
 import { RealtimeInterpreterModal } from "./components/translation/RealtimeInterpreterModal";
 import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
+import { DeviceAccessGate } from "./components/access/DeviceAccessGate";
+import { MobileTabBar } from "./components/navigation/MobileTabBar";
+import { useBreakpoint } from "./hooks/useBreakpoint";
+import { AuthUser } from "./types";
 import { Megaphone, X } from "lucide-react";
+
+const SIDEBAR_PREF_KEY = "21k_sidebar_collapsed";
+const gateKey = (room: string, user: AuthUser) => `21k_gate_ok:${room}:${user.studentCode || user.id}`;
 
 const MainLayout: React.FC = () => {
   const {
@@ -53,14 +60,64 @@ const MainLayout: React.FC = () => {
     roomId,
     classStatus,
     startClass,
+    logoutUser,
   } = useClassroom();
 
-  const [mobilePane, setMobilePane] = React.useState<"video" | "dock">("video");
+  const breakpoint = useBreakpoint();
+  const isMobile = breakpoint === "mobile";
   const [showPitchHud, setShowPitchHud] = React.useState(true);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState<boolean>(() =>
-    typeof window !== "undefined" ? window.innerWidth < 1024 : false
-  );
+  const [isMobileNavOpen, setIsMobileNavOpen] = React.useState(false);
+  // Desktop remembers the user's choice; tablets default to the icon rail to keep content wide
+  const [desktopCollapsed, setDesktopCollapsed] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_PREF_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [tabletExpanded, setTabletExpanded] = React.useState(false);
+  const isSidebarCollapsed = breakpoint === "desktop" ? desktopCollapsed : !tabletExpanded;
+  const toggleSidebar = React.useCallback(() => {
+    if (breakpoint === "mobile") {
+      setIsMobileNavOpen((o) => !o);
+    } else if (breakpoint === "tablet") {
+      setTabletExpanded((e) => !e);
+    } else {
+      setDesktopCollapsed((c) => {
+        try {
+          localStorage.setItem(SIDEBAR_PREF_KEY, c ? "0" : "1");
+        } catch {}
+        return !c;
+      });
+    }
+  }, [breakpoint]);
+  React.useEffect(() => {
+    if (!isMobile) setIsMobileNavOpen(false);
+  }, [isMobile]);
   const [isLinkModalOpen, setIsLinkModalOpen] = React.useState(false);
+
+  // Student joins pass through the device gate before entering the room
+  const [pendingJoin, setPendingJoin] = React.useState<{ user: AuthUser; roomId: string } | null>(null);
+  const [restoredGateCleared, setRestoredGateCleared] = React.useState<boolean>(() => {
+    if (!authenticatedUser || authenticatedUser.role !== "student") return true;
+    try {
+      return sessionStorage.getItem(gateKey(roomId, authenticatedUser)) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const handleJoin = React.useCallback(
+    (user: AuthUser, targetRoomId: string) => {
+      if (user.role === "student") setPendingJoin({ user, roomId: targetRoomId });
+      else loginUser(user, targetRoomId);
+    },
+    [loginUser]
+  );
+  const markGateCleared = (room: string, user: AuthUser) => {
+    try {
+      sessionStorage.setItem(gateKey(room, user), "1");
+    } catch {}
+  };
 
   const isStudentPortal = React.useMemo(() => {
     if (typeof window === "undefined") return currentRole === "student";
@@ -72,7 +129,7 @@ const MainLayout: React.FC = () => {
   React.useEffect(() => {
     const roleAllowedViews: Record<string, string[]> = {
       student: ["classroom", "social", "notebook", "materials", "blockchain"],
-      instructor: ["classroom", "social", "notebook", "materials", "attendance", "analytics", "facilitators", "remote_access"],
+      instructor: ["classroom", "social", "notebook", "materials", "attendance", "analytics", "facilitators", "remote_access", "device_audit"],
       auditor: ["classroom", "analytics", "attendance", "device_audit", "blockchain"],
       sales_rep: ["sales_hub", "classroom", "room_bomber", "crm", "facilitators", "device_audit", "social"],
       admin: [
@@ -95,46 +152,66 @@ const MainLayout: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
-        setIsSidebarCollapsed((prev) => !prev);
+        toggleSidebar();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [toggleSidebar]);
 
-  if (!authenticatedUser) {
-    if (isStudentPortal) {
-      return (
-        <DedicatedStudentLogin
-          initialRoomId={roomId}
-          onJoinSuccess={(user, targetRoomId) => {
-            loginUser(user, targetRoomId);
-          }}
-        />
-      );
-    }
-
+  if (pendingJoin) {
     return (
-      <PreJoinLobbyModal
-        initialRole={currentRole}
-        initialRoomId={roomId}
-        onJoinSuccess={(user, targetRoomId) => loginUser(user, targetRoomId)}
+      <DeviceAccessGate
+        user={pendingJoin.user}
+        roomId={pendingJoin.roomId}
+        onAllowed={() => {
+          markGateCleared(pendingJoin.roomId, pendingJoin.user);
+          setRestoredGateCleared(true);
+          loginUser(pendingJoin.user, pendingJoin.roomId);
+          setPendingJoin(null);
+        }}
+        onCancel={() => setPendingJoin(null)}
       />
     );
   }
 
-  return (
-    <div className="w-full max-w-full h-[100dvh] min-h-[100dvh] flex flex-col bg-[#070b14] text-slate-100 overflow-hidden font-sans pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
-      {/* Top Bar Navigation (Deep Frosted Glassmorphism Theme) */}
-      <TopBar
-        isSidebarCollapsed={isSidebarCollapsed}
-        onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+  if (!authenticatedUser) {
+    if (isStudentPortal) {
+      return <DedicatedStudentLogin initialRoomId={roomId} onJoinSuccess={handleJoin} />;
+    }
+
+    return <PreJoinLobbyModal initialRole={currentRole} initialRoomId={roomId} onJoinSuccess={handleJoin} />;
+  }
+
+  // A student session restored from storage is re-checked once per tab
+  if (authenticatedUser.role === "student" && !restoredGateCleared) {
+    return (
+      <DeviceAccessGate
+        user={authenticatedUser}
+        roomId={roomId}
+        onAllowed={() => {
+          markGateCleared(roomId, authenticatedUser);
+          setRestoredGateCleared(true);
+        }}
+        onCancel={() => {
+          setRestoredGateCleared(true);
+          logoutUser();
+        }}
       />
+    );
+  }
+
+  const showMobileTabBar = isMobile && activeView !== "classroom";
+
+  return (
+    <div className="w-full max-w-full h-[100dvh] min-h-[100dvh] flex flex-col bg-[#070b14] text-slate-100 overflow-hidden font-sans pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
+      {/* Top Bar Navigation (Deep Frosted Glassmorphism Theme) */}
+      <TopBar onOpenMobileNav={isMobile ? () => setIsMobileNavOpen(true) : undefined} />
 
       {/* Global Live Flash Announcement Banner */}
       {activeBannerAnnouncement && (
         <div
-          className={`h-9 px-4 flex items-center justify-between text-xs z-40 transition-all font-sans ${
+          className={`min-h-9 py-1.5 px-3 sm:px-4 flex items-center justify-between gap-2 text-xs z-20 transition-all font-sans ${
             activeBannerAnnouncement.priority === "urgent"
               ? "bg-[#FF7176] text-white border-b border-[#e65c61]"
               : activeBannerAnnouncement.priority === "info"
@@ -142,18 +219,19 @@ const MainLayout: React.FC = () => {
               : "bg-slate-800 text-white border-b border-slate-700"
           }`}
         >
-          <div className="flex items-center gap-2 font-medium">
-            <Megaphone className="w-3.5 h-3.5 animate-bounce shrink-0 text-[#FFBB00]" />
-            <span className="font-bold uppercase tracking-wider text-[11px]">
-              [{activeBannerAnnouncement.senderRole}] {activeBannerAnnouncement.title}:
+          <div className="flex items-center gap-2 font-medium min-w-0">
+            <Megaphone className="w-3.5 h-3.5 shrink-0 text-[#FFBB00]" />
+            <span className="min-w-0 line-clamp-2 sm:line-clamp-1">
+              <span className="font-bold uppercase tracking-wider text-[11px] mr-1.5">{activeBannerAnnouncement.title}:</span>
+              {activeBannerAnnouncement.message}
             </span>
-            <span className="truncate max-w-xl">{activeBannerAnnouncement.message}</span>
           </div>
 
           <button
             onClick={dismissBannerAnnouncement}
-            className="p-1 rounded hover:opacity-80 transition-opacity ml-2 shrink-0"
-            title="Dismiss Announcement"
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+            title="Dismiss announcement"
+            aria-label="Dismiss announcement"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -173,12 +251,15 @@ const MainLayout: React.FC = () => {
         {/* Slack-style Collapsible Left Navigation Rail */}
         <SidebarNavigation
           isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onToggleCollapse={toggleSidebar}
           onOpenLinkModal={() => setIsLinkModalOpen(true)}
+          isMobile={isMobile}
+          isMobileOpen={isMobileNavOpen}
+          onCloseMobile={() => setIsMobileNavOpen(false)}
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col overflow-hidden relative bg-[#070b14]">
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-[#070b14]">
           {activeView === "classroom" && (
             authenticatedUser?.role === "student" && classStatus === "waiting" ? (
               <GamifiedWaitingLobby onEnterClassroom={() => startClass()} />
@@ -207,6 +288,8 @@ const MainLayout: React.FC = () => {
           {activeView === "remote_access" && <MultiDeviceRemoteConsole />}
         </main>
       </div>
+
+      {showMobileTabBar && <MobileTabBar onOpenMore={() => setIsMobileNavOpen(true)} />}
 
       {/* Global Room Link Manager Modal */}
       <RoomLinkManagerModal
@@ -239,7 +322,7 @@ const MainLayout: React.FC = () => {
           initialRoomId={roomId}
           onJoinSuccess={(user, targetRoomId) => {
             setIsAuthModalOpen(false);
-            loginUser(user, targetRoomId);
+            handleJoin(user, targetRoomId);
           }}
         />
       )}

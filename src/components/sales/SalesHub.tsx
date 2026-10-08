@@ -228,17 +228,17 @@ export const SalesHub: React.FC = () => {
   const closedCount = leads.filter((l) => l.status === "closed_won").length;
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#070b14] overflow-y-auto text-slate-100 font-sans p-6 select-none">
+    <div className="w-full h-full flex flex-col bg-[#070b14] overflow-y-auto text-slate-100 font-sans p-3 sm:p-4 lg:p-6 select-none">
       {/* Top Header Card */}
-      <div className="bg-gradient-to-r from-[#991B1B] via-[#C2410C] to-[#EA580C] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden mb-6 shrink-0">
+      <div className="bg-gradient-to-r from-[#991B1B] via-[#C2410C] to-[#EA580C] rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-xs font-bold uppercase tracking-wider mb-2 border border-white/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
               <Flame className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>Admissions Sales Engine & Automated Lead Assignment</span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-black">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black leading-tight">
               Sales Representative Command Hub & CRM Connect
             </h1>
             <p className="text-sm text-amber-100 max-w-2xl mt-1">
@@ -246,7 +246,7 @@ export const SalesHub: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:shrink-0">
             <button
               onClick={() => setActiveView("room_bomber")}
               className="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
@@ -265,14 +265,15 @@ export const SalesHub: React.FC = () => {
         </div>
 
         {/* Live Metrics Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/20">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
             <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
               Inbound CRM Leads
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#FFBB00]" />
-              <span>{totalLeads} Total Prospects</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Users className="shrink-0 self-center w-4 h-4 text-[#FFBB00]" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{totalLeads}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Total Prospects</span>
             </div>
           </div>
 
@@ -280,9 +281,10 @@ export const SalesHub: React.FC = () => {
             <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
               Active Pitch Sessions
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-300" />
-              <span>{inPitchCount} Live Breakouts</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <Zap className="shrink-0 self-center w-4 h-4 text-amber-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{inPitchCount}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Live Breakouts</span>
             </div>
           </div>
 
@@ -290,9 +292,10 @@ export const SalesHub: React.FC = () => {
             <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
               Assigned & Ready
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-emerald-300" />
-              <span>{assignedCount} Ready to Pitch</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <UserCheck className="shrink-0 self-center w-4 h-4 text-emerald-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{assignedCount}</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Ready to Pitch</span>
             </div>
           </div>
 
@@ -300,9 +303,10 @@ export const SalesHub: React.FC = () => {
             <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
               Average Conversion
             </span>
-            <div className="text-2xl font-black mt-0.5 text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-cyan-300" />
-              <span>87.2% Win Rate</span>
+            <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
+              <TrendingUp className="shrink-0 self-center w-4 h-4 text-cyan-300" />
+              <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">87.2%</span>
+              <span className="text-xs font-semibold text-white/70 leading-tight">Win Rate</span>
             </div>
           </div>
         </div>
@@ -366,7 +370,7 @@ export const SalesHub: React.FC = () => {
                     </div>
 
                     {/* Right Action: 1-Click Join or Auto-Assign */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-2 md:shrink-0">
                       {isAssigned ? (
                         <div className="flex flex-col items-end gap-1.5">
                           <button

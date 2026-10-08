@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
+import { setupDeviceAccessRoutes, upsertRoomPolicy } from "./deviceAccessHub";
 
 export interface ConnectedClient {
   ws: WebSocket;
@@ -213,6 +214,9 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       }
     }
   }
+
+  // Device access policies, exception requests & audit trail
+  setupDeviceAccessRoutes(app, broadcast);
 
   // Active WebSocket Connection Listener
   wss.on("connection", (ws: WebSocket) => {
@@ -1185,7 +1189,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   });
 
   app.post("/api/links/shorten", (req, res) => {
-    const { slug, schoolBrand, countryCode, gradeLevel, subjectCode } = req.body;
+    const { slug, schoolBrand, countryCode, gradeLevel, subjectCode, courseCode, sessionType, devicePolicy, actor } = req.body;
     const origin = `${req.protocol}://${req.get("host")}`;
     const base62 = Math.random().toString(36).substring(2, 8);
     const targetSlug = slug || "in-21kos-gr10-bc-stem";
@@ -1203,7 +1207,17 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       clicksCount: 0,
     };
     shortlinksDatabase.unshift(newRecord);
-    res.json({ success: true, record: newRecord });
+    const policy = upsertRoomPolicy({
+      roomSlug: targetSlug,
+      context: { sessionType, schoolBrand: newRecord.schoolBrand, courseCode, subjectCode: newRecord.subjectCode, gradeLevel: newRecord.gradeLevel },
+      mode: devicePolicy?.mode,
+      allowedDeviceTypes: devicePolicy?.allowedDeviceTypes,
+      allowRequestOverride: devicePolicy?.allowRequestOverride,
+      linkShortCode: base62,
+      actor,
+      eventType: "link_generated",
+    });
+    res.json({ success: true, record: { ...newRecord, devicePolicy: policy } });
   });
 
   app.get("/api/links/resolve/:shortCode", (req, res) => {
@@ -1227,7 +1241,8 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     const item = shortlinksDatabase.find((l) => l.shortCode.toLowerCase() === req.params.shortCode.toLowerCase());
     if (item) {
       item.clicksCount += 1;
-      return res.redirect(`/?room=${encodeURIComponent(item.slug)}`);
+      // Shortlinks are what gets shared with learners, so they open the student portal (device gate included)
+      return res.redirect(`/?room=${encodeURIComponent(item.slug)}&role=student&lc=${encodeURIComponent(item.shortCode)}`);
     }
     res.redirect("/");
   });

@@ -5,6 +5,8 @@ interface SchoolLogoProps {
   showTagline?: boolean;
   systemName?: string;
   theme?: "light" | "dark";
+  /** Hide the system badge below this breakpoint ("sm" | "md" | "lg" | "xl"); never wraps either way */
+  badgeFrom?: "always" | "sm" | "md" | "lg" | "xl";
 }
 
 export const SchoolLogo: React.FC<SchoolLogoProps> = ({
@@ -12,14 +14,22 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   showTagline = false,
   systemName = "Dronacharya",
   theme = "light",
+  badgeFrom = "always",
 }) => {
+  const badgeVisibility = {
+    always: "inline-block",
+    sm: "hidden sm:inline-block",
+    md: "hidden md:inline-block",
+    lg: "hidden lg:inline-block",
+    xl: "hidden xl:inline-block",
+  }[badgeFrom];
   const iconSize = size === "sm" ? 28 : size === "lg" ? 44 : 34;
 
   const textColor = theme === "dark" ? "text-white" : "text-[#003872]";
   const subtextColor = theme === "dark" ? "text-slate-300" : "text-[#003872]";
 
   return (
-    <div className="flex items-center gap-2.5 select-none">
+    <div className="flex items-center gap-2.5 select-none min-w-0">
       {/* 21K School Circular Lotus/Petal Emblem (SVG) */}
       <svg
         width={iconSize}
@@ -64,13 +74,13 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
       </svg>
 
       {/* Brand Text Lockup */}
-      <div className="flex flex-col justify-center">
-        <div className="flex items-baseline gap-1.5 leading-none">
-          <span className={`font-headline font-bold text-base md:text-lg tracking-tight ${textColor}`}>
+      <div className="flex flex-col justify-center min-w-0">
+        <div className="flex items-baseline gap-1.5 leading-none whitespace-nowrap">
+          <span className={`font-headline font-bold text-base md:text-lg tracking-tight whitespace-nowrap ${textColor}`}>
             21K School
           </span>
           {systemName && (
-            <span className="font-mono font-bold text-xs uppercase px-1.5 py-0.5 rounded bg-[#FFBB00] text-[#003872] shadow-xs">
+            <span className={`${badgeVisibility} font-mono font-bold text-[10px] uppercase px-1.5 py-0.5 rounded bg-[#FFBB00] text-[#003872] shadow-xs`}>
               {systemName}
             </span>
           )}

@@ -588,6 +588,8 @@ export interface AuthUser {
   osName?: string;
   deviceAudit?: DeviceAuditRecord;
   academicGoals?: string;
+  /** Stable learner code (e.g. "10ABCDEFGH") used to key device approvals across sessions */
+  studentCode?: string;
 }
 
 // -------------------------------------------------------------

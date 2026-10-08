@@ -11,6 +11,7 @@ import {
   Layers,
   ArrowUpRight,
   ShieldCheck,
+  Check,
 } from "lucide-react";
 import { EdgeNodePoP, StudentEdgeRouting } from "../../types";
 import { GLOBAL_EDGE_POPS, INITIAL_STUDENT_EDGE_ROUTING } from "../../services/edgeMeshService";
@@ -49,7 +50,7 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
         }))
       );
       setIsSweeping(false);
-      setSweepMessage("✓ Routing optimized! All students pinned to nearest ISP edge. Maximum latency: 15.8ms (<20ms SLA guaranteed).");
+      setSweepMessage("Routing optimized! All students pinned to nearest ISP edge. Maximum latency: 15.8ms (<20ms SLA guaranteed).");
       setTimeout(() => setSweepMessage(null), 4000);
     }, 1200);
   };
@@ -125,8 +126,9 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
                   <div className="text-2xl font-bold text-emerald-400 mt-1 font-mono">
                     {currentPing} ms
                   </div>
-                  <div className="text-[10px] text-emerald-500/90 font-medium mt-0.5">
-                    ✓ 100% compliant with &lt;20ms SLA
+                  <div className="text-[10px] text-emerald-500/90 font-medium mt-0.5 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span>100% compliant with &lt;20ms SLA</span>
                   </div>
                 </div>
 

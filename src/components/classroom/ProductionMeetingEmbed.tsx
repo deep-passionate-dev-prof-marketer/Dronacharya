@@ -150,7 +150,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2 md:shrink-0">
           {/* Real Audio Capturing Indicator */}
           <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-mono text-[11px] text-slate-300">
             <span className="text-slate-400">Live Mic Audio:</span>

@@ -113,7 +113,7 @@ export const ScheduleMeetingModal: React.FC = () => {
   };
 
   const handleCopyManualInvitation = () => {
-    const inviteText = `🎓 21K School — Live Interactive Demo Class Invitation
+    const inviteText = `21K School — Live Interactive Demo Class Invitation
 --------------------------------------------------
 Student: ${manualStudentName} (Grade ${manualGrade})
 Course: ${manualCourse}
@@ -121,14 +121,14 @@ Format: ${manualRatio} Interactive Cohort
 Teacher: ${manualTeacher}
 Preferred Language: ${manualLanguage.toUpperCase()}
 
-🔗 Direct Student Access Link:
+Direct Student Access Link:
 ${liveGeneratedUrl}
 
-🔐 Student Check-in Credentials:
+Student Check-in Credentials:
 • Student ID: ${manualStudentId}
 • Password: ${manualPassword} (auto-filled on portal)
 
-✨ Real-time 2-way AI Speech Translation across 50+ languages included.
+Real-time 2-way AI Speech Translation across 50+ languages included.
 Edge Delivery: Netflix Open Connect Mesh (<20ms latency SLA).`;
 
     navigator.clipboard.writeText(inviteText);
@@ -399,13 +399,13 @@ Security: Hardware-Accelerated AES-256-GCM`;
                     onChange={(e) => setManualCountry(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                   >
-                    <option value="US">🇺🇸 United States (US)</option>
-                    <option value="IN">🇮🇳 India (IN)</option>
-                    <option value="SG">🇸🇬 Singapore (SG)</option>
-                    <option value="AE">🇦🇪 United Arab Emirates (AE)</option>
-                    <option value="GB">🇬🇧 United Kingdom (GB)</option>
-                    <option value="CA">🇨🇦 Canada (CA)</option>
-                    <option value="AU">🇦🇺 Australia (AU)</option>
+                    <option value="US">United States (US)</option>
+                    <option value="IN">India (IN)</option>
+                    <option value="SG">Singapore (SG)</option>
+                    <option value="AE">United Arab Emirates (AE)</option>
+                    <option value="GB">United Kingdom (GB)</option>
+                    <option value="CA">Canada (CA)</option>
+                    <option value="AU">Australia (AU)</option>
                   </select>
                 </div>
 
@@ -492,7 +492,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current" />
-                  <span>🚀 Launch & Enter Room</span>
+                  <span>Launch & Enter Room</span>
                 </button>
 
                 <button
@@ -518,8 +518,9 @@ Security: Hardware-Accelerated AES-256-GCM`;
         ) : activeTab === "crm_leads" ? (
           /* CRM Demo Bookings Tab */
           <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">
-            <div className="text-[11px] text-slate-400 leading-relaxed bg-blue-950/40 p-2.5 rounded-xl border border-blue-500/20">
-              ⚡ <strong>CRM Demo Queue Connected:</strong> Student leads booked via website are automatically assigned to your teacher schedule. Unique Student IDs (<code className="text-cyan-300">2-digit numeric + 8-char alphabet</code>) and auto-filled passwords have been provisioned.
+            <div className="text-[11px] text-slate-400 leading-relaxed bg-blue-950/40 p-2.5 rounded-xl border border-blue-500/20 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-[#FFBB00] shrink-0" />
+              <span><strong>CRM Demo Queue Connected:</strong> Student leads booked via website are automatically assigned to your teacher schedule. Unique Student IDs (<code className="text-cyan-300 font-mono">2-digit numeric + 8-char alphabet</code>) and auto-filled passwords have been provisioned.</span>
             </div>
 
             {demoClassService.getTeacherSchedule("tch-1").map((lead) => (
@@ -531,7 +532,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-white">{lead.studentName}</span>
-                      <span className="text-[11px]">{lead.countryFlag}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">{lead.country}</span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
                         {lead.studentId}
                       </span>

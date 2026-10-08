@@ -24,6 +24,7 @@ import {
   ChevronUp,
   Play,
   Briefcase,
+  MoreHorizontal,
 } from "lucide-react";
 import { LayoutCustomizerModal } from "./LayoutCustomizerModal";
 
@@ -80,262 +81,194 @@ export const BottomMeetingControls: React.FC = () => {
     }
   };
 
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const isTeacher = currentRole === "instructor" || currentRole === "admin";
+  const isStudent = currentRole === "student";
+
+  type MoreItem = { key: string; label: string; icon: React.ComponentType<{ className?: string }>; onClick: () => void; tone?: string; active?: boolean; show?: boolean; mobileOnly?: boolean };
+  const moreItems: MoreItem[] = [
+    { key: "share", label: isScreenSharing ? "Stop sharing" : "Share screen", icon: Share2, onClick: toggleScreenShare, active: isScreenSharing, mobileOnly: true },
+    { key: "cc", label: `Captions (${subtitleLanguage.toUpperCase()})`, icon: Languages, onClick: toggleLiveSubtitles, active: isLiveSubtitlesActive, mobileOnly: true },
+    { key: "interpreter", label: "AI interpreter", icon: Globe, onClick: () => setIsInterpreterModalOpen(true), tone: "text-cyan-300" },
+    { key: "layout", label: "Layout & grid", icon: LayoutGrid, onClick: () => setIsLayoutModalOpen(true) },
+    { key: "dock", label: dockSplitRatio < 100 ? "Hide tools panel" : "Show tools panel", icon: Layers, onClick: toggleDock, show: typeof window !== "undefined" && window.innerWidth >= 1024 },
+    { key: "break", label: "5-min break", icon: Coffee, onClick: () => startRoomBreak(5, "5-Minute Cognitive Refresh"), tone: "text-amber-300", show: isTeacher },
+    { key: "audit", label: "Attention audit", icon: Activity, onClick: () => setIsAuditDrawerOpen(true), tone: "text-cyan-300", show: isTeacher },
+    {
+      key: "pitch",
+      label: "Sales pitch breakout",
+      icon: Briefcase,
+      onClick: () => triggerRoomBomber({ salesRepName: "Marcus Sterling (Lead Admissions)", discountPct: 20, studentName: "Demo Student" }),
+      tone: "text-violet-300",
+      show: isTeacher && classStatus === "in_progress",
+    },
+    { key: "parent", label: "Ask parent", icon: HelpCircle, onClick: () => setIsParentHelpModalOpen(true), tone: "text-blue-300", show: isStudent },
+    { key: "cx", label: "Tech help", icon: ShieldAlert, onClick: () => setIsCxHelpModalOpen(true), tone: "text-rose-300", show: isStudent },
+    { key: "notebook", label: "LLM notebook", icon: BookOpen, onClick: () => setActiveView("notebook"), tone: "text-amber-300" },
+    { key: "summary", label: "AI lecture digest", icon: Sparkles, onClick: () => setIsAiSummaryModalOpen(true), tone: "text-indigo-300" },
+    { key: "end", label: "End class for all", icon: PhoneOff, onClick: endClass, tone: "text-amber-300", show: isTeacher && classStatus === "in_progress" },
+  ].filter((i) => i.show !== false);
+
+  const ctrl = "h-11 min-w-11 inline-flex items-center justify-center gap-2 px-3 rounded-2xl text-xs font-semibold transition-colors border shrink-0";
+  const neutral = "bg-white/5 text-slate-200 border-white/10 hover:bg-white/10";
+
   return (
     <>
-      <div className="h-16 md:h-18 w-full bg-[#080d19]/95 backdrop-blur-2xl border-t border-white/10 px-2 sm:px-3 md:px-6 flex items-center justify-between shrink-0 z-30 select-none overflow-x-auto no-scrollbar gap-2">
-        {/* Left Section: Live Meeting Info & Security Badge */}
-        <div className="hidden lg:flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-            <span className={`w-2 h-2 rounded-full ${classStatus === "in_progress" ? "bg-rose-400 animate-pulse" : "bg-amber-400"}`} />
-            <span className="font-mono font-bold text-slate-200">
-              {classStatus === "in_progress" ? formatDuration(classDurationSeconds) : "Waiting"}
-            </span>
+      <div className="@container w-full shrink-0 z-30 select-none bg-[#080d19] border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
+        <div className="h-16 @2xl:h-[72px] px-2 @md:px-3 @4xl:px-5 flex items-center gap-2">
+          {/* Left: session status */}
+          <div className="hidden @4xl:flex items-center gap-2 min-w-0 flex-1 basis-0">
+            <div className="flex items-center gap-2 h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-xs shrink-0">
+              <span className={`w-2 h-2 rounded-full ${classStatus === "in_progress" ? "bg-rose-400 animate-pulse" : "bg-amber-400"}`} />
+              <span className="font-mono font-bold text-slate-200">{classStatus === "in_progress" ? formatDuration(classDurationSeconds) : "Waiting"}</span>
+            </div>
+            <span className="hidden @5xl:block truncate text-xs text-slate-400 min-w-0">{roomTitle.split("·")[0] || "21K Live Room"}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 text-[11px] text-slate-300">
-            <span className="font-semibold truncate max-w-[150px] xl:max-w-[220px]">
-              {roomTitle.split("·")[0] || "21K Live Room"}
-            </span>
-          </div>
-
-          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-mono">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>AES-256 E2EE</span>
-          </div>
-        </div>
-
-        {/* Center Section: Primary Action Island */}
-        <div className="flex items-center gap-1.5 md:gap-2.5 mx-auto">
-          {/* Microphone */}
-          <button
-            onClick={toggleAudio}
-            className={`flex items-center gap-2 px-3.5 md:px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-sm ${
-              isAudioMuted
-                ? "bg-rose-600/20 text-rose-300 border border-rose-500/40 hover:bg-rose-600/30"
-                : "bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/30"
-            }`}
-            title={isAudioMuted ? "Unmute Microphone (M)" : "Mute Microphone (M)"}
-          >
-            {isAudioMuted ? <MicOff className="w-4 h-4 text-rose-400" /> : <Mic className="w-4 h-4 text-emerald-400" />}
-            <span className="hidden sm:inline">{isAudioMuted ? "Unmute" : "Mute"}</span>
-          </button>
-
-          {/* Camera Video */}
-          <button
-            onClick={toggleVideo}
-            className={`flex items-center gap-2 px-3.5 md:px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-sm ${
-              isVideoOff
-                ? "bg-rose-600/20 text-rose-300 border border-rose-500/40 hover:bg-rose-600/30"
-                : "bg-blue-600/20 text-blue-300 border border-blue-500/40 hover:bg-blue-600/30"
-            }`}
-            title={isVideoOff ? "Start Camera Video" : "Stop Camera Video"}
-          >
-            {isVideoOff ? <VideoOff className="w-4 h-4 text-rose-400" /> : <Video className="w-4 h-4 text-blue-400" />}
-            <span className="hidden sm:inline">{isVideoOff ? "Start Video" : "Stop Video"}</span>
-          </button>
-
-          {/* Real-time Subtitles CC */}
-          <button
-            onClick={toggleLiveSubtitles}
-            className={`flex items-center gap-1.5 px-3 md:px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
-              isLiveSubtitlesActive
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/40"
-                : "bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10"
-            }`}
-            title="Toggle Live Multilingual Subtitles"
-          >
-            <Languages className="w-4 h-4" />
-            <span className="hidden md:inline">CC [{subtitleLanguage.toUpperCase()}]</span>
-          </button>
-
-          {/* AI Real-time Live Interpreter Studio */}
-          <button
-            onClick={() => setIsInterpreterModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 md:px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all bg-gradient-to-r from-cyan-600/30 to-indigo-600/30 hover:from-cyan-600/50 hover:to-indigo-600/50 text-cyan-200 border border-cyan-400/40 hover:border-cyan-400/80 shadow-lg shadow-cyan-950/40"
-            title="Open AI Real-time Live Interpreter (Two-Way Speech Translation & Dual Audio)"
-          >
-            <Globe className="w-4 h-4 text-cyan-400 animate-pulse" />
-            <span className="hidden lg:inline">AI Interpreter</span>
-            <span className="lg:hidden text-[11px] font-mono">🌐</span>
-          </button>
-
-          {/* Share Screen */}
-          <button
-            onClick={toggleScreenShare}
-            className={`flex items-center gap-1.5 px-3 md:px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
-              isScreenSharing
-                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 border border-emerald-400/40"
-                : "bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10"
-            }`}
-            title="Share Screen"
-          >
-            <Share2 className="w-4 h-4" />
-            <span className="hidden md:inline">{isScreenSharing ? "Stop Share" : "Share"}</span>
-          </button>
-
-          {/* Manual Layout & Grid Customizer Button */}
-          <button
-            onClick={() => setIsLayoutModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 md:px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 transition-all shadow-sm"
-            title="Adjust Video Grid & Stage Layout"
-          >
-            <LayoutGrid className="w-4 h-4 text-cyan-400" />
-            <span className="hidden md:inline">Layout</span>
-          </button>
-
-          {/* Raise Hand */}
-          <button
-            onClick={toggleHandRaise}
-            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs font-bold transition-all ${
-              handRaised
-                ? "bg-amber-600 text-white shadow-lg shadow-amber-600/30 border border-amber-400/40"
-                : "bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10"
-            }`}
-            title={handRaised ? "Lower Hand" : "Raise Hand"}
-          >
-            <Hand className="w-4 h-4" />
-            <span className="hidden lg:inline">{handRaised ? "Hand Up" : "Hand"}</span>
-          </button>
-
-          {/* Teacher Specific Quick Tools */}
-          {(currentRole === "instructor" || currentRole === "admin") && (
-            <>
-              <button
-                onClick={() => startRoomBreak(5, "5-Minute Cognitive Refresh")}
-                className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-all"
-                title="Initiate synchronized 5-Minute break"
-              >
-                <Coffee className="w-4 h-4 text-amber-400" />
-                <span>Break</span>
-              </button>
-
-              <button
-                onClick={() => setIsAuditDrawerOpen(true)}
-                className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all"
-                title="Open Attention & Audio Quality Telemetry"
-              >
-                <Activity className="w-4 h-4 text-cyan-400" />
-                <span>Audit</span>
-              </button>
-            </>
-          )}
-
-          {/* Student Specific Quick Tools */}
-          {currentRole === "student" && (
-            <>
-              <button
-                onClick={() => setIsParentHelpModalOpen(true)}
-                className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20 transition-all"
-                title="Ask Parent for Help"
-              >
-                <HelpCircle className="w-4 h-4 text-blue-400" />
-                <span>Ask Parent</span>
-              </button>
-
-              <button
-                onClick={() => setIsCxHelpModalOpen(true)}
-                className="hidden xl:flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-all"
-                title="Ask CX / Tech Support"
-              >
-                <ShieldAlert className="w-4 h-4 text-rose-400" />
-                <span>Help CX</span>
-              </button>
-            </>
-          )}
-
-          {/* Teacher Start / End Live Class Controls */}
-          {(currentRole === "instructor" || currentRole === "admin") && classStatus === "waiting" && (
+          {/* Center: primary controls */}
+          <div className="flex items-center justify-center gap-1.5 @md:gap-2 flex-1 @4xl:flex-none min-w-0">
             <button
-              onClick={startClass}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer"
-              title="Start Live Class (Zoom/Meet Mode)"
+              onClick={toggleAudio}
+              className={`${ctrl} ${isAudioMuted ? "bg-rose-600/20 text-rose-200 border-rose-500/40 hover:bg-rose-600/30" : neutral}`}
+              title={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
+              aria-pressed={!isAudioMuted}
+              aria-label={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
             >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Start Class</span>
+              {isAudioMuted ? <MicOff className="w-[18px] h-[18px] text-rose-400" /> : <Mic className="w-[18px] h-[18px] text-emerald-400" />}
+              <span className="hidden @3xl:inline">{isAudioMuted ? "Unmute" : "Mute"}</span>
             </button>
-          )}
 
-          {(currentRole === "instructor" || currentRole === "admin") && classStatus === "in_progress" && (
-            <>
+            <button
+              onClick={toggleVideo}
+              className={`${ctrl} ${isVideoOff ? "bg-rose-600/20 text-rose-200 border-rose-500/40 hover:bg-rose-600/30" : neutral}`}
+              title={isVideoOff ? "Start camera" : "Stop camera"}
+              aria-pressed={!isVideoOff}
+              aria-label={isVideoOff ? "Start camera" : "Stop camera"}
+            >
+              {isVideoOff ? <VideoOff className="w-[18px] h-[18px] text-rose-400" /> : <Video className="w-[18px] h-[18px] text-blue-400" />}
+              <span className="hidden @3xl:inline">{isVideoOff ? "Start video" : "Stop video"}</span>
+            </button>
+
+            <button
+              onClick={toggleScreenShare}
+              className={`${ctrl} hidden @md:inline-flex ${isScreenSharing ? "bg-emerald-600 text-white border-emerald-400/40" : neutral}`}
+              title="Share screen"
+              aria-pressed={isScreenSharing}
+            >
+              <Share2 className="w-[18px] h-[18px]" />
+              <span className="hidden @5xl:inline">{isScreenSharing ? "Stop share" : "Share"}</span>
+            </button>
+
+            <button
+              onClick={toggleHandRaise}
+              className={`${ctrl} ${handRaised ? "bg-amber-500 text-slate-950 border-amber-300/50" : neutral}`}
+              title={handRaised ? "Lower hand" : "Raise hand"}
+              aria-pressed={handRaised}
+              aria-label={handRaised ? "Lower hand" : "Raise hand"}
+            >
+              <Hand className="w-[18px] h-[18px]" />
+              <span className="hidden @5xl:inline">{handRaised ? "Lower" : "Raise"}</span>
+            </button>
+
+            <button
+              onClick={toggleLiveSubtitles}
+              className={`${ctrl} hidden @md:inline-flex ${isLiveSubtitlesActive ? "bg-indigo-600 text-white border-indigo-400/40" : neutral}`}
+              title="Live captions"
+              aria-pressed={isLiveSubtitlesActive}
+            >
+              <Languages className="w-[18px] h-[18px]" />
+              <span className="hidden @5xl:inline">CC · {subtitleLanguage.toUpperCase()}</span>
+            </button>
+
+            {isTeacher && classStatus === "waiting" && (
+              <button onClick={startClass} className={`${ctrl} bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/40 font-bold`} title="Start live class">
+                <Play className="w-4 h-4 fill-current" />
+                <span className="hidden @xl:inline">Start</span>
+              </button>
+            )}
+
+            <div className="relative">
               <button
-                onClick={() => {
-                  triggerRoomBomber({
-                    salesRepName: "Marcus Sterling (Lead Admissions)",
-                    discountPct: 20,
-                    studentName: "Demo Student",
-                  });
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-md shadow-purple-900/40 transition-all cursor-pointer shrink-0"
-                title="Break room for Sales Pitch - Admissions Officer enters"
+                onClick={() => setIsMoreOpen((o) => !o)}
+                className={`${ctrl} ${isMoreOpen ? "bg-white/15 text-white border-white/20" : neutral}`}
+                aria-haspopup="menu"
+                aria-expanded={isMoreOpen}
+                aria-label="More controls"
+                title="More controls"
               >
-                <Briefcase className="w-4 h-4" />
-                <span className="hidden sm:inline">Sales Pitch</span>
+                <MoreHorizontal className="w-[18px] h-[18px]" />
+                <span className="hidden @5xl:inline">More</span>
               </button>
 
-              <button
-                onClick={endClass}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-bold text-xs border border-amber-500/40 transition-all cursor-pointer shrink-0"
-                title="End Live Class"
-              >
-                <span>End Class</span>
-              </button>
-            </>
-          )}
+              {isMoreOpen && (
+                <>
+                  <div className="fixed inset-0 z-40 bg-black/50 sm:bg-transparent animate-fadeIn" onClick={() => setIsMoreOpen(false)} />
+                  <div
+                    role="menu"
+                    className="fixed sm:absolute z-50 inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-14 sm:left-1/2 sm:-translate-x-1/2 sm:w-[360px] rounded-t-3xl sm:rounded-2xl border border-white/10 bg-slate-900 shadow-2xl p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3 animate-sheetUp sm:animate-fadeIn max-h-[80dvh] overflow-y-auto"
+                  >
+                    <div className="sm:hidden mx-auto mb-2 h-1 w-10 rounded-full bg-white/20" />
+                    <div className="flex items-center justify-between px-1 pb-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">More controls</span>
+                      <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                        <Users className="w-3.5 h-3.5" /> {participants.length} in room
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {moreItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.key}
+                            role="menuitem"
+                            onClick={() => {
+                              item.onClick();
+                              setIsMoreOpen(false);
+                            }}
+                            className={`${item.mobileOnly ? "@md:hidden" : ""} flex flex-col items-center justify-center gap-1.5 min-h-[76px] px-1.5 py-2 rounded-xl border text-center text-[11px] leading-tight font-medium transition-colors ${
+                              item.active ? "bg-blue-600/20 border-blue-500/40 text-white" : "bg-white/[0.04] border-white/10 text-slate-200 hover:bg-white/10"
+                            }`}
+                          >
+                            <Icon className={`w-5 h-5 ${item.tone || "text-slate-300"}`} />
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
-          {/* Leave / Exit Meeting Button */}
-          <button
-            onClick={() => {
-              if (window.confirm("Are you sure you want to exit this live classroom session?")) {
-                window.location.reload();
-              }
-            }}
-            className="flex items-center gap-1.5 px-4 md:px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-lg shadow-rose-600/30"
-            title="Leave Meeting"
-          >
-            <PhoneOff className="w-4 h-4" />
-            <span>Leave</span>
-          </button>
-        </div>
-
-        {/* Right Section: Workspace Drawers, Participants & Digest */}
-        <div className="hidden lg:flex items-center gap-2 shrink-0">
-          {/* Active Participants Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-300">
-            <Users className="w-3.5 h-3.5 text-blue-400" />
-            <span>{participants.length}</span>
+            <button
+              onClick={() => {
+                if (window.confirm("Leave this live classroom session?")) {
+                  window.location.reload();
+                }
+              }}
+              className={`${ctrl} bg-rose-600 hover:bg-rose-500 text-white border-rose-400/40 px-4`}
+              title="Leave meeting"
+              aria-label="Leave meeting"
+            >
+              <PhoneOff className="w-[18px] h-[18px]" />
+              <span className="hidden @3xl:inline">Leave</span>
+            </button>
           </div>
 
-          {/* Toggle Tools Dock */}
-          <button
-            onClick={toggleDock}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all border ${
-              dockSplitRatio < 100
-                ? "bg-blue-600/20 text-blue-300 border-blue-500/40"
-                : "bg-white/5 text-slate-400 border-white/10 hover:text-white"
-            }`}
-            title={dockSplitRatio < 100 ? "Collapse Tools Dock" : "Expand Tools Dock"}
-          >
-            <Layers className="w-4 h-4 text-blue-400" />
-            <span className="hidden xl:inline">{dockSplitRatio < 100 ? "Dock Open" : "Open Dock"}</span>
-          </button>
-
-          {/* LLM Notebook */}
-          <button
-            onClick={() => setActiveView("notebook")}
-            className="p-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-colors"
-            title="Open Google LLM Notebook Studio"
-          >
-            <BookOpen className="w-4 h-4 text-amber-400" />
-          </button>
-
-          {/* AI Summary */}
-          <button
-            onClick={() => setIsAiSummaryModalOpen(true)}
-            className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 transition-colors"
-            title="Generate AI Lecture Digest"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-          </button>
+          {/* Right: room info + quick panels */}
+          <div className="hidden @4xl:flex items-center justify-end gap-2 flex-1 basis-0 min-w-0">
+            <span className="hidden @6xl:flex items-center gap-1.5 h-9 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-mono whitespace-nowrap">
+              <ShieldCheck className="w-3.5 h-3.5" /> E2EE
+            </span>
+            <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-300" title="Participants">
+              <Users className="w-3.5 h-3.5 text-blue-400" /> {participants.length}
+            </span>
+            {isTeacher && classStatus === "in_progress" && (
+              <button onClick={endClass} className="h-9 px-3 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-semibold text-xs border border-amber-500/40 transition-colors whitespace-nowrap">
+                End class
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

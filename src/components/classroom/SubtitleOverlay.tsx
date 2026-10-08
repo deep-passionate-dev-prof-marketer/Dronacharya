@@ -8,6 +8,8 @@ import {
   Sliders,
   Play,
   Zap,
+  GraduationCap,
+  Languages,
 } from "lucide-react";
 import { SUPPORTED_LANGUAGES, getLanguage } from "../../services/translation/languageConfig";
 import { speechTranslationEngine } from "../../services/translation/speechTranslationEngine";
@@ -22,6 +24,7 @@ export const SubtitleOverlay: React.FC = () => {
     subtitleMode,
     currentLiveCaption,
     setIsInterpreterModalOpen,
+    classStatus,
   } = useClassroom();
 
   const [isVisible, setIsVisible] = useState(true);
@@ -61,16 +64,17 @@ export const SubtitleOverlay: React.FC = () => {
   const tgtLang = getLanguage(currentLiveCaption?.targetLanguage || subtitleLanguage || "es");
 
   // When caption is idle/faded, show sleek listening badge with 1-click test triggers
-  if (!isVisible || !currentLiveCaption || !currentLiveCaption.englishText?.trim()) {
+  // Before class starts, captions stay collapsed so they never cover the launch card
+  if (classStatus === "waiting" || !isVisible || !currentLiveCaption || !currentLiveCaption.englishText?.trim()) {
     return (
-      <div className="absolute bottom-20 md:bottom-22 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 animate-fadeIn max-w-[96vw]">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 animate-fadeIn max-w-[calc(100%-1rem)]">
         <div className="flex items-center gap-1.5 sm:gap-2 bg-[#080d1c]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-2.5 sm:px-3.5 py-1.5 shadow-xl shadow-black/80 text-xs text-slate-300">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
           <span className="font-semibold text-white text-[10px] sm:text-[11px] whitespace-nowrap">
             <span className="hidden sm:inline">AI </span>Interpreter:
           </span>
           <span className="font-mono text-[9px] sm:text-[10px] text-cyan-300 whitespace-nowrap">
-            {srcLang.flag} {srcLang.code.toUpperCase()} → {tgtLang.flag} {tgtLang.code.toUpperCase()}
+            {srcLang.code.toUpperCase()} → {tgtLang.code.toUpperCase()}
           </span>
 
           <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 sm:pl-2 shrink-0">
@@ -86,7 +90,7 @@ export const SubtitleOverlay: React.FC = () => {
               className="px-1.5 sm:px-2 py-0.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
               title={`Test speech translation into ${tgtLang.name}`}
             >
-              {tgtLang.flag} <span className="hidden sm:inline">Test {tgtLang.name}</span>
+              <span className="hidden sm:inline">Test {tgtLang.name}</span>
             </button>
             <button
               onClick={() =>
@@ -97,10 +101,11 @@ export const SubtitleOverlay: React.FC = () => {
                   tgtLang.code
                 )
               }
-              className="px-1.5 sm:px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
+              className="px-1.5 sm:px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap flex items-center gap-1"
               title={`Test Student to ${tgtLang.name} translation`}
             >
-              🎓 <span className="hidden sm:inline">Student Query</span>
+              <GraduationCap className="w-3 h-3 text-cyan-400" />
+              <span className="hidden sm:inline">Student Query</span>
             </button>
             <button
               onClick={() => setIsInterpreterModalOpen(true)}
@@ -116,8 +121,8 @@ export const SubtitleOverlay: React.FC = () => {
   }
 
   return (
-    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-[94%] max-w-2xl z-30 pointer-events-auto transition-all duration-300 animate-fadeIn">
-      <div className="bg-[#080d1c]/95 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl shadow-2xl shadow-black/80 p-3.5 flex flex-col gap-2.5 text-slate-100 font-sans">
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-2xl z-30 pointer-events-auto transition-all duration-300 animate-fadeIn">
+      <div className="bg-[#080d1c]/95 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-black/80 p-2.5 sm:p-3.5 flex flex-col gap-2 sm:gap-2.5 text-slate-100 font-sans">
         
         {/* Subtitle Header Bar */}
         <div className="flex items-center justify-between text-xs pb-1.5 border-b border-white/10">
@@ -127,7 +132,7 @@ export const SubtitleOverlay: React.FC = () => {
               {currentLiveCaption.speakerName}
             </span>
             <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-cyan-300">
-              {srcLang.flag} {srcLang.code.toUpperCase()} → {tgtLang.flag} {tgtLang.code.toUpperCase()}
+              {srcLang.code.toUpperCase()} → {tgtLang.code.toUpperCase()}
             </span>
             <span className="hidden sm:inline text-[10px] font-mono text-slate-400">
               {currentLiveCaption.timestamp || "Live"}
@@ -148,7 +153,7 @@ export const SubtitleOverlay: React.FC = () => {
               className="hidden sm:inline px-1.5 py-0.5 bg-amber-950/40 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded text-[9px] font-semibold transition"
               title={`Test speech translation into ${tgtLang.name}`}
             >
-              {tgtLang.flag} {tgtLang.name}
+              {tgtLang.name}
             </button>
             <button
               onClick={() =>
@@ -159,10 +164,11 @@ export const SubtitleOverlay: React.FC = () => {
                   tgtLang.code
                 )
               }
-              className="hidden sm:inline px-1.5 py-0.5 bg-cyan-950/40 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded text-[9px] font-semibold transition"
+              className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/40 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded text-[9px] font-semibold transition"
               title={`Test Student Query into ${tgtLang.name}`}
             >
-              🎓 Query
+              <GraduationCap className="w-3 h-3 text-cyan-400" />
+              <span>Query</span>
             </button>
 
             {/* Quick Language Switch Dropdown */}
@@ -173,7 +179,7 @@ export const SubtitleOverlay: React.FC = () => {
                 title="Change subtitle translation language"
               >
                 <Globe className="w-3 h-3 text-cyan-400" />
-                <span>{tgtLang.flag} {tgtLang.code.toUpperCase()}</span>
+                <span>{tgtLang.code.toUpperCase()}</span>
               </button>
 
               {showLangMenu && (
@@ -198,7 +204,7 @@ export const SubtitleOverlay: React.FC = () => {
                           : "text-slate-300 hover:bg-white/10"
                       }`}
                     >
-                      <span className="truncate">{opt.flag} {opt.name}</span>
+                      <span className="truncate">{opt.name}</span>
                       <span className="text-[10px] text-slate-400 uppercase font-mono">{opt.code}</span>
                     </button>
                   ))}
