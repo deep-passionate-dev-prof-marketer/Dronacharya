@@ -62,17 +62,17 @@ export const SubtitleOverlay: React.FC = () => {
   // When caption is idle/faded, show sleek listening badge with 1-click test triggers
   if (!isVisible || !currentLiveCaption || !currentLiveCaption.englishText?.trim()) {
     return (
-      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 animate-fadeIn">
-        <div className="flex items-center gap-2 bg-[#080d1c]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-3.5 py-1.5 shadow-xl shadow-black/80 text-xs text-slate-300">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span className="font-semibold text-white text-[11px]">
-            AI Interpreter Active:
+      <div className="absolute bottom-20 md:bottom-22 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 animate-fadeIn max-w-[96vw]">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-[#080d1c]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-2.5 sm:px-3.5 py-1.5 shadow-xl shadow-black/80 text-xs text-slate-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+          <span className="font-semibold text-white text-[10px] sm:text-[11px] whitespace-nowrap">
+            <span className="hidden sm:inline">AI </span>Interpreter:
           </span>
-          <span className="font-mono text-[10px] text-cyan-300">
+          <span className="font-mono text-[9px] sm:text-[10px] text-cyan-300 whitespace-nowrap">
             {srcLang.flag} {srcLang.code.toUpperCase()} → {tgtLang.flag} {tgtLang.code.toUpperCase()}
           </span>
 
-          <div className="flex items-center gap-1 border-l border-white/10 pl-2">
+          <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 sm:pl-2 shrink-0">
             <button
               onClick={() =>
                 handleQuickTest(
@@ -82,10 +82,10 @@ export const SubtitleOverlay: React.FC = () => {
                   "es"
                 )
               }
-              className="px-2 py-0.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded text-[10px] font-medium transition"
+              className="px-1.5 sm:px-2 py-0.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
               title="Test Hindi to Spanish translation"
             >
-              🇮🇳 Hindi Test
+              🇮🇳 <span className="hidden sm:inline">Hindi Test</span>
             </button>
             <button
               onClick={() =>
@@ -96,10 +96,10 @@ export const SubtitleOverlay: React.FC = () => {
                   "hi"
                 )
               }
-              className="px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-[10px] font-medium transition"
+              className="px-1.5 sm:px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
               title="Test Spanish to Hindi translation"
             >
-              🇪🇸 Spanish Test
+              🇪🇸 <span className="hidden sm:inline">Spanish Test</span>
             </button>
             <button
               onClick={() => setIsInterpreterModalOpen(true)}

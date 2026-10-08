@@ -50,6 +50,39 @@ class RealtimeSpeechAndTtsEngine {
   constructor() {
     this.initRecognition();
     this.initTtsVoices();
+    this.bindAutoplayUnlock();
+  }
+
+  private bindAutoplayUnlock() {
+    if (typeof window === "undefined") return;
+    const unlockHandler = () => {
+      this.unlockAudio();
+      window.removeEventListener("click", unlockHandler);
+      window.removeEventListener("touchstart", unlockHandler);
+      window.removeEventListener("keydown", unlockHandler);
+    };
+    window.addEventListener("click", unlockHandler, { once: true, passive: true });
+    window.addEventListener("touchstart", unlockHandler, { once: true, passive: true });
+    window.addEventListener("keydown", unlockHandler, { once: true, passive: true });
+  }
+
+  public unlockAudio() {
+    if (typeof window === "undefined") return;
+    if ("speechSynthesis" in window) {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        // Micro-utterance to prime the audio pipeline for WebKit / Safari
+        const silent = new SpeechSynthesisUtterance(" ");
+        silent.volume = 0;
+        silent.rate = 10;
+        window.speechSynthesis.speak(silent);
+      } catch {}
+    }
+    if (this.audioContext && this.audioContext.state === "suspended") {
+      this.audioContext.resume().catch(() => {});
+    }
   }
 
   private initTtsVoices() {
@@ -296,12 +329,23 @@ class RealtimeSpeechAndTtsEngine {
         utterance.voice = matchedVoice;
       }
 
+      // Chromium timer workaround: ensure speech synthesis is never stalled mid-speech
+      const keepAliveTimer = setInterval(() => {
+        if (!this.isSpeaking) {
+          clearInterval(keepAliveTimer);
+        } else if (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.paused) {
+          try { window.speechSynthesis.resume(); } catch {}
+        }
+      }, 5000);
+
       utterance.onend = () => {
+        clearInterval(keepAliveTimer);
         this.isSpeaking = false;
         resolve();
       };
 
       utterance.onerror = (err) => {
+        clearInterval(keepAliveTimer);
         console.warn("[TTS Engine] Synthesis event error:", err);
         this.isSpeaking = false;
         resolve();
@@ -311,6 +355,7 @@ class RealtimeSpeechAndTtsEngine {
       try {
         window.speechSynthesis.speak(utterance);
       } catch (speakErr) {
+        clearInterval(keepAliveTimer);
         console.warn("[TTS Engine] Speak call error:", speakErr);
         resolve();
       }
