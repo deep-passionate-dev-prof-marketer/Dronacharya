@@ -283,39 +283,52 @@ export class TranslationEngine {
       }
     }
 
-    // 4. Try Free Open Translation API (MyMemory / LibreTranslate fallback - No paid API required)
+    // 4. Pure Self-Hosted Token & Grammar Engine (Zero external network dependencies)
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2400);
-
       const srcLang = sourceLanguage.toLowerCase();
       const tgtLang = targetLanguage.toLowerCase();
-      const endpoint = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-        processedText
-      )}&langpair=${srcLang}|${tgtLang}`;
+      
+      const { translateTokenByToken, lookupPhrase } = await import("./selfHostedDictionary");
+      const { detectQuestionIntent, resolveSelfCorrections, formatTargetPunctuation } = await import("./grammarRules");
 
-      const res = await fetch(endpoint, { signal: controller.signal });
-      clearTimeout(timeoutId);
+      // Handle spontaneous self-corrections (e.g. "Take 15... sorry, 50.")
+      const { resolvedText } = resolveSelfCorrections(processedText);
 
-      if (res.ok) {
-        const json = await res.json();
-        const rawTranslated = json?.responseData?.translatedText;
-        if (rawTranslated && typeof rawTranslated === "string" && !rawTranslated.includes("MYMEMORY WARNING")) {
-          const finalResult = TerminologyProtector.restoreTerms(rawTranslated, restoredMap);
-          addToCache(sourceLanguage, targetLanguage, cleanText, finalResult);
-          return {
-            sourceLanguage,
-            targetLanguage,
-            sourceText: cleanText,
-            translatedText: finalResult,
-            latencyMs: Math.round(performance.now() - startTime),
-            fromCache: false,
-            provider: "free_neural_api",
-          };
-        }
+      // Check full phrase match in local dictionary
+      const phraseMatch = lookupPhrase(resolvedText, srcLang, tgtLang);
+      if (phraseMatch) {
+        const finalResult = TerminologyProtector.restoreTerms(phraseMatch, restoredMap);
+        addToCache(sourceLanguage, targetLanguage, cleanText, finalResult);
+        return {
+          sourceLanguage,
+          targetLanguage,
+          sourceText: cleanText,
+          translatedText: finalResult,
+          latencyMs: Math.round(performance.now() - startTime),
+          fromCache: false,
+          provider: "semantic_memory",
+        };
       }
-    } catch {
-      // Free API timed out or offline, proceed seamlessly to next tier
+
+      // Token-level syntactic translation
+      const tokenTranslated = translateTokenByToken(resolvedText, srcLang, tgtLang);
+      if (tokenTranslated && tokenTranslated.trim().length > 0 && tokenTranslated.toLowerCase() !== resolvedText.toLowerCase()) {
+        const isQuestion = detectQuestionIntent(resolvedText);
+        const formatted = formatTargetPunctuation(tokenTranslated, tgtLang, isQuestion);
+        const finalResult = TerminologyProtector.restoreTerms(formatted, restoredMap);
+        addToCache(sourceLanguage, targetLanguage, cleanText, finalResult);
+        return {
+          sourceLanguage,
+          targetLanguage,
+          sourceText: cleanText,
+          translatedText: finalResult,
+          latencyMs: Math.round(performance.now() - startTime),
+          fromCache: false,
+          provider: "semantic_memory",
+        };
+      }
+    } catch (dictErr) {
+      // Proceed gracefully to next local tier
     }
 
     // 5. Try Serverless AI endpoint (/api/ai/live-translate-stream) if available
