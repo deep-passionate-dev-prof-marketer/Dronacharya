@@ -1,0 +1,6 @@
+{
+  "name": "Dronacharya · 21K School",
+  "description": "Dronacharya: 21K School & 21K Learning Floww intelligent classroom audit engine with real-time face and audio quality tracking, zero-toggle in-room student management, hierarchical room generator (DC, PC, DCC, CAC, SCC), and instant Parent/CX escalations.",
+  "requestFramePermissions": ["camera", "microphone", "display-capture"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

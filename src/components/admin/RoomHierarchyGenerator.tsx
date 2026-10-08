@@ -1,0 +1,519 @@
+import React, { useState } from "react";
+import { useClassroom } from "../../context/ClassroomContext";
+import { buildMeetingUrl } from "../../services/domainService";
+import {
+  RoomCategory,
+  RoomSubCategory,
+  RoomSubCategoryCode,
+  MicroSpecialRequest,
+  RoomRatio,
+} from "../../types";
+import {
+  Layers,
+  Copy,
+  Check,
+  ExternalLink,
+  Plus,
+  Play,
+  Coffee,
+  Globe,
+  Clock,
+  User,
+  HeartHandshake,
+  BookOpen,
+  Sparkles,
+  GitFork,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
+
+export const RoomHierarchyGenerator: React.FC = () => {
+  const {
+    roomCategories,
+    roomSubCategories,
+    generatedRooms,
+    createRoomFlow,
+    switchActiveRoom,
+    activeRoomFlow,
+    setActiveView,
+    teachers,
+  } = useClassroom();
+
+  const [category, setCategory] = useState<RoomCategory>("21K School");
+  const [subCategory, setSubCategory] = useState<RoomSubCategory>("Enrolled Classes");
+  const [course, setCourse] = useState("Grade 10 Physics: Quantum Mechanics");
+  const [language, setLanguage] = useState("English (Global)");
+  const [timezone, setTimezone] = useState("IST (UTC+5:30)");
+  const [teacherId, setTeacherId] = useState("tch-1");
+  const [requestType, setRequestType] = useState<MicroSpecialRequest>("General");
+  const [breakMinutes, setBreakMinutes] = useState(10);
+  const [roomRatio, setRoomRatio] = useState<RoomRatio>("1:4");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const selectedTeacher = teachers.find((t) => t.id === teacherId) || teachers[0];
+
+  const subCategoryCodes: Record<RoomSubCategory, RoomSubCategoryCode> = {
+    "Demo Classes": "DC",
+    "Enrolled Classes": "PC",
+    "Doubt Clearance Classes": "DCC",
+    "Community Activities Classes": "CAC",
+    "Student Collaboration Classes": "SCC",
+  };
+
+  // Live dynamic shortlink calculation preview
+  const currentSubCode = subCategoryCodes[subCategory] || "PC";
+  const sanitize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const catPrefix = category === "21K School" ? "21k" : "floww";
+  const courseSlug = sanitize(course).slice(0, 18);
+  const teacherSlug = sanitize(selectedTeacher.name.split(" ").pop() || "lead").slice(0, 10);
+  const tzSlug = sanitize(timezone.split(" ")[0]);
+  const reqSlug = requestType !== "General" ? `-${sanitize(requestType).slice(0, 12)}` : "";
+  const ratioCode = roomRatio.replace(":", "X");
+
+  const previewRoomCode = `${catPrefix.toUpperCase()}-${currentSubCode}-${ratioCode}-${courseSlug.toUpperCase().slice(0, 8)}-${tzSlug.toUpperCase()}`;
+  const previewRoomUrl = buildMeetingUrl(`${catPrefix}-${currentSubCode.toLowerCase()}-${roomRatio.replace(":", "x")}-${courseSlug}-${teacherSlug}-${tzSlug}${reqSlug}`);
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedCapacity = parseInt(roomRatio.split(":")[1], 10) || 4;
+    const newRoom = createRoomFlow({
+      name: `${course} · [${currentSubCode}] (${roomRatio})`,
+      category,
+      subCategory,
+      subCategoryCode: currentSubCode,
+      microCategory: {
+        course,
+        language,
+        timezone,
+        teacherId: selectedTeacher.id,
+        teacherName: selectedTeacher.name,
+        requestType,
+      },
+      scheduledBreakMinutes: breakMinutes,
+      activeBreak: false,
+      studentCapacity: parsedCapacity,
+      roomRatio,
+    });
+    // Copy link
+    navigator.clipboard.writeText(newRoom.roomUrl);
+    setCopiedId(newRoom.id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleCopy = (id: string, url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleLaunch = (id: string) => {
+    switchActiveRoom(id);
+    setActiveView("classroom");
+  };
+
+  return (
+    <div className="space-y-6 select-none font-sans">
+      {/* Overview Banner */}
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#001F40] via-[#003872] to-[#00264d] text-white border border-[#003872] shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#00C2E0]/20 text-[#00C2E0] border border-[#00C2E0]/40">
+                Hierarchical Architecture
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#FFBB00]/20 text-[#FFBB00] border border-[#FFBB00]/40">
+                DC · PC · DCC · CAC · SCC
+              </span>
+            </div>
+            <h2 className="text-xl font-extrabold tracking-tight">
+              Dronacharya Multi-Tier Room Flow & Standardized Shortlink Generator
+            </h2>
+            <p className="text-xs text-slate-300 max-w-2xl">
+              Construct high-capacity synchronized classrooms across <strong>21K School</strong> and{" "}
+              <strong>21K Learning Floww</strong>, with micro-routing tags, scheduled breaks, and standardized URL slugs.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-right">
+              <p className="text-[10px] text-slate-400 font-mono">Active Rooms Catalog</p>
+              <p className="text-lg font-black font-mono text-[#00C2E0]">
+                {generatedRooms.length} Active Flow(s)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Form: Configuration Builder (7 Cols) */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-[#001F40] flex items-center gap-2">
+              <Layers className="w-4 h-4 text-[#0082FF]" />
+              <span>Hierarchical Room Parameters</span>
+            </h3>
+            <span className="text-xs font-mono text-slate-500">Tier 1 · Tier 2 · Tier 3</span>
+          </div>
+
+          <form onSubmit={handleCreate} className="space-y-4 text-xs">
+            {/* 1. Category Selector */}
+            <div>
+              <label className="block text-slate-700 font-bold mb-1.5 uppercase tracking-wider text-[11px]">
+                1. Category Dimension:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {roomCategories.map((cat) => (
+                  <button
+                    type="button"
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      category === cat
+                        ? "bg-[#001F40] text-white border-[#001F40] shadow-md font-bold"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <p className="text-xs">{cat}</p>
+                    <p className="text-[10px] opacity-75 mt-0.5">
+                      {cat === "21K School" ? "Core K-12 Curriculum" : "Co-Curricular & Special Skills"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Sub-Category Selector */}
+            <div>
+              <label className="block text-slate-700 font-bold mb-1.5 uppercase tracking-wider text-[11px]">
+                2. Sub-Category & Link Code:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {roomSubCategories.map((sub) => {
+                  const code = subCategoryCodes[sub];
+                  return (
+                    <button
+                      type="button"
+                      key={sub}
+                      onClick={() => setSubCategory(sub)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        subCategory === sub
+                          ? "bg-[#003872] text-white border-[#003872] shadow-md font-bold"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FFBB00] text-[#001F40] mb-1">
+                        {code}
+                      </span>
+                      <p className="text-xs truncate">{sub}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Micro-Categories Dimensions */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <h4 className="text-[11px] font-bold text-[#003872] uppercase tracking-wider flex items-center gap-1.5">
+                <GitFork className="w-3.5 h-3.5 text-[#0082FF]" />
+                <span>3. Micro-Category Dimensions (Granular Filters)</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Course */}
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                    Course / Subject:
+                  </label>
+                  <input
+                    type="text"
+                    value={course}
+                    onChange={(e) => setCourse(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                    required
+                  />
+                </div>
+
+                {/* Lead Teacher */}
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                    Assigned Lead Facilitator:
+                  </label>
+                  <select
+                    value={teacherId}
+                    onChange={(e) => setTeacherId(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                  >
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.subjects[0]})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Language */}
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                    Classroom Medium:
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                  >
+                    <option value="English (Global)">English (Global Universal)</option>
+                    <option value="Spanish (Castilian & Latin)">Spanish</option>
+                    <option value="Hindi (Bilingual)">Hindi</option>
+                    <option value="French (Immersion)">French</option>
+                    <option value="Arabic (Standard)">Arabic</option>
+                    <option value="Mandarin (Standard)">Mandarin</option>
+                  </select>
+                </div>
+
+                {/* Timezone */}
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                    Timezone Cohort:
+                  </label>
+                  <select
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-[#0082FF]"
+                  >
+                    <option value="IST (UTC+5:30)">IST (UTC+5:30 · India & South Asia)</option>
+                    <option value="GMT (UTC+0)">GMT (UTC+0 · UK & Europe)</option>
+                    <option value="EST (UTC-5)">EST (UTC-5 · North America East)</option>
+                    <option value="PST (UTC-8)">PST (UTC-8 · North America West)</option>
+                    <option value="SGT (UTC+8)">SGT (UTC+8 · Singapore & ASEAN)</option>
+                    <option value="GST (UTC+4)">GST (UTC+4 · UAE & Middle East)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Special Needs / Request Dimension */}
+              <div>
+                <label className="block text-slate-600 font-semibold mb-1 text-[11px]">
+                  Special Pedagogical Request / Accommodation:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      "General",
+                      "Special Needs (IEP)",
+                      "Accelerated Learning",
+                      "Dyslexia Accommodation",
+                      "Bilingual Support",
+                    ] as const
+                  ).map((req) => (
+                    <button
+                      type="button"
+                      key={req}
+                      onClick={() => setRequestType(req)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        requestType === req
+                          ? "bg-[#0082FF] text-white shadow-xs"
+                          : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-100"
+                      }`}
+                    >
+                      {req}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Room Capacity Ratio (1:1 to 1:24) */}
+              <div>
+                <label className="block text-slate-600 font-semibold mb-1 text-[11px] flex items-center justify-between">
+                  <span>Room Capacity Ratio (1:1 to 1:24 Cohorts):</span>
+                  <span className="font-mono text-[#003872] font-bold">Selected: {roomRatio}</span>
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {(
+                    [
+                      "1:1",
+                      "1:2",
+                      "1:3",
+                      "1:4",
+                      "1:5",
+                      "1:6",
+                      "1:8",
+                      "1:12",
+                      "1:16",
+                      "1:24",
+                    ] as RoomRatio[]
+                  ).map((r) => (
+                    <button
+                      type="button"
+                      key={r}
+                      onClick={() => setRoomRatio(r)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        roomRatio === r
+                          ? "bg-[#003872] text-[#FFBB00] ring-1 ring-[#FFBB00] shadow-xs"
+                          : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-100"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Room Break Scheduler */}
+              <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-700 font-semibold text-xs">
+                  <Coffee className="w-3.5 h-3.5 text-[#FFBB00]" />
+                  <span>Scheduled Room Break:</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  {[5, 10, 15].map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => setBreakMinutes(m)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        breakMinutes === m
+                          ? "bg-[#001F40] text-white"
+                          : "bg-white text-slate-700 border border-slate-300"
+                      }`}
+                    >
+                      {m} Mins
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Generated Shortlink Live Preview */}
+            <div className="p-4 rounded-xl bg-[#001F40] text-white space-y-2 border border-[#003872]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300 font-mono">
+                  Standardized Shortlink Preview
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FFBB00] text-[#001F40]">
+                  PREFIX: {currentSubCode}
+                </span>
+              </div>
+              <p className="font-mono text-xs text-white truncate bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                {previewRoomUrl}
+              </p>
+              <p className="text-[10px] text-slate-300 font-mono">
+                Room Code: <strong className="text-cyan-300">{previewRoomCode}</strong> · Break:{" "}
+                {breakMinutes} mins
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0082FF] hover:bg-[#0070dc] text-white font-bold text-xs transition-all shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Generate Room Flow & Copy Encoded Shortlink</span>
+            </button>
+          </form>
+        </div>
+
+        {/* Right Panel: Hierarchical Tree & Active Rooms Catalog (5 Cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Active Flow Catalog */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-[#001F40] flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#0082FF]" />
+                <span>Active 21K Rooms Catalog</span>
+              </h3>
+              <span className="text-xs font-mono font-bold text-[#0082FF]">
+                {generatedRooms.length} Ready
+              </span>
+            </div>
+
+            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+              {generatedRooms.map((room) => {
+                const isCurrent = activeRoomFlow.id === room.id;
+                const isCopied = copiedId === room.id;
+
+                return (
+                  <div
+                    key={room.id}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      isCurrent
+                        ? "bg-[#E1EDFF] border-[#0082FF] shadow-xs"
+                        : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FFBB00] text-[#001F40]">
+                            {room.subCategoryCode}
+                          </span>
+                          <span className="text-[11px] font-semibold text-slate-500">
+                            {room.category}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                          {room.name}
+                        </h4>
+                      </div>
+
+                      {isCurrent && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          Active Stage
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 space-y-1 mb-2.5">
+                      <p className="truncate">
+                        Teacher: <strong>{room.microCategory.teacherName}</strong> · TZ:{" "}
+                        {room.microCategory.timezone.split(" ")[0]}
+                      </p>
+                      {room.microCategory.requestType !== "General" && (
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-800 font-medium">
+                          {room.microCategory.requestType}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                      <button
+                        onClick={() => handleCopy(room.id, room.roomUrl)}
+                        className="flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-[#0082FF] transition-colors cursor-pointer"
+                      >
+                        {isCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-700 font-bold">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Shortlink</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => handleLaunch(room.id)}
+                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#003872] hover:bg-[#00264d] text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                      >
+                        <Play className="w-3 h-3 fill-white" />
+                        <span>Launch Room</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
