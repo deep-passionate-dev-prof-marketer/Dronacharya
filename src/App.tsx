@@ -19,6 +19,7 @@ import { RoomBomberControlCenter } from "./components/bomber/RoomBomberControlCe
 import { PitchBreakoutHUD } from "./components/bomber/PitchBreakoutHUD";
 import { DocumentationModal } from "./components/docs/DocumentationModal";
 import { AuthPortalView } from "./components/auth/AuthPortalView";
+import { PreJoinLobbyModal } from "./components/classroom/PreJoinLobbyModal";
 import { CampusCommunityFeed } from "./components/social/CampusCommunityFeed";
 import { FacilitatorAssignmentDashboard } from "./components/admin/FacilitatorAssignmentDashboard";
 import { CrmRoomIntegrationView } from "./components/admin/CrmRoomIntegrationView";
@@ -44,6 +45,7 @@ const MainLayout: React.FC = () => {
     isRoomBomberActive,
     activePitchRoom,
     currentRole,
+    roomId,
   } = useClassroom();
 
   const [mobilePane, setMobilePane] = React.useState<"video" | "dock">("video");
@@ -89,10 +91,8 @@ const MainLayout: React.FC = () => {
 
   if (!authenticatedUser) {
     return (
-      <AuthPortalView
-        onLoginSuccess={loginUser}
-        canDismiss={false}
-        onOpenDocs={() => setIsDocsModalOpen(true)}
+      <PreJoinLobbyModal
+        onJoinSuccess={(user, targetRoomId) => loginUser(user, targetRoomId)}
       />
     );
   }
@@ -196,15 +196,14 @@ const MainLayout: React.FC = () => {
         onClose={() => setIsDocsModalOpen(false)}
       />
 
-      {/* Dedicated Multi-Role Auth Portal View */}
+      {/* Dedicated Multi-Role Pre-Join Lobby Modal */}
       {isAuthModalOpen && (
-        <AuthPortalView
-          onLoginSuccess={loginUser}
-          canDismiss={!!authenticatedUser}
-          onDismiss={() => setIsAuthModalOpen(false)}
-          onOpenDocs={() => {
+        <PreJoinLobbyModal
+          initialRole={currentRole}
+          initialRoomId={roomId}
+          onJoinSuccess={(user, targetRoomId) => {
             setIsAuthModalOpen(false);
-            setIsDocsModalOpen(true);
+            loginUser(user, targetRoomId);
           }}
         />
       )}

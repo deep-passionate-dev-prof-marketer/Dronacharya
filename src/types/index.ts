@@ -25,6 +25,7 @@ export interface Participant {
   xpPoints: number;
   gradeLevel?: number;
   section?: string;
+  stream?: MediaStream;
 }
 
 export interface BreakoutRoom {

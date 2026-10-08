@@ -58,6 +58,7 @@ import {
   buildMeetingUrl,
   buildShortMeetingUrl,
 } from "../services/domainService";
+import { webRtcMeshService, RemotePeerInfo } from "../services/webRtcMeshService";
 
 export type ClassroomView =
   | "classroom"
@@ -360,7 +361,7 @@ export interface ClassroomContextType {
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   authenticatedUser: AuthUser | null;
-  loginUser: (user: AuthUser) => void;
+  loginUser: (user: AuthUser, customRoomId?: string) => void;
   logoutUser: () => void;
 }
 
@@ -1303,9 +1304,14 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   };
 
-  const loginUser = (user: AuthUser) => {
+  const loginUser = (user: AuthUser, customRoomId?: string) => {
     setAuthenticatedUser(user);
     setCurrentRole(user.role);
+    const targetRoom = customRoomId || roomId;
+    if (customRoomId) {
+      setRoomId(customRoomId);
+      setRoomLink(buildMeetingUrl(customRoomId));
+    }
     try {
       localStorage.setItem("21k_dronacharya_auth", JSON.stringify(user));
     } catch {}
@@ -1315,7 +1321,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       id: user.id,
       name: user.name,
       role: user.role,
-      avatarColor: user.avatarColor || "#0082FF",
+      avatarColor: user.avatarColor || (user.role === "instructor" ? "#003872" : "#0082FF"),
       isLocal: true,
       audioEnabled: !isAudioMuted,
       videoEnabled: !isVideoOff,
@@ -1328,16 +1334,21 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       xpPoints: 120,
       gradeLevel: user.gradeLevel,
       section: user.section,
+      stream: localStream || undefined,
     };
     setParticipants((prev) => {
-      const rest = prev.filter((p) => p.id !== user.id);
-      return [localParticipant, ...rest];
+      const rest = prev.filter((p) => p.id !== user.id && p.isLocal);
+      const others = prev.filter((p) => !p.isLocal);
+      return [localParticipant, ...others];
     });
 
-    realtimeSocket.joinRoom(user, roomId);
+    // In-house WebRTC mesh connect
+    webRtcMeshService.joinRoom(targetRoom, localParticipant, localStream || undefined);
+    realtimeSocket.joinRoom(user, targetRoom);
   };
 
   const logoutUser = () => {
+    webRtcMeshService.leaveRoom();
     setAuthenticatedUser(null);
     try {
       localStorage.removeItem("21k_dronacharya_auth");
@@ -1345,6 +1356,47 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setParticipants([]);
     setIsAuthModalOpen(true);
   };
+
+  // WebRTC Mesh Remote Streams Subscription
+  useEffect(() => {
+    const unbindPeer = webRtcMeshService.onPeerStream((peerInfo: RemotePeerInfo) => {
+      setParticipants((prev) => {
+        const existingIdx = prev.findIndex((p) => p.id === peerInfo.peerId);
+        const remoteParticipant: Participant = {
+          id: peerInfo.peerId,
+          name: peerInfo.name,
+          role: peerInfo.role,
+          avatarColor: peerInfo.avatarColor,
+          isLocal: false,
+          audioEnabled: !peerInfo.isAudioMuted,
+          videoEnabled: !peerInfo.isVideoOff,
+          screenSharing: false,
+          handRaised: false,
+          breakoutRoomId: null,
+          audioLevel: peerInfo.audioLevel || 50,
+          attendanceStatus: "present",
+          joinedAt: "Just now",
+          xpPoints: 100,
+          stream: peerInfo.stream,
+        };
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = remoteParticipant;
+          return updated;
+        }
+        return [...prev, remoteParticipant];
+      });
+    });
+
+    const unbindLeft = webRtcMeshService.onPeerLeft((peerId: string) => {
+      setParticipants((prev) => prev.filter((p) => p.id !== peerId));
+    });
+
+    return () => {
+      unbindPeer();
+      unbindLeft();
+    };
+  }, []);
 
   // Keep authenticated user updated in participants list when media state changes
   useEffect(() => {
@@ -1355,7 +1407,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           id: authenticatedUser.id,
           name: authenticatedUser.name,
           role: authenticatedUser.role,
-          avatarColor: authenticatedUser.avatarColor || "#0082FF",
+          avatarColor: authenticatedUser.avatarColor || (authenticatedUser.role === "instructor" ? "#003872" : "#0082FF"),
           isLocal: true,
           audioEnabled: !isAudioMuted,
           videoEnabled: !isVideoOff,
@@ -1368,6 +1420,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           xpPoints: 120,
           gradeLevel: authenticatedUser.gradeLevel,
           section: authenticatedUser.section,
+          stream: localStream || undefined,
         };
         if (existingIdx >= 0) {
           const updated = [...prev];
@@ -1377,7 +1430,14 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return [localParticipant, ...prev];
       });
     }
-  }, [authenticatedUser, isAudioMuted, isVideoOff, isScreenSharing, handRaised]);
+  }, [authenticatedUser, isAudioMuted, isVideoOff, isScreenSharing, handRaised, localStream]);
+
+  // Sync local stream with WebRTC mesh
+  useEffect(() => {
+    if (localStream) {
+      webRtcMeshService.setLocalStream(localStream);
+    }
+  }, [localStream]);
 
   const toggleAudio = () => {
     setIsAudioMuted((prev) => {
@@ -1387,6 +1447,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           track.enabled = !next;
         });
       }
+      webRtcMeshService.updateMediaState(next, isVideoOff);
       return next;
     });
   };
@@ -1399,6 +1460,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           track.enabled = !next;
         });
       }
+      webRtcMeshService.updateMediaState(isAudioMuted, next);
       return next;
     });
   };
@@ -2452,29 +2514,18 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return parsed;
     }
 
-    // 2. External Production Meeting (Google Meet, Zoom, MS Teams, Jitsi, Daily, WebRTC SFU)
-    if (parsed.isExternal) {
-      setActiveProductionMeeting(parsed);
-      setRoomId(parsed.roomSlug);
-      setRoomTitle(parsed.displayTitle);
-      setRoomLink(parsed.normalizedUrl);
-      setActivePitchRoom(null);
-      setActiveView("classroom");
-
-      // Auto-activate live microphone listening for authentic spoken transcription
-      const speaker = authenticatedUser ? authenticatedUser.name : "Active Speaker";
-      realtimeSpeechEngine.startListening(speaker);
-      setIsLiveSubtitlesActive(true);
-      return parsed;
-    }
-
-    // 3. Internal Classroom Room (dynamic slug or shortlink)
+    // 2. Direct In-House WebRTC Mesh Room Connection
+    const roomSlug = parsed.roomSlug || "dronacharya-live";
+    setRoomId(roomSlug);
+    setRoomTitle(parsed.displayTitle || `Classroom · ${roomSlug}`);
+    setRoomLink(buildMeetingUrl(roomSlug));
     setActiveProductionMeeting(null);
     setActivePitchRoom(null);
-    setRoomId(parsed.roomSlug);
-    setRoomTitle(parsed.displayTitle);
-    setRoomLink(parsed.normalizedUrl);
     setActiveView("classroom");
+
+    const localP = participants.find((p) => p.isLocal) || fallbackUser;
+    webRtcMeshService.joinRoom(roomSlug, localP, localStream || undefined);
+
     return parsed;
   };
 

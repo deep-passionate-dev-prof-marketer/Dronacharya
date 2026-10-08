@@ -39,7 +39,7 @@ import { ChildFeedbackModal } from "./ChildFeedbackModal";
 import { AuditorCockpitView } from "./AuditorCockpitView";
 import { EdgeMeshLatencyHUD } from "./EdgeMeshLatencyHUD";
 import { OneToOnePitchStage } from "../bomber/OneToOnePitchStage";
-import { ProductionMeetingEmbed } from "./ProductionMeetingEmbed";
+import { ParticipantVideoTile } from "./ParticipantVideoTile";
 import { BottomMeetingControls } from "./BottomMeetingControls";
 import { Participant } from "../../types";
 
@@ -59,6 +59,7 @@ export const VideoStage: React.FC = () => {
     remotePointer,
     setRemotePointer,
     attentionAudits,
+    roomId,
     roomTitle,
     roomLink,
     layoutMode,
@@ -93,6 +94,15 @@ export const VideoStage: React.FC = () => {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const handleCopyStudentLink = () => {
+    const studentUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/?room=${roomId}&role=student`
+      : roomLink;
+    navigator.clipboard.writeText(studentUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
   // Remote annotation / screen pointer click
   const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (currentRole === "instructor" || isScreenSharing) {
@@ -118,15 +128,6 @@ export const VideoStage: React.FC = () => {
     );
   }
 
-  // Real Production Meeting Bridge & Stream Stage (Google Meet, Zoom, Teams, Jitsi, WebRTC SFU)
-  if (activeProductionMeeting) {
-    return (
-      <ProductionMeetingEmbed
-        meeting={activeProductionMeeting}
-        onExit={leaveProductionMeeting}
-      />
-    );
-  }
 
   if (currentRole === "auditor") {
     return (
@@ -249,40 +250,17 @@ export const VideoStage: React.FC = () => {
           /* Spotlight Hero Mode */
           <div className="w-full h-full flex flex-col gap-3">
             {/* Primary Hero Stage */}
-            <div className="flex-1 rounded-2xl bg-slate-900 border border-white/10 relative overflow-hidden flex items-center justify-center shadow-lg">
-              {pinnedParticipant.isLocal && !isVideoOff && localStream ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover -scale-x-100"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center">
-                  <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mb-3 shadow-lg"
-                    style={{ backgroundColor: pinnedParticipant.avatarColor }}
-                  >
-                    {pinnedParticipant.name.charAt(0)}
-                  </div>
-                  <h4 className="text-sm font-bold text-white">{pinnedParticipant.name}</h4>
-                  <span className="text-[11px] text-slate-400 capitalize">{pinnedParticipant.role}</span>
-                </div>
-              )}
-
-              {/* Spotlight info badge */}
-              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur border border-white/10 flex items-center gap-2 text-xs font-semibold text-white">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>{pinnedParticipant.name}</span>
-                <button
-                  onClick={() => setPinnedParticipantId(null)}
-                  className="ml-2 text-slate-400 hover:text-white"
-                  title="Unpin Spotlight"
-                >
-                  <PinOff className="w-3 h-3" />
-                </button>
-              </div>
+            <div className="flex-1 rounded-2xl overflow-hidden shadow-xl">
+              <ParticipantVideoTile
+                participant={pinnedParticipant}
+                isLocal={!!pinnedParticipant.isLocal}
+                localStream={localStream}
+                isAudioMuted={isAudioMuted}
+                isVideoOff={isVideoOff}
+                isPinned={true}
+                onPinToggle={() => setPinnedParticipantId(null)}
+                aspectClass="w-full h-full"
+              />
             </div>
 
             {/* Thumbnail row */}
@@ -322,149 +300,78 @@ export const VideoStage: React.FC = () => {
                   Ready for Classroom Participants
                 </h3>
                 <p className="text-xs text-slate-400 max-w-sm mb-4">
-                  Share the live meeting link below to invite learners, teachers, or colleagues.
+                  Share the student invite link below to connect real-time peers with audio and video.
                 </p>
                 <button
-                  onClick={handleCopyLink}
+                  onClick={handleCopyStudentLink}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors"
                 >
                   {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  <span>{copiedLink ? "Meeting Link Copied!" : "Copy Live Link"}</span>
+                  <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
                 </button>
               </div>
             ) : displayParticipants.length === 1 && displayParticipants[0].isLocal ? (
-              /* Single User (You are the only one in room) -> Beautiful Hero + Invite Card */
-              <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 items-center max-w-4xl mx-auto my-auto">
+              /* Single User (You are the only one in room) -> Hero + Fast Student Invite Card */
+              <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 items-center max-w-4xl mx-auto my-auto p-2">
                 {/* Local User Tile */}
-                <div className={`relative rounded-3xl bg-slate-900 border border-white/10 overflow-hidden flex flex-col items-center justify-center shadow-xl ${getAspectClass()}`}>
-                  {!isVideoOff && localStream ? (
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover -scale-x-100"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-6 text-center">
-                      <div
-                        className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mb-3 shadow-lg"
-                        style={{ backgroundColor: displayParticipants[0].avatarColor }}
-                      >
-                        {displayParticipants[0].name.charAt(0)}
-                      </div>
-                      <h4 className="text-sm font-bold text-white">{displayParticipants[0].name}</h4>
-                      <span className="text-[11px] text-slate-400 capitalize">{displayParticipants[0].role}</span>
-                    </div>
-                  )}
-
-                  {/* Tile Bottom Badge */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur border border-white/10 text-white">
-                    <span className="font-semibold truncate max-w-[140px]">{displayParticipants[0].name} (You)</span>
-                    <div className="flex items-center gap-1.5">
-                      {isAudioMuted ? <MicOff className="w-3.5 h-3.5 text-rose-400" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
-                      {isVideoOff ? <VideoOff className="w-3.5 h-3.5 text-rose-400" /> : <VideoIcon className="w-3.5 h-3.5 text-blue-400" />}
-                    </div>
-                  </div>
+                <div className="w-full h-full max-h-[380px]">
+                  <ParticipantVideoTile
+                    participant={displayParticipants[0]}
+                    isLocal={true}
+                    localStream={localStream}
+                    isAudioMuted={isAudioMuted}
+                    isVideoOff={isVideoOff}
+                    isPinned={false}
+                    onPinToggle={() => {}}
+                    aspectClass={getAspectClass()}
+                  />
                 </div>
 
                 {/* Invite & Classroom Status Card */}
-                <div className="rounded-3xl bg-slate-900/80 border border-white/10 p-6 flex flex-col justify-between shadow-xl min-h-[220px]">
+                <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-6 flex flex-col justify-between shadow-2xl min-h-[260px] backdrop-blur-xl">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Classroom Live</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
+                        Classroom Active · Room {roomId}
+                      </span>
                     </div>
-                    <h3 className="text-base font-bold text-white mb-1.5">{roomTitle}</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-white mb-2">{roomTitle}</h3>
                     <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                      You are in the classroom. Share this instant link with students or colleagues to join this session with real-time speech and interactive tools.
+                      You are live in the classroom with in-house WebRTC. Click below to copy the direct Student joining link to test or start the lesson with your scholar!
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-white/10">
-                      <input
-                        type="text"
-                        readOnly
-                        value={roomLink}
-                        className="bg-transparent text-xs text-slate-300 font-mono truncate flex-1 focus:outline-none"
-                      />
-                      <button
-                        onClick={handleCopyLink}
-                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shrink-0 flex items-center gap-1"
-                      >
-                        {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedLink ? "Copied" : "Copy"}</span>
-                      </button>
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleCopyStudentLink}
+                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-xs transition-all shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedLink ? "Student Invite Link Copied!" : "🔗 Copy Student Invite Link"}</span>
+                    </button>
+                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-white/10 text-[11px] text-slate-400 font-mono truncate">
+                      <span className="truncate flex-1">{typeof window !== "undefined" ? `${window.location.origin}/?room=${roomId}&role=student` : roomLink}</span>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              /* Multi-Participant Adaptive Grid */
+              /* Multi-Participant Adaptive Grid (Real WebRTC Peers) */
               <div className={`w-full grid ${getGridClasses()} gap-3 auto-rows-fr overflow-y-auto p-1 max-h-full`}>
-                {displayParticipants.map((p) => {
-                  const isLocalUser = p.isLocal;
-                  const hasVideo = isLocalUser ? !isVideoOff : p.videoEnabled;
-                  const isAudioActive = isLocalUser ? !isAudioMuted : p.audioEnabled;
-
-                  return (
-                    <div
-                      key={p.id}
-                      className={`relative rounded-2xl bg-slate-900 border overflow-hidden flex flex-col items-center justify-center group transition-all duration-200 ${getAspectClass()} ${
-                        pinnedParticipantId === p.id
-                          ? "border-blue-500 ring-2 ring-blue-500/40"
-                          : "border-white/10 hover:border-white/20"
-                      }`}
-                    >
-                      {/* Video element for local user */}
-                      {isLocalUser && hasVideo && localStream ? (
-                        <video
-                          ref={localVideoRef}
-                          autoPlay
-                          muted
-                          playsInline
-                          className="w-full h-full object-cover -scale-x-100"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-900 to-slate-950">
-                          <div
-                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold text-white mb-2 shadow-md"
-                            style={{ backgroundColor: p.avatarColor }}
-                          >
-                            {p.name.charAt(0)}
-                          </div>
-                          <span className="text-xs font-bold text-white text-center truncate max-w-[140px]">
-                            {p.name}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Pin button */}
-                      <button
-                        onClick={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
-                        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-black/60 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title={pinnedParticipantId === p.id ? "Unpin participant" : "Pin participant"}
-                      >
-                        {pinnedParticipantId === p.id ? <PinOff className="w-3.5 h-3.5 text-blue-400" /> : <Pin className="w-3.5 h-3.5" />}
-                      </button>
-
-                      {/* Participant Footer Tile */}
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-xs px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur border border-white/10 text-white">
-                        <span className="truncate max-w-[120px] text-[11px] font-semibold">
-                          {p.name} {isLocalUser ? "(You)" : ""}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {isAudioActive ? <Volume2 className="w-3 h-3 text-emerald-400" /> : <MicOff className="w-3 h-3 text-rose-400" />}
-                          {hasVideo ? <VideoIcon className="w-3 h-3 text-blue-400" /> : <VideoOff className="w-3 h-3 text-rose-400" />}
-                        </div>
-                      </div>
-
-                      {/* Tile Actions Overlay */}
-                      <ParticipantTileActions participant={p} />
-                    </div>
-                  );
-                })}
+                {displayParticipants.map((p) => (
+                  <ParticipantVideoTile
+                    key={p.id}
+                    participant={p}
+                    isLocal={!!p.isLocal}
+                    localStream={localStream}
+                    isAudioMuted={isAudioMuted}
+                    isVideoOff={isVideoOff}
+                    isPinned={pinnedParticipantId === p.id}
+                    onPinToggle={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
+                    aspectClass={getAspectClass()}
+                  />
+                ))}
               </div>
             )}
           </div>

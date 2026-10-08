@@ -2,17 +2,14 @@ import React, { useState } from "react";
 import {
   Video,
   X,
-  ExternalLink,
   ShieldCheck,
-  Globe,
   Radio,
   Sparkles,
   Check,
-  Laptop,
+  Copy,
   ArrowRight,
   Link2,
 } from "lucide-react";
-import { parseProductionMeetingLink, getAppOrigin } from "../../services/domainService";
 import { useClassroom } from "../../context/ClassroomContext";
 
 interface Props {
@@ -21,33 +18,38 @@ interface Props {
 }
 
 export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { joinProductionMeetingUrl } = useClassroom();
-  const [meetingInput, setMeetingInput] = useState("");
+  const { joinProductionMeetingUrl, roomId, roomLink } = useClassroom();
+  const [roomInput, setRoomInput] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
 
   if (!isOpen) return null;
 
-  const currentOrigin = getAppOrigin();
-  const parsedPreview = meetingInput.trim() ? parseProductionMeetingLink(meetingInput) : null;
-
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!meetingInput.trim()) {
-      setErrorMsg("Please enter or paste a valid production meeting link or room code.");
+    if (!roomInput.trim()) {
+      setErrorMsg("Please enter a classroom room code or title.");
       return;
     }
 
     try {
-      joinProductionMeetingUrl(meetingInput.trim());
+      joinProductionMeetingUrl(roomInput.trim());
       onClose();
     } catch (err: any) {
-      setErrorMsg(err?.message || "Failed to parse meeting link.");
+      setErrorMsg(err?.message || "Failed to switch classroom.");
     }
   };
 
-  const handleApplyPreset = (presetUrl: string) => {
-    setMeetingInput(presetUrl);
+  const handleApplyPreset = (code: string) => {
+    setRoomInput(code);
     setErrorMsg("");
+  };
+
+  const handleCopyCurrentLink = () => {
+    const studentUrl = typeof window !== "undefined" ? `${window.location.origin}/?room=${roomId}&role=student` : roomLink;
+    navigator.clipboard.writeText(studentUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
   };
 
   return (
@@ -56,13 +58,13 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-sm">
-              <Video className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-cyan-400 shadow-sm">
+              <Radio className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Join Production Meeting</h2>
+              <h2 className="text-base font-bold text-white">Classroom WebRTC Room Switcher</h2>
               <p className="text-xs text-slate-400">
-                Auto-resolves dynamically · Zero fixed domains
+                Active in-house peer mesh · Zero external dependencies
               </p>
             </div>
           </div>
@@ -76,146 +78,130 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Modal Body */}
         <form onSubmit={handleJoin} className="p-5 space-y-4 overflow-y-auto">
+          {/* Active Room & Quick Share Box */}
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between gap-3">
+            <div className="truncate">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 font-mono tracking-wider">
+                Current Active Room
+              </span>
+              <p className="text-xs font-mono font-semibold text-white truncate">
+                {roomId}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyCurrentLink}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? "Copied!" : "Copy Student Link"}</span>
+            </button>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-              Paste Real Production Meeting Link or Room Code:
+              Enter Room Code to Switch or Join:
             </label>
             <div className="relative">
               <input
                 type="text"
                 autoFocus
-                placeholder="e.g. meet.google.com/abc-defg-hij, Zoom, Jitsi, or room slug"
-                value={meetingInput}
+                placeholder="e.g. physics-honors-10a, chemistry-lab, or custom code"
+                value={roomInput}
                 onChange={(e) => {
-                  setMeetingInput(e.target.value);
+                  setRoomInput(e.target.value);
                   setErrorMsg("");
                 }}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-sm text-cyan-300 placeholder-slate-500 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono transition-all"
               />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                <Link2 className="w-4 h-4" />
+              </div>
             </div>
             {errorMsg && <p className="text-xs text-rose-400 mt-1 font-medium">{errorMsg}</p>}
           </div>
 
-          {/* Real-time Dynamic Link Inspection Card */}
-          {parsedPreview && (
-            <div className="p-3.5 rounded-xl bg-slate-950/90 border border-blue-500/30 space-y-2 animate-fadeIn text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-300 uppercase text-[10px] tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Detected Meeting Provider</span>
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase">
-                  {parsedPreview.provider}
-                </span>
-              </div>
-
-              <div className="text-slate-200 font-medium">
-                <span className="text-slate-400">Display Title: </span>
-                <span className="text-white font-semibold">{parsedPreview.displayTitle}</span>
-              </div>
-
-              <div className="text-[11px] font-mono text-cyan-300 truncate">
-                <span className="text-slate-400 font-sans">Resolved Target: </span>
-                {parsedPreview.normalizedUrl}
-              </div>
-
-              <div className="flex items-center gap-2 pt-1 border-t border-white/5 text-[11px] text-slate-400">
-                <span className="text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Real-time Speech AI Active
-                </span>
-                <span>•</span>
-                <span className="text-slate-300">
-                  {parsedPreview.canEmbed ? "Direct In-App Stream" : "Companion Sync Mode"}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Real Production Link Presets for Testing */}
+          {/* Quick Classroom Room Code Presets */}
           <div>
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Or Try A Real Link Format Preset:
+              Select A Standard 21K Classroom Mesh:
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
-                onClick={() => handleApplyPreset("https://meet.jit.si/21k-quantum-lab-physics")}
+                onClick={() => handleApplyPreset("gr10-physics-honors")}
                 className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all group cursor-pointer"
               >
-                <div className="flex items-center gap-1.5 font-bold text-sky-400 group-hover:text-sky-300">
-                  <Radio className="w-3.5 h-3.5" />
-                  <span>Jitsi WebRTC Mesh</span>
+                <div className="font-bold text-cyan-400 group-hover:text-cyan-300">
+                  Grade 10 · Physics Lab
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                  meet.jit.si/21k-quantum-lab-physics
+                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                  gr10-physics-honors
                 </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleApplyPreset("https://meet.google.com/dronacharya-live-gr10")}
+                onClick={() => handleApplyPreset("gr11-ap-compsci")}
                 className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all group cursor-pointer"
               >
-                <div className="flex items-center gap-1.5 font-bold text-emerald-400 group-hover:text-emerald-300">
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>Google Meet</span>
+                <div className="font-bold text-blue-400 group-hover:text-blue-300">
+                  Grade 11 · AP CompSci
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                  meet.google.com/dronacharya-live-gr10
+                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                  gr11-ap-compsci
                 </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleApplyPreset("https://zoom.us/j/9820123456")}
+                onClick={() => handleApplyPreset("gr9-applied-math")}
                 className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all group cursor-pointer"
               >
-                <div className="flex items-center gap-1.5 font-bold text-blue-400 group-hover:text-blue-300">
-                  <Video className="w-3.5 h-3.5" />
-                  <span>Zoom Meeting</span>
+                <div className="font-bold text-amber-400 group-hover:text-amber-300">
+                  Grade 9 · Applied Math
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                  zoom.us/j/9820123456
+                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                  gr9-applied-math
                 </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleApplyPreset("in-21kos-gr10-bc-phy-vance")}
+                onClick={() => handleApplyPreset("sales-breakout-101")}
                 className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all group cursor-pointer"
               >
-                <div className="flex items-center gap-1.5 font-bold text-amber-400 group-hover:text-amber-300">
-                  <Laptop className="w-3.5 h-3.5" />
-                  <span>Classroom Slug</span>
+                <div className="font-bold text-purple-400 group-hover:text-purple-300">
+                  1:1 Admissions Breakout
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                  in-21kos-gr10-bc-phy-vance
+                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                  sales-breakout-101
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Active Runtime Domain Notice */}
-          <div className="px-3 py-2 rounded-xl bg-slate-950 border border-white/5 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Dynamic App Domain:</span>
-            <span className="font-mono text-slate-200 font-bold">{currentOrigin}</span>
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-300">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>Encrypted WebRTC P2P Mesh · Real-time bidirectional video and audio enabled.</span>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-2">
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.02]"
+              disabled={!roomInput.trim()}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-600/30 transition-all cursor-pointer disabled:opacity-40"
             >
-              <span>Connect & Launch Call</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Connect Room (WebRTC)</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </form>
