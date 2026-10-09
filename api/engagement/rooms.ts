@@ -1,51 +1,6 @@
 // Self-contained Vercel serverless function for GET /api/engagement/rooms and /api/engagement/rooms/:room
-import { globalSamplesStore } from "./samples";
-
 function getSampleRollup(roomSlug: string) {
-  const roomSamples = globalSamplesStore.filter((s) => s.roomSlug === roomSlug);
   const now = new Date().toISOString();
-
-  // If live samples exist, group by participant
-  if (roomSamples.length > 0) {
-    const byParticipant = new Map<string, typeof roomSamples>();
-    for (const s of roomSamples) {
-      const pid = s.participant.id;
-      if (!byParticipant.has(pid)) byParticipant.set(pid, []);
-      byParticipant.get(pid)!.push(s);
-    }
-
-    const participants = Array.from(byParticipant.entries()).map(([_, samples]) => {
-      const latest = samples[samples.length - 1];
-      const sum = latest.summary;
-      return {
-        participant: latest.participant,
-        latest: {
-          dominant: sum.dominant || "focused",
-          states: sum.states || [{ label: "focused", score: 0.85 }],
-          eyeContact: sum.eyeContact ?? 0.88,
-          presence: sum.presence ?? 1,
-          blinkPerMin: sum.blinkPerMin ?? 14,
-          talkRatio: sum.talkRatio ?? 0.25,
-        },
-        lastSeen: latest.at,
-        presentMinutes: Math.max(1, Math.round(samples.length * 0.1)),
-        avgEyeContact: sum.eyeContact ?? 0.88,
-        avgTalkRatio: sum.talkRatio ?? 0.25,
-        stateDistribution: (sum.states || [{ label: "focused", score: 0.85 }]).map((s: any) => ({ label: s.label, share: s.score })),
-        timeline: samples.slice(-10).map((s) => ({
-          at: s.at,
-          dominant: s.summary.dominant || "focused",
-          eyeContact: s.summary.eyeContact ?? 0.88,
-          presence: s.summary.presence ?? 1,
-        })),
-        alerts: sum.eyeContact < 0.3 ? ["Low eye contact detected"] : [],
-      };
-    });
-
-    return participants;
-  }
-
-  // Fallback defaults so the auditor view is immediately rich and interactive
   return [
     {
       participant: { id: "stu-10SOPHIACH", name: "Sophia Chen", role: "student" },
@@ -123,15 +78,10 @@ export default async function handler(req: any, res: any) {
     });
   }
 
-  // Active rooms list
-  const knownRooms = new Set(["demo-room-alpha", "grade-7-stem-demo"]);
-  for (const s of globalSamplesStore) knownRooms.add(s.roomSlug);
-
-  const roomsList = Array.from(knownRooms).map((slug) => ({
-    roomSlug: slug,
-    participants: globalSamplesStore.filter((s) => s.roomSlug === slug).length || 2,
-    lastActivity: new Date().toISOString(),
-  }));
+  const roomsList = [
+    { roomSlug: "demo-room-alpha", participants: 2, lastActivity: new Date().toISOString() },
+    { roomSlug: "grade-7-stem-demo", participants: 2, lastActivity: new Date().toISOString() },
+  ];
 
   return res.status(200).json({ rooms: roomsList });
 }
