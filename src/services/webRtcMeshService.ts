@@ -37,6 +37,15 @@ const RTC_CONFIG: RTCConfiguration = {
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
+    {
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:443?transport=tcp",
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
   iceCandidatePoolSize: 10,
 };
@@ -48,6 +57,8 @@ class WebRtcMeshService {
 
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
   private remotePeers: Map<string, RemotePeerInfo> = new Map();
+  private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map();
+  private isMakingOffer: Map<string, boolean> = new Map();
 
   private broadcastChannel: BroadcastChannel | null = null;
   private wsRelayUnbind: (() => void) | null = null;
@@ -92,19 +103,42 @@ class WebRtcMeshService {
     return this.localStream;
   }
 
-  public setLocalStream(stream: MediaStream) {
+  public async setLocalStream(stream: MediaStream): Promise<void> {
     this.localStream = stream;
-    // Replace tracks on all active peer connections
-    for (const [, pc] of this.peerConnections) {
+    this.startLocalAudioAnalysis(stream);
+
+    // Replace or add tracks on all active peer connections
+    for (const [remoteId, pc] of this.peerConnections) {
+      let renegotiationNeeded = false;
       const senders = pc.getSenders();
-      stream.getTracks().forEach((newTrack) => {
-        const sender = senders.find((s) => s.track && s.track.kind === newTrack.kind);
+
+      for (const newTrack of stream.getTracks()) {
+        const sender = senders.find((s) => {
+          if (s.track && s.track.kind === newTrack.kind) return true;
+          const transceiver = pc.getTransceivers().find((t) => t.sender === s);
+          return transceiver?.receiver?.track?.kind === newTrack.kind;
+        });
+
         if (sender) {
-          sender.replaceTrack(newTrack).catch(console.warn);
+          try {
+            await sender.replaceTrack(newTrack);
+            const transceiver = pc.getTransceivers().find((t) => t.sender === sender);
+            if (transceiver && transceiver.direction !== "sendrecv") {
+              transceiver.direction = "sendrecv";
+              renegotiationNeeded = true;
+            }
+          } catch (e) {
+            console.warn("[WebRTC] Error replacing track:", e);
+          }
         } else {
           pc.addTrack(newTrack, stream);
+          renegotiationNeeded = true;
         }
-      });
+      }
+
+      if (renegotiationNeeded && pc.signalingState === "stable") {
+        await this.negotiate(remoteId, pc);
+      }
     }
   }
 
@@ -358,7 +392,23 @@ class WebRtcMeshService {
           signal.senderAvatarColor || "#0082FF",
           false
         );
+
+        // Perfect Negotiation: polite peer yields if glare collision occurs
+        const isPolite = this.localUser ? this.localUser.id > remoteId : false;
+        const offerCollision = this.isMakingOffer.get(remoteId) || pc.signalingState !== "stable";
+        if (offerCollision) {
+          if (!isPolite) {
+            console.log(`[WebRTC] Glare collision: impolite peer ignoring offer from ${remoteId}`);
+            return;
+          }
+          try {
+            await pc.setLocalDescription({ type: "rollback" });
+          } catch {}
+        }
+
         await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        await this.drainPendingCandidates(remoteId, pc);
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
@@ -377,20 +427,26 @@ class WebRtcMeshService {
       case "answer": {
         if (!signal.sdp) return;
         const pc = this.peerConnections.get(remoteId);
-        if (pc) {
+        if (pc && pc.signalingState === "have-local-offer") {
           await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+          await this.drainPendingCandidates(remoteId, pc);
         }
         break;
       }
       case "ice-candidate": {
         if (!signal.candidate) return;
         const pc = this.peerConnections.get(remoteId);
-        if (pc) {
+        if (pc && pc.remoteDescription && pc.remoteDescription.type) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
           } catch (e) {
             console.warn("[WebRTC] Could not add ICE candidate:", e);
           }
+        } else {
+          if (!this.pendingCandidates.has(remoteId)) {
+            this.pendingCandidates.set(remoteId, []);
+          }
+          this.pendingCandidates.get(remoteId)!.push(signal.candidate);
         }
         break;
       }
@@ -464,6 +520,47 @@ class WebRtcMeshService {
     }
   }
 
+  private async drainPendingCandidates(remoteId: string, pc: RTCPeerConnection): Promise<void> {
+    const list = this.pendingCandidates.get(remoteId);
+    if (!list || list.length === 0) return;
+    this.pendingCandidates.delete(remoteId);
+    for (const cand of list) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (err) {
+        console.warn("[WebRTC] Error draining pending ICE candidate:", err);
+      }
+    }
+  }
+
+  private async negotiate(remoteId: string, pc: RTCPeerConnection): Promise<void> {
+    if (!this.localUser || pc.signalingState !== "stable") return;
+    try {
+      this.isMakingOffer.set(remoteId, true);
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      if (pc.signalingState !== "stable") return;
+      await pc.setLocalDescription(offer);
+
+      this.broadcastSignal({
+        type: "offer",
+        senderId: this.localUser.id,
+        senderName: this.localUser.name,
+        senderRole: this.localUser.role,
+        targetId: remoteId,
+        roomId: this.currentRoomId,
+        sdp: offer,
+        timestamp: Date.now(),
+      });
+    } catch (err) {
+      console.warn("[WebRTC] Error during negotiation offer:", err);
+    } finally {
+      this.isMakingOffer.set(remoteId, false);
+    }
+  }
+
   private async createPeerConnection(
     remoteId: string,
     remoteName: string,
@@ -493,23 +590,34 @@ class WebRtcMeshService {
     const pc = new RTCPeerConnection(RTC_CONFIG);
     this.peerConnections.set(remoteId, pc);
 
-    // Add unified plan transceivers to guarantee audio/video negotiation even before tracks attach
-    try {
-      pc.addTransceiver("audio", { direction: "sendrecv" });
-      pc.addTransceiver("video", { direction: "sendrecv" });
-    } catch {}
-
-    // Add local tracks to peer connection
+    // 1. Add local tracks to peer connection if localStream is already available
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => {
         pc.addTrack(track, this.localStream!);
       });
     }
 
-    // Handle remote tracks
+    // 2. Add sendrecv transceivers for audio/video if not already present
+    const senders = pc.getSenders();
+    const hasAudio = senders.some((s) => s.track?.kind === "audio");
+    const hasVideo = senders.some((s) => s.track?.kind === "video");
+    if (!hasAudio) {
+      try { pc.addTransceiver("audio", { direction: "sendrecv" }); } catch {}
+    }
+    if (!hasVideo) {
+      try { pc.addTransceiver("video", { direction: "sendrecv" }); } catch {}
+    }
+
+    // 3. Handle remote tracks (accumulate tracks into single media stream)
     pc.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      const stream = remoteStream || new MediaStream([event.track]);
+      console.log(`[WebRTC] Received remote ${event.track.kind} track from ${remoteId}`);
+      let stream = this.remotePeers.get(remoteId)?.stream;
+      if (!stream) {
+        stream = event.streams[0] || new MediaStream();
+      }
+      if (!stream.getTracks().some((t) => t.id === event.track.id)) {
+        stream.addTrack(event.track);
+      }
 
       const existing = this.remotePeers.get(remoteId);
       const peerInfo: RemotePeerInfo = {
@@ -525,9 +633,18 @@ class WebRtcMeshService {
 
       this.remotePeers.set(remoteId, peerInfo);
       this.notifyPeerStream(peerInfo);
+      this.notifyStateChanged();
+
+      event.track.onunmute = () => {
+        this.notifyPeerStream(peerInfo);
+        this.notifyStateChanged();
+      };
+      event.track.onended = () => {
+        this.notifyStateChanged();
+      };
     };
 
-    // Handle ICE candidates
+    // 4. Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate && this.localUser) {
         this.broadcastSignal({
@@ -543,6 +660,11 @@ class WebRtcMeshService {
       }
     };
 
+    // 5. Automatic renegotiation listener
+    pc.onnegotiationneeded = async () => {
+      await this.negotiate(remoteId, pc);
+    };
+
     const dropPeer = () => {
       this.disconnectTimers.delete(remoteId);
       if (this.peerConnections.get(remoteId) !== pc) return;
@@ -551,13 +673,13 @@ class WebRtcMeshService {
       this.peerConnections.delete(remoteId);
       this.notifyPeerLeft(remoteId);
     };
+
     pc.onconnectionstatechange = () => {
       const pending = this.disconnectTimers.get(remoteId);
       if (pc.connectionState === "connected" && pending) {
         clearTimeout(pending);
         this.disconnectTimers.delete(remoteId);
       } else if (pc.connectionState === "disconnected") {
-        // "disconnected" is often a brief network blip; give ICE 10s to recover before dropping the peer
         if (!pending) this.disconnectTimers.set(remoteId, setTimeout(dropPeer, 10000));
         try {
           pc.restartIce();
@@ -568,28 +690,9 @@ class WebRtcMeshService {
       }
     };
 
-    // If initiator, generate offer
+    // 6. If initiator, generate offer
     if (isInitiator && this.localUser) {
-      try {
-        const offer = await pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-        });
-        await pc.setLocalDescription(offer);
-
-        this.broadcastSignal({
-          type: "offer",
-          senderId: this.localUser.id,
-          senderName: this.localUser.name,
-          senderRole: this.localUser.role,
-          targetId: remoteId,
-          roomId: this.currentRoomId,
-          sdp: offer,
-          timestamp: Date.now(),
-        });
-      } catch (err) {
-        console.error("[WebRTC] Error creating offer:", err);
-      }
+      await this.negotiate(remoteId, pc);
     }
 
     return pc;

@@ -32,7 +32,8 @@ export const ParticipantVideoTile: React.FC<Props> = ({
   const activeStream = isLocal ? localStream : participant.stream;
   const showVideo = isLocal ? !isVideoOff : participant.videoEnabled;
   const isMicMuted = isLocal ? isAudioMuted : !participant.audioEnabled;
-  const hasMedia = Boolean(participant.attachVideo || activeStream);
+  const hasVideoTrack = activeStream ? activeStream.getVideoTracks().length > 0 : false;
+  const hasMedia = Boolean(participant.attachVideo || (activeStream && (hasVideoTrack || isLocal)));
   const speaking = participant.isSpeaking || (!isMicMuted && participant.audioLevel > 20);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export const ParticipantVideoTile: React.FC<Props> = ({
     if (participant.attachVideo) return participant.attachVideo(el);
     if (activeStream && el.srcObject !== activeStream) el.srcObject = activeStream;
     el.play().catch(() => {});
-  }, [participant.attachVideo, activeStream, showVideo]);
+  }, [participant.attachVideo, activeStream, showVideo, hasMedia]);
 
   return (
     <div
@@ -64,6 +65,9 @@ export const ParticipantVideoTile: React.FC<Props> = ({
           muted
           disablePictureInPicture
           controlsList="nodownload noplaybackrate noremoteplayback"
+          onLoadedMetadata={(e) => {
+            (e.target as HTMLVideoElement).play().catch(() => {});
+          }}
           className={`w-full h-full object-cover ${isLocal ? "-scale-x-100" : ""}`}
         />
       ) : (
