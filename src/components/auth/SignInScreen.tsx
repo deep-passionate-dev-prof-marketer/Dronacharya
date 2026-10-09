@@ -99,7 +99,7 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
       .then((p) => {
         setProviders(p);
         if (p.dev) {
-          fetch("/api/auth/dev/accounts")
+          fetch("/api/auth/dev-accounts")
             .then((r) => r.json())
             .then((b) => {
               if (b?.accounts && Array.isArray(b.accounts) && b.accounts.length > 0) {
@@ -130,7 +130,7 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
     setBusy("email");
     setMessage(null);
     try {
-      const r = await post("/api/auth/otp/start", { email });
+      const r = await post("/api/auth/otp-start", { email }).catch(() => post("/api/auth/otp/start", { email }));
       setMessage(r.message || "Sign-in code dispatched! For quick testing, enter: 123456");
       setStep("code");
     } catch {
@@ -147,7 +147,7 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
     setBusy("code");
     setMessage(null);
     try {
-      const r = await post("/api/auth/otp/verify", { email, code });
+      const r = await post("/api/auth/otp-verify", { email, code }).catch(() => post("/api/auth/otp/verify", { email, code }));
       if (r?.user) {
         onSignedIn(r.user);
         return;
@@ -176,7 +176,7 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
   const devSignIn = async (id: string) => {
     setBusy(id);
     try {
-      const r = await post("/api/auth/dev/login", { userId: id });
+      const r = await post("/api/auth/dev-login", { userId: id }).catch(() => post("/api/auth/dev/login", { userId: id }));
       if (r?.user) {
         onSignedIn(r.user);
         return;
