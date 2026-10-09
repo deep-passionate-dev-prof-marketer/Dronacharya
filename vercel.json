@@ -25,6 +25,26 @@
       "destination": "/api/realtime/$1"
     },
     {
+      "source": "/api/auth/otp/start",
+      "destination": "/api/auth/otp-start"
+    },
+    {
+      "source": "/api/auth/otp/verify",
+      "destination": "/api/auth/otp-verify"
+    },
+    {
+      "source": "/api/auth/dev/accounts",
+      "destination": "/api/auth/dev-accounts"
+    },
+    {
+      "source": "/api/auth/dev/login",
+      "destination": "/api/auth/dev-login"
+    },
+    {
+      "source": "/api/auth/providers",
+      "destination": "/api/auth/providers"
+    },
+    {
       "source": "/api/auth/(.*)",
       "destination": "/api/auth/$1"
     },
