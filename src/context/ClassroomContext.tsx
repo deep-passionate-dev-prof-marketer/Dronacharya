@@ -68,6 +68,16 @@ import { captureDeviceSnapshot } from "../services/deviceAccessClient";
 import { whiteboardStore } from "../services/whiteboard/whiteboardStore";
 import { engagementRunner } from "../services/engagement/engagementRunner";
 
+export interface PollState {
+  id: string;
+  roomSlug: string;
+  question: string;
+  options: string[];
+  counts: number[];
+  total: number;
+  closed: boolean;
+}
+
 export type ClassroomView =
   | "classroom"
   | "social"
@@ -385,6 +395,8 @@ export interface ClassroomContextType {
   authenticatedUser: AuthUser | null;
   loginUser: (user: AuthUser, customRoomId?: string) => void;
   logoutUser: () => void;
+  authLoading: boolean;
+  authError: string | null;
 
   // Classroom media transport
   transportState: TransportState;
@@ -399,6 +411,16 @@ export interface ClassroomContextType {
   isInterpreterOn: boolean;
   toggleInterpreter: () => void;
   /** Engagement analytics consent: unknown until the user (or guardian) decides */
+  /** Teacher controls */
+  spotlightId: string | null;
+  setSpotlight: (participantId: string | null) => void;
+  activePoll: PollState | null;
+  myPollVote: number | null;
+  hostAction: (action: "admit" | "deny" | "mute" | "stop_video" | "remove", identities: string[]) => Promise<string | null>;
+  startPoll: (question: string, options: string[]) => Promise<string | null>;
+  voteLivePoll: (optionIndex: number) => Promise<string | null>;
+  closePoll: () => Promise<void>;
+  dismissPoll: () => void;
   analyticsConsent: "unknown" | "granted" | "declined" | "not_applicable";
   isAnalyticsConsentOpen: boolean;
   setIsAnalyticsConsentOpen: (open: boolean) => void;
@@ -759,67 +781,17 @@ const INITIAL_EXECUTION_LOGS: ExecutionLog[] = [
 
 export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Dedicated Multi-Role Auth Session (Tab-isolated with persistent fallback)
-  const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        const urlRole = params.get("role")?.toLowerCase();
+  // Signed-in user comes from the server session (HttpOnly cookie). Nothing about identity is read
+  // from localStorage or the URL any more, so a role can't be faked from the browser.
+  const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-        // If the URL explicitly requests student role or student ID, require Dedicated Student Login
-        if (urlRole === "student" || params.get("sid")) {
-          const tabSaved = sessionStorage.getItem("21k_dronacharya_auth");
-          if (tabSaved) {
-            const parsed = JSON.parse(tabSaved);
-            if (parsed.role === "student") return parsed;
-          }
-          return null;
-        } else if (urlRole === "instructor" || urlRole === "teacher") {
-          return {
-            id: "tch-vance",
-            name: "Dr. Evelyn Vance",
-            email: "e.vance@21k.school",
-            role: "instructor",
-            avatarColor: "#003872",
-            department: "Physics & STEM",
-          };
-        }
-
-        // Normal load (no ?role= in URL): check tab sessionStorage first, then fallback to localStorage
-        const tabSaved = sessionStorage.getItem("21k_dronacharya_auth");
-        if (tabSaved) return JSON.parse(tabSaved);
-
-        const localSaved = localStorage.getItem("21k_dronacharya_auth");
-        if (localSaved) return JSON.parse(localSaved);
-
-        // Default to certified Lead Teacher session so user never lands on a blocked screen
-        return {
-          id: "tch-vance",
-          name: "Dr. Evelyn Vance",
-          email: "e.vance@21k.school",
-          role: "instructor",
-          avatarColor: "#003872",
-          department: "Physics & STEM",
-        };
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const urlRole = params.get("role")?.toLowerCase();
-      if (urlRole === "student" || params.get("sid")) {
-        return "student";
-      }
-      if (urlRole === "instructor" || urlRole === "auditor" || urlRole === "sales_rep") {
-        return urlRole as UserRole;
-      }
-    }
-    return authenticatedUser?.role || "instructor";
-  });
+  // The active role is always the signed-in user's role
+  const [currentRole, setCurrentRole] = useState<UserRole>("student");
+  useEffect(() => {
+    if (authenticatedUser) setCurrentRole(authenticatedUser.role);
+  }, [authenticatedUser?.role]);
 
   const [activeView, setActiveView] = useState<ClassroomView>(() => {
     if (typeof window === "undefined") return "classroom";
@@ -877,17 +849,38 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => clearInterval(interval);
   }, [classStatus]);
 
-  // Synchronize Live Class Status via WebRTC mesh
+  // Synchronize Live Class Status via WebRTC mesh & Serverless Room State
   useEffect(() => {
     const unbindMesh = webRtcMeshService.onClassStatusChanged((status) => setClassStatus(status));
     const unbindData = classroomTransport.onData("class_status", (payload) => {
       if (payload?.status) setClassStatus(payload.status);
     });
+
+    // Also poll serverless /api/realtime/room-state so students waiting in lobby auto-transition
+    let cancelled = false;
+    const pollRoomState = async () => {
+      if (!roomId) return;
+      try {
+        const res = await fetch(`/api/realtime/room-state?roomId=${encodeURIComponent(roomId)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          if (data?.state?.classStatus && data.state.classStatus !== classStatus) {
+            setClassStatus(data.state.classStatus);
+          }
+        }
+      } catch {}
+    };
+
+    pollRoomState();
+    const interval = setInterval(pollRoomState, 1500);
+
     return () => {
+      cancelled = true;
+      clearInterval(interval);
       unbindMesh();
       unbindData();
     };
-  }, []);
+  }, [roomId, classStatus]);
 
   const connectDemoStudent = () => {
     setParticipants((prev) => {
@@ -918,12 +911,31 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setClassStatus("in_progress");
     classroomTransport.sendData("class_status", { status: "in_progress" });
     webRtcMeshService.broadcastClassStatus("in_progress");
+    fetch("/api/realtime/room-state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roomId,
+        classStatus: "in_progress",
+        hostId: authenticatedUser?.id,
+        hostName: authenticatedUser?.name,
+      }),
+    }).catch(() => {});
   };
 
   const endClass = () => {
     setClassStatus("ended");
     classroomTransport.sendData("class_status", { status: "ended" });
     webRtcMeshService.broadcastClassStatus("ended");
+    fetch("/api/realtime/room-state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roomId,
+        classStatus: "ended",
+        hostId: authenticatedUser?.id,
+      }),
+    }).catch(() => {});
   };
 
   // Media
@@ -1529,10 +1541,6 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setRoomId(customRoomId);
       setRoomLink(buildMeetingUrl(customRoomId));
     }
-    try {
-      sessionStorage.setItem("21k_dronacharya_auth", JSON.stringify(user));
-      localStorage.setItem("21k_dronacharya_auth", JSON.stringify(user));
-    } catch {}
     setIsAuthModalOpen(false);
 
     const localParticipant: Participant = {
@@ -1566,14 +1574,49 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const logoutUser = () => {
     classroomTransport.leave();
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     setAuthenticatedUser(null);
-    try {
-      sessionStorage.removeItem("21k_dronacharya_auth");
-      localStorage.removeItem("21k_dronacharya_auth");
-    } catch {}
     setParticipants([]);
-    setIsAuthModalOpen(true);
   };
+
+  // Load the session once; accept a signed invite link (?invite=) from a booking email/WhatsApp
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const invite = params.get("invite");
+      try {
+        if (invite) {
+          const res = await fetch("/api/auth/invite/accept", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: invite }),
+          });
+          const body = await res.json().catch(() => ({}));
+          // Drop the token from the address bar either way
+          params.delete("invite");
+          window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+          if (!res.ok) setAuthError(body?.error || "This class link has expired.");
+          else if (body.roomSlug) setRoomId(body.roomSlug);
+        }
+        const signinError = params.get("signin_error");
+        if (signinError) setAuthError(signinError);
+        const me = await fetch("/api/auth/me");
+        if (!cancelled && me.ok) {
+          const { user } = await me.json();
+          setAuthenticatedUser(user);
+        }
+      } catch {
+        // Server unreachable: stay signed out
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Remote participants come from the classroom transport (LiveKit or peer-to-peer fallback)
   const [transportState, setTransportState] = useState<TransportState>(classroomTransport.getState());
@@ -1711,6 +1754,70 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [authenticatedUser?.id, hasLeftClass]);
 
+  // ---------------- Teacher controls: spotlight, waiting room, mute/remove, quick polls ----------------
+  const [spotlightId, setSpotlightId] = useState<string | null>(null);
+  const [activePoll, setActivePoll] = useState<PollState | null>(null);
+  const [myPollVote, setMyPollVote] = useState<number | null>(null);
+  useEffect(() => {
+    const offStage = classroomTransport.onData("stage", (p) => {
+      if (p && "spotlightId" in p) setSpotlightId(p.spotlightId || null);
+    });
+    const offPoll = classroomTransport.onData("poll", (p: PollState) => {
+      setActivePoll(p);
+      setMyPollVote(null);
+    });
+    const offResults = classroomTransport.onData("poll_results", (p: PollState) => setActivePoll((cur) => (!cur || cur.id === p.id ? p : cur)));
+    return () => {
+      offStage();
+      offPoll();
+      offResults();
+    };
+  }, []);
+  const setSpotlight = (participantId: string | null) => {
+    setSpotlightId(participantId);
+    classroomTransport.sendData("stage", { spotlightId: participantId });
+  };
+  const postJson = async (url: string, body: unknown) => {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const json = await res.json().catch(() => ({}));
+    return res.ok ? { ok: true as const, json } : { ok: false as const, error: json?.error || `Failed (${res.status})` };
+  };
+  const hostAction = async (action: "admit" | "deny" | "mute" | "stop_video" | "remove", identities: string[]) => {
+    const base = `/api/rooms/${encodeURIComponent(roomId)}`;
+    if (action === "admit") {
+      const r = await postJson(`${base}/admit`, { identities });
+      return r.ok ? null : r.error;
+    }
+    for (const identity of identities) {
+      const r =
+        action === "mute" || action === "stop_video"
+          ? await postJson(`${base}/mute`, { identity, kind: action === "mute" ? "audio" : "video" })
+          : await postJson(`${base}/${action}`, { identity });
+      if (!r.ok) return r.error;
+    }
+    return null;
+  };
+  const startPoll = async (question: string, options: string[]) => {
+    const r = await postJson(`/api/rooms/${encodeURIComponent(roomId)}/polls`, { question, options });
+    if (!r.ok) return r.error;
+    setActivePoll(r.json.poll);
+    return null;
+  };
+  const voteLivePoll = async (optionIndex: number) => {
+    if (!activePoll) return "No active poll";
+    const r = await postJson(`/api/polls/${activePoll.id}/vote`, { optionIndex });
+    if (!r.ok) return r.error;
+    setMyPollVote(optionIndex);
+    setActivePoll(r.json.poll);
+    return null;
+  };
+  const closePoll = async () => {
+    if (!activePoll) return;
+    const r = await postJson(`/api/polls/${activePoll.id}/close`, {});
+    if (r.ok) setActivePoll(r.json.poll);
+  };
+  const dismissPoll = () => setActivePoll(null);
+
   // ---------------- Engagement analytics (on-device; auditors/analysts see the results) ----------------
   const analyzedRole =
     authenticatedUser?.role === "student" ? "student" : authenticatedUser?.role === "instructor" ? "instructor" : authenticatedUser?.role === "sales_rep" ? "sales_rep" : null;
@@ -1811,6 +1918,33 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return next;
     });
   };
+
+  // The host muted our mic or stopped our camera from their side: mirror it in our own controls
+  const lastLocalMuteAt = useRef(0);
+  useEffect(() => {
+    const m = transportState.localMuted;
+    if (!m || m.at === lastLocalMuteAt.current) return;
+    lastLocalMuteAt.current = m.at;
+    const wasOn = m.kind === "audio" ? !isAudioMuted : !isVideoOff;
+    if (!wasOn) return; // we muted ourselves
+    if (m.kind === "audio") {
+      localStream?.getAudioTracks().forEach((t) => (t.enabled = false));
+      setIsAudioMuted(true);
+    } else {
+      localStream?.getVideoTracks().forEach((t) => (t.enabled = false));
+      setIsVideoOff(true);
+    }
+    const ann: Announcement = {
+      id: `ann-${m.at}`,
+      senderName: "Your teacher",
+      senderRole: "Class host",
+      title: m.kind === "audio" ? "Your microphone was muted" : "Your camera was turned off",
+      message: m.kind === "audio" ? "Unmute when you want to speak." : "You can turn it back on from the control bar.",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      priority: "info",
+    };
+    setActiveBannerAnnouncement(ann);
+  }, [transportState.localMuted]);
 
   const toggleScreenShare = async () => {
     if (isScreenSharing) {
@@ -2235,7 +2369,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ) => {
     const newAnn: Announcement = {
       id: `ann-${Date.now()}`,
-      senderName: currentRole === "instructor" ? "Dr. Evelyn Vance" : "21K School Administrator",
+      senderName: authenticatedUser?.name || "21K School",
       senderRole: currentRole === "instructor" ? "Lead Facilitator" : "Dronacharya Operations",
       title,
       message,
@@ -2898,13 +3032,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         joinProductionMeetingUrl(targetRoom);
       }
 
-      // Check role param
-      const urlRole = params.get("role")?.toLowerCase();
-      if (urlRole && (urlRole === "student" || urlRole === "instructor" || urlRole === "auditor" || urlRole === "sales_rep")) {
-        if (urlRole !== currentRole) {
-          setCurrentRole(urlRole as UserRole);
-        }
-      }
+      // Roles come from the signed-in session, never from the URL
     }
   }, [pitchRooms]);
 
@@ -3306,6 +3434,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         authenticatedUser,
         loginUser,
         logoutUser,
+        authLoading,
+        authError,
         transportState,
         hasLeftClass,
         mediaJoinError,
@@ -3317,6 +3447,15 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         captionHealth,
         isInterpreterOn,
         toggleInterpreter,
+        spotlightId,
+        setSpotlight,
+        activePoll,
+        myPollVote,
+        hostAction,
+        startPoll,
+        voteLivePoll,
+        closePoll,
+        dismissPoll,
         analyticsConsent,
         isAnalyticsConsentOpen,
         setIsAnalyticsConsentOpen,

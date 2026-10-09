@@ -200,7 +200,25 @@ export const DeviceAccessGate: React.FC<Props> = ({ user, roomId, onAllowed, onC
             </Card>
           )}
 
-          {(phase === "blocked" || phase === "composing") && policy && device && (
+          {phase === "blocked" && evaluation?.blockReason === "desktop_app_required" && (
+            <Card>
+              <StatusIcon tone="amber"><Monitor className="w-6 h-6" /></StatusIcon>
+              <div className="text-center space-y-1.5">
+                <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">Join this class from the 21K School app</h1>
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  This class can only be attended in the 21K School Classroom app for Windows or Mac, which protects class content from being recorded.
+                </p>
+              </div>
+              <a href="/download" className="btn-primary w-full">Download the app</a>
+              <button onClick={copyLink} className="btn-ghost w-full">
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? "Link copied" : "Copy class link"}
+              </button>
+              <button onClick={onCancel} className="text-xs text-slate-500 hover:text-slate-300 mx-auto block pt-1">Use a different account</button>
+            </Card>
+          )}
+
+          {(phase === "blocked" || phase === "composing") && policy && device && evaluation?.blockReason !== "desktop_app_required" && (
             <Card>
               <StatusIcon tone="amber"><Laptop className="w-6 h-6" /></StatusIcon>
               <div className="text-center space-y-1.5">

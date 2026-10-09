@@ -19,7 +19,6 @@ import { RoomBomberControlCenter } from "./components/bomber/RoomBomberControlCe
 import { PitchBreakoutHUD } from "./components/bomber/PitchBreakoutHUD";
 import { DocumentationModal } from "./components/docs/DocumentationModal";
 import { AuthPortalView } from "./components/auth/AuthPortalView";
-import { PreJoinLobbyModal } from "./components/classroom/PreJoinLobbyModal";
 import { CampusCommunityFeed } from "./components/social/CampusCommunityFeed";
 import { FacilitatorAssignmentDashboard } from "./components/admin/FacilitatorAssignmentDashboard";
 import { CrmRoomIntegrationView } from "./components/admin/CrmRoomIntegrationView";
@@ -27,7 +26,9 @@ import { SidebarNavigation } from "./components/navigation/SidebarNavigation";
 import { SplitViewContainer } from "./components/layout/SplitViewContainer";
 import { RoomLinkManagerModal } from "./components/links/RoomLinkManagerModal";
 import { SalesHub } from "./components/sales/SalesHub";
-import { DedicatedStudentLogin } from "./components/classroom/DedicatedStudentLogin";
+import { SignInScreen } from "./components/auth/SignInScreen";
+import { ForensicWatermark } from "./components/protection/ForensicWatermark";
+import { useContentGuard } from "./components/protection/useContentGuard";
 import { GamifiedWaitingLobby } from "./components/classroom/GamifiedWaitingLobby";
 import { RealtimeInterpreterModal } from "./components/translation/RealtimeInterpreterModal";
 import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
@@ -36,6 +37,7 @@ import { AnalyticsConsentModal } from "./components/engagement/AnalyticsConsentM
 import { MobileTabBar } from "./components/navigation/MobileTabBar";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import { useUrlSync } from "./hooks/useUrlSync";
+import { DedicatedStudentLogin } from "./components/classroom/DedicatedStudentLogin";
 import { AuthUser } from "./types";
 import { Megaphone, X } from "lucide-react";
 
@@ -63,9 +65,18 @@ const MainLayout: React.FC = () => {
     classStatus,
     startClass,
     logoutUser,
+    authLoading,
+    authError,
     activeDockTab,
     setActiveDockTab,
   } = useClassroom();
+
+  useContentGuard({
+    enabled: Boolean(authenticatedUser),
+    roomSlug: roomId,
+    view: activeView,
+    allowScreenShare: ["instructor", "admin", "sales_rep"].includes(authenticatedUser?.role || ""),
+  });
 
   useUrlSync({
     user: authenticatedUser,
@@ -111,14 +122,16 @@ const MainLayout: React.FC = () => {
 
   // Student joins pass through the device gate before entering the room
   const [pendingJoin, setPendingJoin] = React.useState<{ user: AuthUser; roomId: string } | null>(null);
-  const [restoredGateCleared, setRestoredGateCleared] = React.useState<boolean>(() => {
-    if (!authenticatedUser || authenticatedUser.role !== "student") return true;
+  // A learner restored from an existing session still passes the device check once per tab/room
+  const [restoredGateCleared, setRestoredGateCleared] = React.useState(true);
+  React.useEffect(() => {
+    if (!authenticatedUser || authenticatedUser.role !== "student") return setRestoredGateCleared(true);
     try {
-      return sessionStorage.getItem(gateKey(roomId, authenticatedUser)) === "1";
+      setRestoredGateCleared(sessionStorage.getItem(gateKey(roomId, authenticatedUser)) === "1");
     } catch {
-      return false;
+      setRestoredGateCleared(false);
     }
-  });
+  }, [authenticatedUser?.id, roomId]);
   const handleJoin = React.useCallback(
     (user: AuthUser, targetRoomId: string) => {
       if (user.role === "student") setPendingJoin({ user, roomId: targetRoomId });
@@ -132,11 +145,6 @@ const MainLayout: React.FC = () => {
     } catch {}
   };
 
-  const isStudentPortal = React.useMemo(() => {
-    if (typeof window === "undefined") return currentRole === "student";
-    const params = new URLSearchParams(window.location.search);
-    return params.get("role") === "student" || Boolean(params.get("sid")) || currentRole === "student";
-  }, [currentRole]);
 
   // Strict Role-Based View Protection and Auto-redirection
   React.useEffect(() => {
@@ -188,12 +196,30 @@ const MainLayout: React.FC = () => {
     );
   }
 
+  if (authLoading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-[#060a14]" role="status" aria-label="Loading">
+        <span className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
   if (!authenticatedUser) {
-    if (isStudentPortal) {
-      return <DedicatedStudentLogin initialRoomId={roomId} onJoinSuccess={handleJoin} />;
+    const isStudentLink = typeof window !== "undefined" && (() => {
+      const p = new URLSearchParams(window.location.search);
+      return p.get("role") === "student" || Boolean(p.get("sid")) || Boolean(p.get("studentId"));
+    })();
+
+    if (isStudentLink) {
+      return (
+        <DedicatedStudentLogin
+          initialRoomId={roomId}
+          onJoinSuccess={(user, targetRoom) => handleJoin(user, targetRoom)}
+        />
+      );
     }
 
-    return <PreJoinLobbyModal initialRole={currentRole} initialRoomId={roomId} onJoinSuccess={handleJoin} />;
+    return <SignInScreen error={authError} onSignedIn={(user) => handleJoin(user, roomId)} />;
   }
 
   // A student session restored from storage is re-checked once per tab
@@ -272,7 +298,8 @@ const MainLayout: React.FC = () => {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-[#070b14]">
+        <main className="content-guarded flex-1 min-w-0 flex flex-col overflow-hidden relative bg-[#070b14]">
+          {authenticatedUser.watermarkId && <ForensicWatermark id={authenticatedUser.watermarkId} />}
           {activeView === "classroom" && (
             authenticatedUser?.role === "student" && classStatus === "waiting" ? (
               <GamifiedWaitingLobby onEnterClassroom={() => startClass()} />
@@ -329,17 +356,6 @@ const MainLayout: React.FC = () => {
         onClose={() => setIsInterpreterModalOpen(false)}
       />
 
-      {/* Dedicated Multi-Role Pre-Join Lobby Modal */}
-      {isAuthModalOpen && (
-        <PreJoinLobbyModal
-          initialRole={currentRole}
-          initialRoomId={roomId}
-          onJoinSuccess={(user, targetRoomId) => {
-            setIsAuthModalOpen(false);
-            handleJoin(user, targetRoomId);
-          }}
-        />
-      )}
     </div>
   );
 };

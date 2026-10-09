@@ -7,6 +7,9 @@ class RealtimeSocketClient {
   private listeners: Map<string, Set<RealtimeEventHandler>> = new Map();
   private isConnected = false;
   private reconnectTimer: any = null;
+  private pollTimer: any = null;
+  private lastPolledTimestamp = 0;
+  private isPollingActive = false;
   private currentRoomId = "default-room";
   private currentUser: any = null;
   private broadcastChannel: BroadcastChannel | null = null;
@@ -31,6 +34,9 @@ class RealtimeSocketClient {
     if (user) this.currentUser = user;
     if (roomId) this.currentRoomId = roomId;
 
+    // Start HTTP serverless polling relay immediately (essential on Vercel where WebSockets are unsupported)
+    this.startHttpPolling();
+
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
       return;
     }
@@ -47,10 +53,7 @@ class RealtimeSocketClient {
 
         // Auto join room with authenticated user identity
         if (this.currentUser) {
-          this.send("AUTH_JOIN", {
-            user: this.currentUser,
-            roomId: this.currentRoomId,
-          });
+          this.authJoin();
         }
       };
 
@@ -66,29 +69,73 @@ class RealtimeSocketClient {
       };
 
       this.socket.onclose = () => {
-        this.isConnected = false;
-        this.emitLocal("connection_status", { status: "disconnected" });
+        if (!this.isPollingActive) {
+          this.isConnected = false;
+          this.emitLocal("connection_status", { status: "disconnected" });
+        }
         this.scheduleReconnect();
       };
 
       this.socket.onerror = (err) => {
-        console.warn("[RealtimeSocket] WebSocket error:", err);
+        console.warn("[RealtimeSocket] WebSocket error (using serverless HTTP relay):", err);
       };
     } catch (e) {
-      console.error("[RealtimeSocket] Connection initiation error:", e);
+      console.warn("[RealtimeSocket] WebSocket unavailable, relying on serverless HTTP relay:", e);
       this.scheduleReconnect();
     }
+  }
+
+  private startHttpPolling() {
+    if (this.pollTimer) return;
+    this.isPollingActive = true;
+    this.lastPolledTimestamp = Math.max(0, Date.now() - 30_000);
+
+    const poll = async () => {
+      try {
+        const peerId = this.currentUser?.id || "";
+        const url = `/api/realtime/signals?roomId=${encodeURIComponent(this.currentRoomId)}&peerId=${encodeURIComponent(peerId)}&since=${this.lastPolledTimestamp}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (!this.isConnected) {
+            this.isConnected = true;
+            this.emitLocal("connection_status", { status: "connected" });
+          }
+
+          if (Array.isArray(data.signals) && data.signals.length > 0) {
+            for (const sig of data.signals) {
+              if (sig.timestamp > this.lastPolledTimestamp) {
+                this.lastPolledTimestamp = sig.timestamp;
+              }
+              // Dispatch signal locally
+              this.emitLocal(sig.type, sig.payload || sig);
+            }
+          }
+        }
+      } catch (err) {
+        // network retry
+      }
+    };
+
+    // Immediate initial poll
+    poll();
+    this.pollTimer = setInterval(poll, 600);
   }
 
   private scheduleReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
       this.connect();
-    }, 2500);
+    }, 4000);
   }
 
   public disconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    this.isPollingActive = false;
     if (this.socket) {
       this.socket.close();
       this.socket = null;
@@ -127,14 +174,29 @@ class RealtimeSocketClient {
       timestamp: new Date().toISOString(),
     };
 
-    // 1. Send over WebSocket if connected
+    // 1. Post to serverless HTTP signaling relay (works 100% across all devices on Vercel)
+    try {
+      fetch("/api/realtime/signals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId: this.currentRoomId,
+          senderId: this.currentUser?.id || "unknown",
+          targetId: payload?.targetId || payload?.signal?.targetId,
+          type,
+          payload,
+        }),
+      }).catch(() => {});
+    } catch {}
+
+    // 2. Send over WebSocket if connected
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
         this.socket.send(JSON.stringify(message));
       } catch {}
     }
 
-    // 2. Broadcast across all browser tabs and windows in real-time
+    // 3. Broadcast across all browser tabs and windows in real-time
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.postMessage(message);
@@ -147,10 +209,23 @@ class RealtimeSocketClient {
     this.currentUser = user;
     this.currentRoomId = roomId;
     if (this.isConnected) {
-      this.send("AUTH_JOIN", { user, roomId });
+      this.authJoin();
     } else {
       this.connect(user, roomId);
     }
+  }
+
+  /**
+   * Joins with a short-lived ticket from the signed-in HTTP session, so the server knows who this
+   * socket belongs to even if it was opened before sign-in. The server ignores any claimed identity.
+   */
+  private async authJoin() {
+    let ticket: string | undefined;
+    try {
+      const res = await fetch("/api/auth/ws-ticket");
+      if (res.ok) ticket = (await res.json()).ticket;
+    } catch {}
+    this.send("AUTH_JOIN", { roomId: this.currentRoomId, ticket });
   }
 
   public sendChatMessage(text: string) {

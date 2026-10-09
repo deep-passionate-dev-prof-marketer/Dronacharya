@@ -6,7 +6,24 @@ import { WebSocketServer, WebSocket } from "ws";
 import { getRoomPolicy, setupDeviceAccessRoutes, upsertRoomPolicy } from "./deviceAccessHub";
 import { setupLivekitRoutes } from "./livekitHub";
 import { setupMatchingRoutes } from "./matchingHub";
+import { requireAuth, userFromCookieHeader } from "./auth/session";
+import crypto from "crypto";
+
+/** CRM webhooks: shared-secret header when CRM_WEBHOOK_SECRET is set, otherwise staff sessions only. */
+const crmWebhookAuth: express.RequestHandler = (req, res, next) => {
+  const secret = process.env.CRM_WEBHOOK_SECRET;
+  if (secret) {
+    const got = Buffer.from(String(req.headers["x-webhook-secret"] || ""));
+    const want = Buffer.from(secret);
+    if (got.length === want.length && crypto.timingSafeEqual(got, want)) return next();
+    return res.status(401).json({ error: "Invalid webhook secret" });
+  }
+  return requireAuth("admin", "sales_rep")(req, res, next);
+};
 import { setupEngagementRoutes } from "./engagementHub";
+import { setupClassRoutes } from "./classesHub";
+import { setupSecurityRoutes } from "./securityHub";
+import { setupRoomControlRoutes } from "./roomControlHub";
 
 export interface ConnectedClient {
   ws: WebSocket;
@@ -223,10 +240,15 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   setupLivekitRoutes(app);
   setupMatchingRoutes(app);
   setupEngagementRoutes(app);
+  setupClassRoutes(app);
+  setupSecurityRoutes(app);
+  setupRoomControlRoutes(app);
 
   // Active WebSocket Connection Listener
-  wss.on("connection", (ws: WebSocket) => {
+  wss.on("connection", (ws: WebSocket, upgradeReq: http.IncomingMessage) => {
     let currentClient: ConnectedClient | null = null;
+    // Identity for this socket comes from the signed session cookie sent with the upgrade request
+    const sessionUser = userFromCookieHeader(upgradeReq.headers.cookie).then((r) => r?.user || null).catch(() => null);
 
     // Send initial ACK
     ws.send(
@@ -241,11 +263,37 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     ws.on("message", (raw: string) => {
       try {
         const data = JSON.parse(raw.toString());
+        // Clients may not invoke the internal verified-join step directly
+        if (data?.type === "AUTH_JOIN_VERIFIED") return;
+        handleMessage(data);
+      } catch (err) {
+        console.error("[WS] bad message", err);
+      }
+    });
+
+    function handleMessage(data: any) {
+      try {
         const { type, payload } = data;
 
         switch (type) {
           // Client Authenticates & Joins a Room
           case "AUTH_JOIN": {
+            const roomId = payload.roomId || "default-room";
+            const viaTicket = payload?.ticket
+              ? userFromCookieHeader(`dr_session=${encodeURIComponent(String(payload.ticket))}`).then((r) => r?.user || null)
+              : Promise.resolve(null);
+            Promise.all([sessionUser, viaTicket]).then(([fromCookie, fromTicket]) => {
+              const verified = fromTicket || fromCookie;
+              if (!verified) {
+                ws.send(JSON.stringify({ type: "AUTH_REQUIRED" }));
+                return;
+              }
+              // Ignore any identity the browser sent; use the verified session
+              handleMessage({ type: "AUTH_JOIN_VERIFIED", payload: { ...payload, roomId, user: verified } });
+            });
+            break;
+          }
+          case "AUTH_JOIN_VERIFIED": {
             const user = payload.user || {};
             const roomId = payload.roomId || "default-room";
 
@@ -701,7 +749,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       } catch (err) {
         console.error("[Realtime WS] Message processing error:", err);
       }
-    });
+    }
 
     ws.on("close", () => {
       if (currentClient) {
@@ -891,7 +939,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   // -------------------------------------------------------------
 
   // 1. Room Bomber REST Endpoints
-  app.get("/api/room-bomber/status", (_req, res) => {
+  app.get("/api/room-bomber/status", requireAuth(), (_req, res) => {
     res.json({
       active: realtimeStore.isRoomBomberActive,
       totalRooms: realtimeStore.pitchRooms.size,
@@ -899,7 +947,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     });
   });
 
-  app.post("/api/room-bomber/trigger", (req, res) => {
+  app.post("/api/room-bomber/trigger", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     executeRoomBomberPartition(req.body);
     res.json({
       success: true,
@@ -908,12 +956,12 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     });
   });
 
-  app.post("/api/room-bomber/reset", (_req, res) => {
+  app.post("/api/room-bomber/reset", requireAuth("admin", "instructor", "sales_rep"), (_req, res) => {
     resetRoomBomberToMainHall();
     res.json({ success: true, message: "All participants recalled to main hall." });
   });
 
-  app.post("/api/room-bomber/stage", (req, res) => {
+  app.post("/api/room-bomber/stage", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { roomId, currentStage, stageName, notes } = req.body;
     const room = realtimeStore.pitchRooms.get(roomId);
     if (!room) return res.status(404).json({ error: "Pitch room not found" });
@@ -927,7 +975,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     res.json({ success: true, pitchRoom: room });
   });
 
-  app.post("/api/room-bomber/offer", (req, res) => {
+  app.post("/api/room-bomber/offer", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { roomId, discountPercent, contractSigned } = req.body;
     const room = realtimeStore.pitchRooms.get(roomId);
     if (!room) return res.status(404).json({ error: "Pitch room not found" });
@@ -941,7 +989,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   });
 
   // 2. Standalone Documentation Reader REST Endpoints
-  app.get("/api/docs/list", (_req, res) => {
+  app.get("/api/docs/list", requireAuth(), (_req, res) => {
     res.json([
       { id: "PRD", title: "Product Requirements Document", file: "PRD.md" },
       { id: "BRD", title: "Business Requirements Document", file: "BRD.md" },
@@ -953,7 +1001,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     ]);
   });
 
-  app.get("/api/docs/:id", (req, res) => {
+  app.get("/api/docs/:id", requireAuth(), (req, res) => {
     const docMap: Record<string, string> = {
       PRD: "PRD.md",
       BRD: "BRD.md",
@@ -977,7 +1025,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
 
   // 3. Authenticated Multi-Role Login Endpoint
   // 3. Authenticated Multi-Role Login Endpoint with Auto-Detected Device Audit
-  app.post("/api/auth/login", (req, res) => {
+  // The old endpoint issued a fake token for any claimed role. Sign-in now lives in src/server/auth.
+  app.post("/api/auth/login", (_req, res) => {
+    res.status(410).json({ error: "Use /api/auth/* sign-in (Google, email code, or invite link)." });
+  });
+  app.post("/api/auth/legacy-login-disabled", requireAuth("admin"), (req, res) => {
     const {
       role,
       username,
@@ -1100,12 +1152,12 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   });
 
   // Device Audit & Compliance Endpoints
-  app.get("/api/audit/devices", (_req, res) => {
+  app.get("/api/audit/devices", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
     const devices = Array.from(realtimeStore.deviceAudits.values());
     res.json({ success: true, devices });
   });
 
-  app.post("/api/audit/devices", (req, res) => {
+  app.post("/api/audit/devices", requireAuth(), (req, res) => {
     const record = req.body;
     if (record && record.userId) {
       realtimeStore.deviceAudits.set(record.userId, record);
@@ -1114,7 +1166,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   });
 
   // 4. Live System Rooms and Participants State
-  app.get("/api/state/rooms", (_req, res) => {
+  app.get("/api/state/rooms", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
     const list = Array.from(realtimeStore.rooms.values()).map((r) => ({
       ...r,
       participantsCount: r.participants.size,
@@ -1122,7 +1174,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     res.json(list);
   });
 
-  app.get("/api/state/participants", (_req, res) => {
+  app.get("/api/state/participants", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
     const participants = Array.from(realtimeStore.clients.values()).map((c) => ({
       id: c.userId,
       name: c.name,
@@ -1193,7 +1245,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     },
   ];
 
-  app.get("/api/links/all", (req, res) => {
+  app.get("/api/links/all", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const origin = `${req.protocol}://${req.get("host")}`;
     const dynamicLinks = shortlinksDatabase.map((item) => ({
       ...item,
@@ -1204,7 +1256,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     res.json(dynamicLinks);
   });
 
-  app.post("/api/links/shorten", (req, res) => {
+  app.post("/api/links/shorten", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { slug, schoolBrand, countryCode, gradeLevel, subjectCode, courseCode, sessionType, devicePolicy, actor } = req.body;
     const origin = `${req.protocol}://${req.get("host")}`;
     const base62 = Math.random().toString(36).substring(2, 8);
@@ -1333,11 +1385,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     },
   ];
 
-  app.get("/api/facilitators/roster", (_req, res) => {
+  app.get("/api/facilitators/roster", requireAuth(), (_req, res) => {
     res.json(candidateFaculty);
   });
 
-  app.post("/api/facilitators/substitute-failover", (req, res) => {
+  app.post("/api/facilitators/substitute-failover", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { roomCode, absentTeacherId, subject } = req.body;
     const substitute = candidateFaculty.find(
       (c) => c.id !== absentTeacherId && c.status === "available" && c.isSubstituteEligible
@@ -1362,7 +1414,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   // -------------------------------------------------------------
   // 7. CRM Auto-Room Creation Webhook Simulation
   // -------------------------------------------------------------
-  app.post("/api/crm/webhook", (req, res) => {
+  app.post("/api/crm/webhook", crmWebhookAuth, (req, res) => {
     const { crmSource, cohortName, schoolBrand, countryCode, gradeLevel, curriculum, subject, studentCount, primaryContactEmail } = req.body;
 
     const brand = (schoolBrand || "21kos").toLowerCase();
@@ -1460,11 +1512,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     },
   ];
 
-  app.get("/api/crm/sales-reps", (_req, res) => {
+  app.get("/api/crm/sales-reps", requireAuth("admin", "instructor", "sales_rep"), (_req, res) => {
     res.json({ success: true, reps: salesCounselorRoster });
   });
 
-  app.post("/api/crm/lead-assign", (req, res) => {
+  app.post("/api/crm/lead-assign", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { lead, preferredCounselorId } = req.body;
     const assignedRep = salesCounselorRoster.find((r) => r.id === preferredCounselorId) || salesCounselorRoster[0];
 
@@ -1539,11 +1591,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     },
   ];
 
-  app.get("/api/social/posts", (_req, res) => {
+  app.get("/api/social/posts", requireAuth(), (_req, res) => {
     res.json(campusPostsDatabase);
   });
 
-  app.post("/api/social/posts", (req, res) => {
+  app.post("/api/social/posts", requireAuth(), (req, res) => {
     const { authorId, authorName, authorRole, authorAvatar, content, mediaUrl, category } = req.body;
 
     // Safety checks
@@ -1577,7 +1629,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     res.json({ success: true, post: newPost });
   });
 
-  app.post("/api/social/posts/:id/react", (req, res) => {
+  app.post("/api/social/posts/:id/react", requireAuth(), (req, res) => {
     const post = campusPostsDatabase.find((p) => p.id === req.params.id);
     if (!post) return res.status(404).json({ error: "Post not found" });
 
@@ -1587,7 +1639,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     res.json({ success: true, likes: post.likes, likedByMe: post.likedByMe });
   });
 
-  app.post("/api/social/posts/:id/comment", (req, res) => {
+  app.post("/api/social/posts/:id/comment", requireAuth(), (req, res) => {
     const post = campusPostsDatabase.find((p) => p.id === req.params.id);
     if (!post) return res.status(404).json({ error: "Post not found" });
 

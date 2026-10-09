@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Participant } from "../../types";
-import { Mic, MicOff, Video, VideoOff, Pin, PinOff, Hand, Volume2 } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Pin, PinOff, Hand, Volume2, MoreHorizontal } from "lucide-react";
 
 interface Props {
   participant: Participant;
@@ -10,6 +10,8 @@ interface Props {
   isVideoOff: boolean;
   isPinned: boolean;
   onPinToggle: () => void;
+  /** Host-only actions for this participant (mute, stop video, spotlight, remove) */
+  hostMenu?: Array<{ label: string; onClick: () => void; danger?: boolean; disabled?: boolean }>;
   aspectClass?: string;
 }
 
@@ -21,9 +23,11 @@ export const ParticipantVideoTile: React.FC<Props> = ({
   isVideoOff,
   isPinned,
   onPinToggle,
+  hostMenu,
   aspectClass = "aspect-video",
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [menuOpen, setMenuOpen] = React.useState(false);
 
   const activeStream = isLocal ? localStream : participant.stream;
   const showVideo = isLocal ? !isVideoOff : participant.videoEnabled;
@@ -58,6 +62,8 @@ export const ParticipantVideoTile: React.FC<Props> = ({
           playsInline
           // Audio is played by separate <audio> elements so it never stops when tiles move or unmount
           muted
+          disablePictureInPicture
+          controlsList="nodownload noplaybackrate noremoteplayback"
           className={`w-full h-full object-cover ${isLocal ? "-scale-x-100" : ""}`}
         />
       ) : (
@@ -105,11 +111,49 @@ export const ParticipantVideoTile: React.FC<Props> = ({
         className={`absolute top-2.5 left-2.5 z-20 p-1.5 rounded-lg backdrop-blur-md transition-all ${
           isPinned
             ? "bg-blue-600 text-white shadow-md shadow-blue-500/40 opacity-100"
-            : "bg-black/50 text-slate-300 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100"
+            : "bg-black/50 text-slate-300 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
         }`}
       >
         {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
       </button>
+
+      {hostMenu && (
+        <div className="absolute top-2.5 left-11 z-30">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((o) => !o);
+            }}
+            aria-label={`Actions for ${participant.name}`}
+            aria-haspopup="menu"
+            className="p-1.5 rounded-lg bg-black/50 text-slate-200 hover:bg-black/80 opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100 focus:opacity-100"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+              <div role="menu" className="absolute top-8 left-0 z-40 w-48 rounded-xl border border-white/10 bg-slate-900/98 shadow-2xl p-1">
+                {hostMenu.map((item) => (
+                  <button
+                    key={item.label}
+                    role="menuitem"
+                    disabled={item.disabled}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      item.onClick();
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs disabled:opacity-40 ${item.danger ? "text-rose-300 hover:bg-rose-500/10" : "text-slate-200 hover:bg-white/10"}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Bottom Identity & Telemetry Bar */}
       <div className="absolute bottom-2 left-2 right-2 z-20 flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-white/10 text-white text-[11px]">

@@ -1,13 +1,13 @@
+import crypto from "crypto";
 /**
  * Device Access Control: room device policies, exception requests and the audit trail.
  *
- * Storage: an append-only JSONL event log (every evaluation, block, request and decision)
- * plus a JSON snapshot of rules/policies/requests, both under DEVICE_ACCESS_DATA_DIR
- * (default ./data/device-access). The JSONL file is the audit source of truth.
+ * Storage: Postgres. Every evaluation, block, request and decision is appended to audit_events
+ * (stream "device_access"); rules, room policies and requests are written through to kv_store.
  */
-import fs from "fs";
-import path from "path";
 import express from "express";
+import { auditInsert, auditLoad, kvLoad, kvUpsert, persist } from "./db/kv";
+import { requireAuth } from "./auth/session";
 import {
   ALL_DEVICE_TYPES,
   ApproverRole,
@@ -36,9 +36,6 @@ import type {
 
 type BroadcastFn = (message: any, filterFn?: (client: { role: string; roomId: string; userId: string }) => boolean) => void;
 
-const DATA_DIR = process.env.DEVICE_ACCESS_DATA_DIR || path.join(process.cwd(), "data", "device-access");
-const EVENTS_FILE = path.join(DATA_DIR, "events.jsonl");
-const STATE_FILE = path.join(DATA_DIR, "state.json");
 
 const PENDING_TTL_MS = 30 * 60 * 1000;
 const SCOPE_TTL_MS: Record<ApprovalScope, number> = {
@@ -69,59 +66,36 @@ const state: {
   events: [],
 };
 
-let persistenceAvailable = true;
+const persistenceAvailable = true;
 
-function ensureDir() {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch (err) {
-    persistenceAvailable = false;
-    console.warn("[DeviceAccess] Persistence disabled, cannot create data dir:", err);
+/** Loads rules, room policies, requests and recent audit events from Postgres. */
+async function loadFromDb() {
+  const [rules, policies, requests, events] = await Promise.all([
+    kvLoad<DevicePolicyRule>("device_rules"),
+    kvLoad<RoomDevicePolicy>("device_policies"),
+    kvLoad<DeviceAccessRequest>("device_requests"),
+    auditLoad<DeviceAccessEvent>("device_access"),
+  ]);
+  if (rules.length) {
+    const savedIds = new Set(rules.map((r) => r.key));
+    // Keep new default rules that did not exist when the rules were saved
+    state.rules = [...rules.map((r) => r.value), ...DEFAULT_DEVICE_POLICY_RULES.filter((r) => !savedIds.has(r.id))];
   }
+  policies.forEach((p) => state.policies.set(p.key, p.value));
+  requests.forEach((r) => state.requests.set(r.key, r.value));
+  state.events.push(...events);
 }
 
-function loadFromDisk() {
-  ensureDir();
-  if (!persistenceAvailable) return;
-  try {
-    if (fs.existsSync(STATE_FILE)) {
-      const saved: PersistedState = JSON.parse(fs.readFileSync(STATE_FILE, "utf-8"));
-      if (Array.isArray(saved.rules) && saved.rules.length) {
-        // Keep new default rules that did not exist when the snapshot was written
-        const savedIds = new Set(saved.rules.map((r) => r.id));
-        state.rules = [...saved.rules, ...DEFAULT_DEVICE_POLICY_RULES.filter((r) => !savedIds.has(r.id))];
-      }
-      saved.policies?.forEach((p) => state.policies.set(p.roomSlug, p));
-      saved.requests?.forEach((r) => state.requests.set(r.id, r));
-    }
-    if (fs.existsSync(EVENTS_FILE)) {
-      const lines = fs.readFileSync(EVENTS_FILE, "utf-8").split("\n").filter(Boolean);
-      // Keep the most recent 20k in memory for queries; the file keeps everything.
-      for (const line of lines.slice(-20000)) {
-        try {
-          state.events.push(JSON.parse(line));
-        } catch {}
-      }
-    }
-  } catch (err) {
-    console.warn("[DeviceAccess] Failed to load persisted state:", err);
-  }
-}
-
-let saveTimer: NodeJS.Timeout | null = null;
+/** Write-through: persist the current rules/policies/requests (small, so a full upsert is fine). */
 function saveState() {
-  if (!persistenceAvailable) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const snapshot: PersistedState = {
-      rules: state.rules,
-      policies: Array.from(state.policies.values()),
-      requests: Array.from(state.requests.values()),
-    };
-    fs.writeFile(STATE_FILE, JSON.stringify(snapshot, null, 2), (err) => {
-      if (err) console.warn("[DeviceAccess] Failed to write state:", err);
-    });
-  }, 250);
+  persist(
+    "device_access save",
+    Promise.all([
+      kvUpsert("device_rules", state.rules.map((r) => ({ key: r.id, value: r }))),
+      kvUpsert("device_policies", Array.from(state.policies.values()).map((p) => ({ key: p.roomSlug, value: p }))),
+      kvUpsert("device_requests", Array.from(state.requests.values()).map((r) => ({ key: r.id, value: r }))),
+    ])
+  );
 }
 
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -130,12 +104,17 @@ function recordEvent(e: Omit<DeviceAccessEvent, "id" | "at">): DeviceAccessEvent
   const event: DeviceAccessEvent = { id: newId("dae"), at: new Date().toISOString(), ...e };
   state.events.push(event);
   if (state.events.length > 20000) state.events.splice(0, state.events.length - 20000);
-  if (persistenceAvailable) {
-    fs.appendFile(EVENTS_FILE, JSON.stringify(event) + "\n", (err) => {
-      if (err) console.warn("[DeviceAccess] Failed to append event:", err);
-    });
-  }
+  persist(
+    "device_access event",
+    auditInsert("device_access", { id: event.id, at: event.at, type: event.type, roomSlug: event.roomSlug, userId: event.actor?.id, data: event })
+  );
   return event;
+}
+
+/** The signed-in user as an audit actor. Identity always comes from the session cookie, never the body. */
+export function actorFromSession(req: express.Request): AccessActor {
+  const u = req.user!;
+  return { id: u.id, name: u.name, role: u.role, studentCode: u.studentCode || undefined, email: u.email };
 }
 
 const studentKey = (s: AccessActor) => (s.studentCode || s.email || s.id || "").toLowerCase();
@@ -319,15 +298,36 @@ function toCsvValue(v: unknown): string {
  * Used by the evaluate endpoint and by the LiveKit token endpoint, so a blocked device never
  * receives media credentials.
  */
-export function evaluateJoinRequest(req: express.Request, roomSlug: string, rawStudent: any, rawDevice: any): EvaluateResponse {
-  const student = sanitizeActor(rawStudent);
+/**
+ * True when the request comes from the Dronacharya desktop app. The app signs a timestamp with
+ * DESKTOP_APP_KEY (shipped inside the app). This is a strong deterrent, not a cryptographic
+ * guarantee: a determined person could extract the key from the binary.
+ */
+export function isDesktopClient(req: express.Request): boolean {
+  const key = process.env.DESKTOP_APP_KEY;
+  const header = String(req.headers["x-dronacharya-attest"] || "");
+  if (!key || !header) return false;
+  const [ts, sig] = header.split(".");
+  const age = Math.abs(Date.now() - Number(ts));
+  if (!ts || !sig || !(age < 5 * 60_000)) return false;
+  const want = crypto.createHmac("sha256", key).update(ts).digest("hex");
+  return want.length === sig.length && crypto.timingSafeEqual(Buffer.from(want), Buffer.from(sig));
+}
+
+export function evaluateJoinRequest(req: express.Request, roomSlug: string, student: AccessActor, rawDevice: any): EvaluateResponse {
   const device = enrichDevice(req, rawDevice);
   const policy = getRoomPolicy(roomSlug);
   const effective = device.effectiveDeviceType || device.deviceType;
 
   let decision: EvaluateResponse["decision"];
   let activeRequest: DeviceAccessRequest | undefined;
-  if (!STAFF_ROLES.includes(student.role) && !isDeviceAllowed(policy, effective)) {
+  let blockReason: EvaluateResponse["blockReason"];
+  if (!STAFF_ROLES.includes(student.role) && policy.requireDesktopApp && !isDesktopClient(req)) {
+    // No exceptions: the point of this rule is that only the capture-blocking app can show the class
+    decision = "block";
+    blockReason = "desktop_app_required";
+  } else if (!STAFF_ROLES.includes(student.role) && !isDeviceAllowed(policy, effective)) {
+    blockReason = "device_type";
     const approval = findActiveApproval(roomSlug, student, device.deviceId);
     decision = approval ? "approved_override" : "block";
     activeRequest = approval || findOpenRequest(roomSlug, student, device.deviceId);
@@ -349,11 +349,15 @@ export function evaluateJoinRequest(req: express.Request, roomSlug: string, rawS
         : undefined,
   });
 
-  return { decision, policy, effectiveDeviceType: effective, integrity: device.integrity, activeRequest, enforcement: "server" };
+  return { decision, blockReason, policy, effectiveDeviceType: effective, integrity: device.integrity, activeRequest, enforcement: "server" };
 }
 
 export function setupDeviceAccessRoutes(app: express.Express, broadcast: BroadcastFn) {
-  loadFromDisk();
+  // Requests wait until the store is loaded from Postgres (first ~ms after boot)
+  const ready = loadFromDb().catch((err) => console.error("[DeviceAccess] load failed:", err));
+  app.use(["/api/device-access", "/api/device-policy", "/api/livekit/token", "/api/links"], (_req, _res, next) => {
+    ready.then(() => next());
+  });
   setInterval(expireStaleRequests, 60 * 1000).unref?.();
 
   const notifyApprovers = (request: DeviceAccessRequest, type: string) => {
@@ -362,16 +366,15 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
   };
 
   // ---------- Rules (auto workflow) ----------
-  app.get("/api/device-policy/rules", (_req, res) => {
+  app.get("/api/device-policy/rules", requireAuth(), (_req, res) => {
     res.json({ rules: [...state.rules].sort((a, b) => a.priority - b.priority) });
   });
 
-  app.put("/api/device-policy/rules/:id", (req, res) => {
-    const actor = sanitizeActor(req.body?.actor);
-    if (actor.role !== "admin") return res.status(403).json({ error: "Only admins can change device rules." });
+  app.put("/api/device-policy/rules/:id", requireAuth("admin"), (req, res) => {
+    const actor = actorFromSession(req);
     const rule = state.rules.find((r) => r.id === req.params.id);
     if (!rule) return res.status(404).json({ error: "Rule not found" });
-    const { enabled, allowedDeviceTypes, allowRequestOverride, approverRoles, priority } = req.body || {};
+    const { enabled, allowedDeviceTypes, allowRequestOverride, approverRoles, priority, requireDesktopApp } = req.body || {};
     const before = JSON.stringify(rule);
     if (typeof enabled === "boolean") rule.enabled = enabled;
     if (Array.isArray(allowedDeviceTypes)) {
@@ -379,6 +382,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
       if (valid.length) rule.allowedDeviceTypes = valid;
     }
     if (typeof allowRequestOverride === "boolean") rule.allowRequestOverride = allowRequestOverride;
+    if (typeof requireDesktopApp === "boolean") rule.requireDesktopApp = requireDesktopApp;
     if (Array.isArray(approverRoles) && approverRoles.length) rule.approverRoles = approverRoles;
     if (Number.isFinite(priority)) rule.priority = priority;
     saveState();
@@ -387,35 +391,34 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
   });
 
   // ---------- Room policies ----------
-  app.get("/api/device-policy/rooms", (_req, res) => {
+  app.get("/api/device-policy/rooms", requireAuth("admin", "instructor", "sales_rep", "auditor"), (_req, res) => {
     res.json({ policies: Array.from(state.policies.keys()).map(getRoomPolicy) });
   });
 
-  app.get("/api/device-policy/rooms/:slug", (req, res) => {
+  app.get("/api/device-policy/rooms/:slug", requireAuth(), (req, res) => {
     res.json({ policy: getRoomPolicy(req.params.slug) });
   });
 
-  app.post("/api/device-policy/rooms", (req, res) => {
+  app.post("/api/device-policy/rooms", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { roomSlug, context, mode, allowedDeviceTypes, allowRequestOverride, approverRoles, linkShortCode } = req.body || {};
-    const actor = sanitizeActor(req.body?.actor);
+    const actor = actorFromSession(req);
     if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
-    if (!STAFF_ROLES.includes(actor.role)) return res.status(403).json({ error: "Only staff can set room device policies." });
     const policy = upsertRoomPolicy({ roomSlug: String(roomSlug), context, mode, allowedDeviceTypes, allowRequestOverride, approverRoles, linkShortCode, actor });
     res.json({ success: true, policy });
   });
 
   // ---------- Join evaluation ----------
-  app.post("/api/device-access/evaluate", (req, res) => {
+  app.post("/api/device-access/evaluate", requireAuth(), (req, res) => {
     const roomSlug = String(req.body?.roomSlug || "");
     if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
-    res.json(evaluateJoinRequest(req, roomSlug, req.body?.student, req.body?.device));
+    res.json(evaluateJoinRequest(req, roomSlug, actorFromSession(req), req.body?.device));
   });
 
   // ---------- Exception requests ----------
-  app.post("/api/device-access/requests", (req, res) => {
+  app.post("/api/device-access/requests", requireAuth(), (req, res) => {
     const roomSlug = String(req.body?.roomSlug || "");
     if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
-    const student = sanitizeActor(req.body?.student);
+    const student = actorFromSession(req);
     const device = enrichDevice(req, req.body?.device);
     const policy = getRoomPolicy(roomSlug);
     if (!policy.allowRequestOverride) {
@@ -441,7 +444,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.json({ success: true, request });
   });
 
-  app.get("/api/device-access/requests", (req, res) => {
+  app.get("/api/device-access/requests", requireAuth("admin", "instructor", "sales_rep", "auditor"), (req, res) => {
     expireStaleRequests();
     const { status, roomSlug } = req.query as Record<string, string | undefined>;
     const list = Array.from(state.requests.values())
@@ -450,18 +453,20 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.json({ requests: list });
   });
 
-  app.get("/api/device-access/requests/:id", (req, res) => {
+  app.get("/api/device-access/requests/:id", requireAuth(), (req, res) => {
     expireStaleRequests();
     const r = state.requests.get(req.params.id);
     if (!r) return res.status(404).json({ error: "Request not found" });
+    // Learners may only read their own requests
+    if (req.user!.role === "student" && studentKey(r.student) !== studentKey(actorFromSession(req))) return res.status(404).json({ error: "Request not found" });
     res.json({ request: r });
   });
 
-  app.post("/api/device-access/requests/:id/decision", (req, res) => {
+  app.post("/api/device-access/requests/:id/decision", requireAuth("admin", "instructor", "sales_rep", "auditor"), (req, res) => {
     const r = state.requests.get(req.params.id);
     if (!r) return res.status(404).json({ error: "Request not found" });
     if (r.status !== "pending") return res.status(409).json({ error: `Request already ${r.status}.`, request: r });
-    const actor = sanitizeActor(req.body?.actor);
+    const actor = actorFromSession(req);
     const allowedRoles = r.policySnapshot.approverRoles as string[];
     if (actor.role !== "admin" && !allowedRoles.includes(actor.role)) {
       return res.status(403).json({ error: `Only ${allowedRoles.join(", ")} can decide this request.` });
@@ -491,10 +496,10 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.json({ success: true, request: r });
   });
 
-  app.post("/api/device-access/requests/:id/cancel", (req, res) => {
+  app.post("/api/device-access/requests/:id/cancel", requireAuth(), (req, res) => {
     const r = state.requests.get(req.params.id);
     if (!r) return res.status(404).json({ error: "Request not found" });
-    const actor = sanitizeActor(req.body?.actor);
+    const actor = actorFromSession(req);
     if (studentKey(actor) !== studentKey(r.student)) return res.status(403).json({ error: "Only the requester can cancel." });
     if (r.status === "pending") {
       r.status = "cancelled";
@@ -523,14 +528,14 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     });
   };
 
-  app.get("/api/device-access/events", (req, res) => {
+  app.get("/api/device-access/events", requireAuth("admin", "auditor", "instructor"), (req, res) => {
     const q = req.query as Record<string, string | undefined>;
     const limit = Math.min(parseInt(q.limit || "500", 10) || 500, 5000);
     const list = filterEvents(q).slice(-limit).reverse();
     res.json({ events: list, total: list.length, persisted: persistenceAvailable });
   });
 
-  app.get("/api/device-access/events.csv", (req, res) => {
+  app.get("/api/device-access/events.csv", requireAuth("admin", "auditor", "instructor"), (req, res) => {
     const rows = filterEvents(req.query as Record<string, string | undefined>).reverse();
     const header = [
       "timestamp", "event", "room", "actor_name", "actor_role", "actor_id", "subject_name", "request_id", "decision",
@@ -555,7 +560,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.send([header.join(","), ...lines].join("\n"));
   });
 
-  app.get("/api/device-access/analytics", (req, res) => {
+  app.get("/api/device-access/analytics", requireAuth("admin", "auditor", "instructor"), (req, res) => {
     const events = filterEvents(req.query as Record<string, string | undefined>);
     const joins = events.filter((e) => e.type === "join_allowed" || e.type === "join_blocked" || e.type === "join_allowed_by_approval");
     const byDevice: Record<string, { allowed: number; blocked: number; approved: number }> = {};
@@ -604,7 +609,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
       byRoom,
       byApprover,
       persisted: persistenceAvailable,
-      dataDir: persistenceAvailable ? DATA_DIR : null,
+      dataDir: "postgres",
     });
   });
 }

@@ -26,7 +26,9 @@ import {
   Briefcase,
   MoreHorizontal,
   Captions,
+  BarChart3,
 } from "lucide-react";
+import { WaitingRoomButton, QuickPollSheet } from "./controls/TeacherControls";
 import { LayoutCustomizerModal } from "./LayoutCustomizerModal";
 
 export const BottomMeetingControls: React.FC = () => {
@@ -87,6 +89,7 @@ export const BottomMeetingControls: React.FC = () => {
   };
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isPollSheetOpen, setIsPollSheetOpen] = useState(false);
   const isTeacher = currentRole === "instructor" || currentRole === "admin";
   const isStudent = currentRole === "student";
 
@@ -94,13 +97,14 @@ export const BottomMeetingControls: React.FC = () => {
   const moreItems: MoreItem[] = [
     { key: "share", label: isScreenSharing ? "Stop sharing" : "Share screen", icon: Share2, onClick: toggleScreenShare, active: isScreenSharing, mobileOnly: true },
     { key: "hand", label: handRaised ? "Lower hand" : "Raise hand", icon: Hand, onClick: toggleHandRaise, active: handRaised, mobileOnly: true },
+    { key: "poll", label: "Quick poll", icon: BarChart3, onClick: () => setIsPollSheetOpen(true), tone: "text-blue-300", show: isTeacher || currentRole === "sales_rep" },
     { key: "interpreter", label: "Language settings", icon: Globe, onClick: () => setIsInterpreterModalOpen(true), tone: "text-cyan-300" },
     { key: "layout", label: "Layout & grid", icon: LayoutGrid, onClick: () => setIsLayoutModalOpen(true) },
     { key: "dock", label: dockSplitRatio < 100 ? "Hide tools panel" : "Show tools panel", icon: Layers, onClick: toggleDock, show: typeof window !== "undefined" && window.innerWidth >= 1024 },
     { key: "break", label: "5-min break", icon: Coffee, onClick: () => startRoomBreak(5, "5-Minute Cognitive Refresh"), tone: "text-amber-300", show: isTeacher },
     {
       key: "pitch",
-      label: "Sales pitch breakout",
+      label: "Counselling breakout",
       icon: Briefcase,
       onClick: () => triggerRoomBomber({ salesRepName: "Marcus Sterling (Lead Admissions)", discountPct: 20, studentName: "Demo Student" }),
       tone: "text-violet-300",
@@ -226,6 +230,8 @@ export const BottomMeetingControls: React.FC = () => {
               </button>
             )}
 
+            {(isTeacher || currentRole === "sales_rep") && <WaitingRoomButton />}
+
             <div className="relative">
               <button
                 onClick={() => setIsMoreOpen((o) => !o)}
@@ -308,6 +314,8 @@ export const BottomMeetingControls: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isPollSheetOpen && <QuickPollSheet onClose={() => setIsPollSheetOpen(false)} />}
 
       {/* Manual Layout & Grid Customizer Modal */}
       <LayoutCustomizerModal

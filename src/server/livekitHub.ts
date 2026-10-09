@@ -6,7 +6,9 @@
  */
 import express from "express";
 import { AccessToken, TrackSource } from "livekit-server-sdk";
-import { evaluateJoinRequest } from "./deviceAccessHub";
+import { actorFromSession, evaluateJoinRequest } from "./deviceAccessHub";
+import { requireAuth } from "./auth/session";
+import { admittedByRoom } from "./roomControlHub";
 
 const STAFF_ROLES = ["instructor", "admin", "sales_rep", "auditor", "ta"];
 
@@ -37,17 +39,19 @@ export function setupLivekitRoutes(app: express.Express) {
     res.json({ configured: Boolean(livekitConfig()) });
   });
 
-  app.post("/api/livekit/token", async (req, res) => {
+  app.post("/api/livekit/token", requireAuth(), async (req, res) => {
     const cfg = livekitConfig();
     if (!cfg) return res.status(503).json({ configured: false, error: "LiveKit is not configured on this server." });
 
     const roomSlug = String(req.body?.roomSlug || "").slice(0, 120);
-    const user = req.body?.user || {};
-    const role = String(user.role || "student");
-    if (!roomSlug || !user.id) return res.status(400).json({ error: "roomSlug and user.id are required" });
+    // Identity and role come only from the signed session
+    const user = req.user!;
+    const role: string = user.role;
+    if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
+    if (role === "parent") return res.status(403).json({ error: "Parents can't join live classes from this account." });
 
     if (!STAFF_ROLES.includes(role)) {
-      const evaluation = evaluateJoinRequest(req, roomSlug, user, req.body?.device);
+      const evaluation = evaluateJoinRequest(req, roomSlug, actorFromSession(req), req.body?.device);
       if (evaluation.decision === "block") {
         return res.status(403).json({ error: "This device is not allowed to join this class.", evaluation });
       }
@@ -55,6 +59,8 @@ export function setupLivekitRoutes(app: express.Express) {
 
     const isAuditor = role === "auditor";
     const isHost = role === "instructor" || role === "admin";
+    // Learners wait in the lobby (no media in or out) until the host admits them
+    const waiting = role === "student" && !admittedByRoom.get(roomSlug)?.has(user.id);
     const token = new AccessToken(cfg.apiKey, cfg.apiSecret, {
       identity: String(user.id).slice(0, 120),
       name: String(user.name || "Participant").slice(0, 120),
@@ -64,16 +70,17 @@ export function setupLivekitRoutes(app: express.Express) {
         avatarColor: user.avatarColor,
         studentCode: user.studentCode,
         gradeLevel: user.gradeLevel,
+        waiting,
       }),
     });
     token.addGrant({
       room: roomSlug,
       roomJoin: true,
-      canSubscribe: true,
+      canSubscribe: !waiting,
       // Auditors observe silently: no publishing, hidden from the participant list
-      canPublish: !isAuditor,
-      canPublishData: !isAuditor,
-      canPublishSources: isAuditor
+      canPublish: !isAuditor && !waiting,
+      canPublishData: !isAuditor && !waiting,
+      canPublishSources: isAuditor || waiting
         ? []
         : isHost || role === "sales_rep"
         ? [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO]

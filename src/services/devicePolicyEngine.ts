@@ -54,6 +54,8 @@ export interface DevicePolicyRule {
   allowedDeviceTypes: PolicyDeviceType[];
   allowRequestOverride: boolean;
   approverRoles: ApproverRole[];
+  /** Only the Dronacharya desktop app (which blocks screen recording) may join */
+  requireDesktopApp?: boolean;
 }
 
 export interface ResolvedDevicePolicy {
@@ -61,6 +63,7 @@ export interface ResolvedDevicePolicy {
   allowedDeviceTypes: PolicyDeviceType[];
   allowRequestOverride: boolean;
   approverRoles: ApproverRole[];
+  requireDesktopApp?: boolean;
   matchedRuleId: string | null;
   matchedRuleName: string;
   reason: string;
@@ -135,6 +138,7 @@ export function resolvePolicyFromRules(ctx: RoomPolicyContext, rules: DevicePoli
     allowedDeviceTypes: hit.allowedDeviceTypes,
     allowRequestOverride: hit.allowRequestOverride,
     approverRoles: hit.approverRoles,
+    requireDesktopApp: Boolean(hit.requireDesktopApp),
     matchedRuleId: hit.id,
     matchedRuleName: hit.name,
     reason: hit.description,

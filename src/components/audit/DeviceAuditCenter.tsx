@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { DeviceAuditRecord, UserRole } from "../../types";
 import { DeviceAccessControlPanel } from "../access/DeviceAccessControlPanel";
+import { SecurityEventsPanel } from "../protection/SecurityEventsPanel";
 
 export const DeviceAuditCenter: React.FC = () => {
   const { deviceAuditLogs, logDeviceAudit, currentRole, authenticatedUser } = useClassroom();
@@ -32,7 +33,7 @@ export const DeviceAuditCenter: React.FC = () => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isScanning, setIsScanning] = useState(false);
-  const [activeTab, setActiveTab] = useState<"access" | "telemetry">("access");
+  const [activeTab, setActiveTab] = useState<"access" | "security" | "telemetry">("access");
 
   // Filter logs by selected role and search query
   const filteredLogs = deviceAuditLogs.filter((log) => {
@@ -227,6 +228,7 @@ export const DeviceAuditCenter: React.FC = () => {
       <div className="flex rounded-xl border border-white/10 bg-white/[0.03] p-1 mb-4 sm:mb-6 self-start text-sm" role="tablist">
         {([
           ["access", "Access control"],
+          ...(currentRole === "admin" || currentRole === "auditor" ? ([["security", "Security events"]] as const) : []),
           ["telemetry", "Device telemetry"],
         ] as const).map(([k, label]) => (
           <button
@@ -242,6 +244,7 @@ export const DeviceAuditCenter: React.FC = () => {
       </div>
 
       {activeTab === "access" && <DeviceAccessControlPanel />}
+      {activeTab === "security" && <SecurityEventsPanel />}
 
       {activeTab === "telemetry" && (<>
       {/* Form Factor & OS Distribution Strip */}

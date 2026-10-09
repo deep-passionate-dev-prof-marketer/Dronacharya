@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { generateDemoMeetingUrl } from "../../services/demoClassService";
 import { SubtitleOverlay } from "./SubtitleOverlay";
+import { ClassHeader } from "./ClassHeader";
+import { LivePollCard } from "./controls/TeacherControls";
 import { classroomTransport } from "../../services/media/classroomTransport";
 import { StageLayout, Presentation } from "./stage/StageLayout";
 import { TranscriptFeed } from "./TranscriptFeed";
@@ -105,7 +107,11 @@ export const VideoStage: React.FC = () => {
     rejoinClass,
     startAudioPlayback,
     mediaJoinError,
+    spotlightId,
+    setSpotlight,
+    hostAction,
   } = useClassroom();
+  const isHost = currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
   const isCompact = useIsCompact();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -190,6 +196,40 @@ export const VideoStage: React.FC = () => {
     );
   }
 
+  // Removed by the host, or not admitted from the waiting room
+  if (transportState.error === "removed" || transportState.error === "denied") {
+    const denied = transportState.error === "denied";
+    return (
+      <div className="flex-1 flex items-center justify-center p-6 bg-[#070b14]">
+        <div className="max-w-md w-full text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+          <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} />
+          <h2 className="text-lg font-bold text-white">{denied ? "Your teacher didn't let you in this time" : "You were removed from this class"}</h2>
+          <p className="text-sm text-slate-400">If you think this is a mistake, you can ask to join again. Your teacher will see your request.</p>
+          <button onClick={() => classroomTransport.rejoin()} className="btn-primary mx-auto">
+            Ask to join again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Learner connected but not yet admitted by the host
+  if (transportState.waiting) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6 bg-[#070b14]">
+        <div className="max-w-md w-full text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-6">
+          <div className="relative mx-auto w-14 h-14">
+            <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+            <div className="relative w-14 h-14 rounded-full bg-blue-500/15 border border-blue-500/40 flex items-center justify-center text-blue-200 text-xl">⏳</div>
+          </div>
+          <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} />
+          <h2 className="text-lg font-bold text-white">Waiting for your teacher to let you in</h2>
+          <p className="text-sm text-slate-400">Keep this screen open. You'll join automatically when you're admitted.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (currentRole === "auditor") {
     return (
       <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
@@ -204,7 +244,9 @@ export const VideoStage: React.FC = () => {
   }
 
   // Filter participants based on showSelfView setting
+  // Learners in the waiting room never appear on stage (hosts admit them from the bar)
   const displayParticipants = participants.filter((p) => {
+    if (p.waiting) return false;
     if (!showSelfView && p.isLocal) return false;
     return true;
   });
@@ -258,6 +300,22 @@ export const VideoStage: React.FC = () => {
       isPinned={pinnedParticipantId === p.id}
       onPinToggle={() => setPinnedParticipantId(pinnedParticipantId === p.id ? null : p.id)}
       aspectClass=""
+      hostMenu={
+        isHost && !p.isLocal
+          ? [
+              { label: p.audioEnabled ? "Mute microphone" : "Microphone is off", onClick: () => hostAction("mute", [p.id]), disabled: !p.audioEnabled },
+              { label: p.videoEnabled ? "Stop video" : "Video is off", onClick: () => hostAction("stop_video", [p.id]), disabled: !p.videoEnabled },
+              { label: spotlightId === p.id ? "Remove spotlight" : "Spotlight for everyone", onClick: () => setSpotlight(spotlightId === p.id ? null : p.id) },
+              {
+                label: "Remove from class",
+                danger: true,
+                onClick: () => {
+                  if (window.confirm(`Remove ${p.name} from this class?`)) hostAction("remove", [p.id]);
+                },
+              },
+            ]
+          : undefined
+      }
     />
   );
 
@@ -343,7 +401,8 @@ export const VideoStage: React.FC = () => {
                 </span>
               </>
             )}
-            <span className="truncate text-xs text-slate-400 min-w-0">· {roomTitle.split("·")[0]}</span>
+            <span className="w-px h-5 bg-white/10 shrink-0" />
+            <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} compact={isCompact} />
           </div>
 
           <span className="hidden @lg:flex items-center gap-1.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30 whitespace-nowrap">
@@ -515,13 +574,15 @@ export const VideoStage: React.FC = () => {
           <StageLayout
             participants={displayParticipants}
             renderTile={renderTile}
-            pinnedId={pinnedParticipantId}
+            pinnedId={spotlightId || pinnedParticipantId}
             presentation={presentation}
             compact={isCompact}
             detailsPane={<TranscriptFeed />}
           />
         )}
 
+
+        <LivePollCard isHost={isHost} />
 
         {/* Synchronized Room Break Countdown & Mindfulness Overlay */}
         <RoomBreakOverlay />

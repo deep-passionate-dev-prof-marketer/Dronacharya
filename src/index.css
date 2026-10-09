@@ -163,3 +163,38 @@ main h1, main h2, main h3 { overflow-wrap: break-word; }
   main .gap-6 { gap: 1rem; }
   main .mb-6 { margin-bottom: 1rem; }
 }
+
+/* Forensic watermark drift (slow, so it never distracts) */
+@keyframes wmDrift {
+  from { transform: translate(0, 0); }
+  to { transform: translate(210px, 110px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-forensic-watermark] > div { animation: none !important; }
+}
+
+/* Printing class content is not allowed: the page prints blank with a notice */
+@media print {
+  body * { visibility: hidden !important; }
+  body::after {
+    content: "Printing is disabled for 21K School class content.";
+    visibility: visible;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 18px sans-serif;
+    color: #000;
+  }
+}
+
+/* Class surfaces: no text selection or dragging, except form fields and opted-in areas */
+.content-guarded { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.content-guarded input,
+.content-guarded textarea,
+.content-guarded [contenteditable="true"],
+.content-guarded .allow-select { -webkit-user-select: text; user-select: text; }
+.content-guarded img,
+.content-guarded video,
+.content-guarded canvas { -webkit-user-drag: none; }

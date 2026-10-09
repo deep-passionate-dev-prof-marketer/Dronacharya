@@ -6,6 +6,10 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { setupRealtimeWebSocket } from "./src/server/realtimeHub";
+import { closeDb, getDb } from "./src/server/db";
+import { seedIfEmpty } from "./src/server/db/seed";
+import { attachUser, requireAuth } from "./src/server/auth/session";
+import { setupAuthRoutes } from "./src/server/auth/routes";
 
 dotenv.config();
 
@@ -17,6 +21,21 @@ const httpServer = http.createServer(app);
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: "30mb" }));
+app.set("trust proxy", 1);
+
+// Database (PGlite file in dev, Postgres/Supabase via DATABASE_URL) + test accounts on first run
+const db = await getDb();
+await seedIfEmpty(db);
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, async () => {
+    await closeDb();
+    process.exit(0);
+  });
+}
+
+// Signed sessions: every request gets req.user from the HttpOnly cookie (never from the request body)
+app.use(attachUser());
+setupAuthRoutes(app);
 
 // Initialize Real-Time WebSockets, Room Bomber Partition Engine & REST Routes
 setupRealtimeWebSocket(httpServer, app);
@@ -52,7 +71,7 @@ function markQuotaExhausted() {
 }
 
 // API Route: Lecture Transcript Summarization & Study Digest
-app.post("/api/ai/transcript-summary", async (req, res) => {
+app.post("/api/ai/transcript-summary", requireAuth(), async (req, res) => {
   try {
     const { transcriptLines, courseTopic, sessionTitle } = req.body;
 
@@ -131,7 +150,7 @@ Please provide a structured, high-value academic digest formatted with:
 });
 
 // API Route: Google LLM Notebook Concept Graph & Lecture Flow Generator
-app.post("/api/ai/notebook-concept-graph", async (req, res) => {
+app.post("/api/ai/notebook-concept-graph", requireAuth(), async (req, res) => {
   let defaultConceptGraph: any = null;
   try {
     const { transcriptLines, sessionTitle } = req.body;
@@ -376,7 +395,7 @@ Synthesize a complete NotebookLM-style visual knowledge map in JSON format with:
 });
 
 // API Route: Google LLM Notebook Grounded Q&A Chat
-app.post("/api/ai/notebook-chat", async (req, res) => {
+app.post("/api/ai/notebook-chat", requireAuth(), async (req, res) => {
   try {
     const { message, transcriptLines } = req.body;
 
@@ -650,7 +669,7 @@ function getSmartDictionaryTranslation(text: string, langCode: string): string {
 }
 
 // API Route: Real-Time Dual Live Caption Translation
-app.post("/api/ai/live-translate-stream", async (req, res) => {
+app.post("/api/ai/live-translate-stream", requireAuth(), async (req, res) => {
   try {
     const { text, targetLanguage, speaker } = req.body;
     if (!text || typeof text !== "string" || text.trim().length === 0) {
@@ -732,7 +751,7 @@ CRITICAL INSTRUCTION: Output ONLY the translated text without quotes, explanatio
 });
 
 // API Route: Smart Student-to-Student Conversation Note-Taker
-app.post("/api/ai/peer-notetaker-summary", async (req, res) => {
+app.post("/api/ai/peer-notetaker-summary", requireAuth(), async (req, res) => {
   try {
     const { peerA, peerB, conversationTranscript, topic } = req.body;
     if (!conversationTranscript || !Array.isArray(conversationTranscript)) {

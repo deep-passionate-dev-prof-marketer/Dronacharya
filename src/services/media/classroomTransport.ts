@@ -34,9 +34,24 @@ export interface TransportState {
   /** Browser blocked autoplay of remote audio; call startAudio() from a user gesture */
   audioBlocked: boolean;
   error?: string;
+  /** This learner is in the waiting room (connected, but no media until admitted) */
+  waiting?: boolean;
+  /** Last time one of our own tracks was muted from outside (e.g. by the teacher) */
+  localMuted?: { kind: "audio" | "video"; at: number };
 }
 
-export type DataTopic = "caption" | "class_status" | "hand" | "chat" | "wb_stroke" | "wb_clear" | "wb_sync_request" | "wb_sync" | "stage";
+export type DataTopic =
+  | "caption"
+  | "class_status"
+  | "hand"
+  | "chat"
+  | "wb_stroke"
+  | "wb_clear"
+  | "wb_sync_request"
+  | "wb_sync"
+  | "stage"
+  | "poll"
+  | "poll_results";
 
 export interface JoinParams {
   roomSlug: string;
@@ -299,8 +314,9 @@ class ClassroomTransport {
     await room.connect(cfg.url, cfg.token, { autoSubscribe: true });
     this.rejoinAttempts = 0;
     this.setState({ mode: "livekit", status: "connected", audioBlocked: !room.canPlaybackAudio });
+    this.syncLocalWaiting(room);
 
-    if (params.user.role !== "auditor") {
+    if (params.user.role !== "auditor" && !this.state.waiting) {
       await this.replaceLocalStream(params.localStream || null);
       if (!params.audioEnabled) await this.setMicEnabled(false);
       if (!params.videoEnabled) await this.setCameraEnabled(false);
@@ -324,7 +340,11 @@ class ClassroomTransport {
         track.detach().forEach((el) => el.remove());
         refresh();
       })
-      .on(RoomEvent.TrackMuted, refresh)
+      .on(RoomEvent.TrackMuted, (pub, participant) => {
+        // Server-side mute of our own track (host action): let the UI catch up
+        if (participant === room.localParticipant) this.setState({ ...this.state, localMuted: { kind: pub.kind === Track.Kind.Audio ? "audio" : "video", at: Date.now() } });
+        refresh();
+      })
       .on(RoomEvent.TrackUnmuted, refresh)
       .on(RoomEvent.TrackPublished, refresh)
       .on(RoomEvent.TrackUnpublished, refresh)
@@ -332,7 +352,18 @@ class ClassroomTransport {
       .on(RoomEvent.LocalTrackUnpublished, refresh)
       .on(RoomEvent.ActiveSpeakersChanged, refresh)
       .on(RoomEvent.ConnectionQualityChanged, refresh)
-      .on(RoomEvent.ParticipantMetadataChanged, refresh)
+      .on(RoomEvent.ParticipantMetadataChanged, (_old, participant) => {
+        if (participant && participant.identity === room.localParticipant.identity) this.syncLocalWaiting(room);
+        refresh();
+      })
+      .on(RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
+        if (participant && participant.identity === room.localParticipant.identity) {
+          this.syncLocalWaiting(room);
+          // Admitted: start sending camera and mic now that publishing is allowed
+          if (room.localParticipant.permissions?.canPublish && this.lastParams) this.replaceLocalStream(this.lastParams.localStream || null);
+        }
+        refresh();
+      })
       .on(RoomEvent.AudioPlaybackStatusChanged, () => this.setState({ ...this.state, audioBlocked: !room.canPlaybackAudio }))
       .on(RoomEvent.Reconnecting, () => this.setState({ ...this.state, status: "reconnecting" }))
       .on(RoomEvent.SignalReconnecting, () => this.setState({ ...this.state, status: "reconnecting" }))
@@ -342,6 +373,11 @@ class ClassroomTransport {
         if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
           // Same account joined from another tab/device; let the user choose where to continue
           this.setState({ ...this.state, status: "disconnected", error: "duplicate_identity" });
+          return;
+        }
+        if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+          // A host removed us (or declined us from the waiting room): don't sneak back in
+          this.setState({ ...this.state, status: "disconnected", error: this.state.waiting ? "denied" : "removed", waiting: false });
           return;
         }
         // Network/server drop: rejoin automatically so the class carries on
@@ -360,6 +396,15 @@ class ClassroomTransport {
           this.dispatchData(msg, participant?.identity || msg.from);
         } catch {}
       });
+  }
+
+  private syncLocalWaiting(room: Room) {
+    let waiting = false;
+    try {
+      waiting = Boolean(JSON.parse(room.localParticipant.metadata || "{}").waiting);
+    } catch {}
+    if (room.localParticipant.permissions && room.localParticipant.permissions.canPublish) waiting = false;
+    if (waiting !== Boolean(this.state.waiting)) this.setState({ ...this.state, waiting });
   }
 
   /** Remote audio lives outside React so layout changes, swipes and re-renders never interrupt it. */
@@ -412,6 +457,7 @@ class ClassroomTransport {
       joinedAt: p.joinedAt ? p.joinedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
       xpPoints: 0,
       gradeLevel: meta.gradeLevel,
+      waiting: Boolean(meta.waiting) && !(p.permissions && p.permissions.canPublish),
       attachVideo: isLocal ? undefined : attach(camTrack),
       attachScreen: attach(screenTrack),
     };

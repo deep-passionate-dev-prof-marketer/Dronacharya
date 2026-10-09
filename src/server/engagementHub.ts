@@ -3,16 +3,14 @@
  *
  * - Participants post their own on-device summaries every ~5s, only after consent is recorded.
  * - Read APIs reject every role except auditor/admin (header x-actor-role).
- * - Storage: append-only JSONL (samples + consent) under data/engagement, plus in-memory rollups.
+ * - Storage: Postgres (engagement_samples, consents with full history, kv settings) plus in-memory rollups.
  */
-import fs from "fs";
-import path from "path";
 import express from "express";
+import { asc, desc, eq } from "drizzle-orm";
+import { getDb, schema } from "./db";
+import { kvLoad, kvUpsert, persist } from "./db/kv";
+import { requireAuth } from "./auth/session";
 
-const DIR = path.join(process.cwd(), "data", "engagement");
-const SAMPLES = path.join(DIR, "samples.jsonl");
-const CONSENT = path.join(DIR, "consent.jsonl");
-const SETTINGS = path.join(DIR, "settings.json");
 const READ_ROLES = ["auditor", "admin", "analyst"];
 
 interface Sample {
@@ -44,40 +42,54 @@ interface ConsentRecord {
   userAgent?: string;
 }
 
-let persist = true;
 const samplesByRoom = new Map<string, Sample[]>();
 const consent = new Map<string, ConsentRecord>();
 let settings = { enabled: true, disabledCountries: [] as string[] };
 
-try {
-  fs.mkdirSync(DIR, { recursive: true });
-  if (fs.existsSync(SETTINGS)) settings = { ...settings, ...JSON.parse(fs.readFileSync(SETTINGS, "utf-8")) };
-  if (fs.existsSync(CONSENT)) {
-    for (const line of fs.readFileSync(CONSENT, "utf-8").split("\n").filter(Boolean)) {
-      try {
-        const c: ConsentRecord = JSON.parse(line);
-        consent.set(c.participantId, c); // last decision wins
-      } catch {}
-    }
+/** Loads settings, latest consent per person and recent samples from Postgres. */
+async function loadFromDb() {
+  const db: any = await getDb();
+  const saved = await kvLoad<typeof settings>("engagement_settings");
+  if (saved[0]) settings = { ...settings, ...saved[0].value };
+  const rows = await db.select().from(schema.consents).where(eq(schema.consents.kind, "analytics")).orderBy(asc(schema.consents.at));
+  for (const c of rows) {
+    consent.set(c.userId, {
+      participantId: c.userId,
+      name: "",
+      role: "",
+      granted: c.granted,
+      guardianName: c.guardianName || undefined,
+      guardianAttested: Boolean(c.guardianName),
+      country: c.country || undefined,
+      at: new Date(c.at).toISOString(),
+    });
   }
-  if (fs.existsSync(SAMPLES)) {
-    for (const line of fs.readFileSync(SAMPLES, "utf-8").split("\n").filter(Boolean).slice(-50000)) {
-      try {
-        const s: Sample = JSON.parse(line);
-        if (!samplesByRoom.has(s.roomSlug)) samplesByRoom.set(s.roomSlug, []);
-        samplesByRoom.get(s.roomSlug)!.push(s);
-      } catch {}
-    }
+  const recent = await db.select().from(schema.engagementSamples).orderBy(desc(schema.engagementSamples.at)).limit(50000);
+  for (const r of recent.reverse()) {
+    const smp = r.data as Sample;
+    if (!samplesByRoom.has(smp.roomSlug)) samplesByRoom.set(smp.roomSlug, []);
+    samplesByRoom.get(smp.roomSlug)!.push(smp);
   }
-} catch {
-  persist = false;
 }
 
-const append = (file: string, obj: unknown) => persist && fs.appendFile(file, JSON.stringify(obj) + "\n", () => {});
+/** Records a consent decision (history kept). `decidedBy` is the learner or their guardian. */
+export async function saveConsent(record: ConsentRecord, kind: "analytics" | "recording", decidedBy: string) {
+  if (kind === "analytics") consent.set(record.participantId, record);
+  const db: any = await getDb();
+  await db.insert(schema.consents).values({
+    userId: record.participantId,
+    kind,
+    granted: record.granted,
+    decidedBy,
+    guardianName: record.guardianName || null,
+    country: record.country || null,
+  });
+}
+
 const num = (v: any) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1000, Number(v))) : 0);
 
 function canRead(req: express.Request) {
-  return READ_ROLES.includes(String(req.headers["x-actor-role"] || ""));
+  return Boolean(req.user && READ_ROLES.includes(req.user.role));
 }
 
 function rollup(samples: Sample[]) {
@@ -116,25 +128,30 @@ function rollup(samples: Sample[]) {
 }
 
 export function setupEngagementRoutes(app: express.Express) {
+  const ready = loadFromDb().catch((err) => console.error("[Engagement] load failed:", err));
+  app.use("/api/engagement", (_req, _res, next) => {
+    ready.then(() => next());
+  });
+
   app.get("/api/engagement/settings", (_req, res) => res.json(settings));
 
-  app.put("/api/engagement/settings", (req, res) => {
-    if (req.headers["x-actor-role"] !== "admin") return res.status(403).json({ error: "Admins only" });
+  app.put("/api/engagement/settings", requireAuth("admin"), (req, res) => {
     settings = {
       enabled: req.body?.enabled !== false,
       disabledCountries: Array.isArray(req.body?.disabledCountries) ? req.body.disabledCountries.map((c: any) => String(c).toUpperCase().slice(0, 3)) : settings.disabledCountries,
     };
-    if (persist) fs.writeFile(SETTINGS, JSON.stringify(settings, null, 2), () => {});
+    persist("engagement settings", kvUpsert("engagement_settings", [{ key: "settings", value: settings }]));
     res.json(settings);
   });
 
-  app.get("/api/engagement/consent/:id", (req, res) => {
+  app.get("/api/engagement/consent/:id", requireAuth(), (req, res) => {
+    // Own record only (parents manage children's consent via the parent portal)
+    if (req.params.id !== req.user!.id && !READ_ROLES.includes(req.user!.role)) return res.status(403).json({ error: "Not allowed" });
     res.json({ consent: consent.get(req.params.id) || null });
   });
 
-  app.post("/api/engagement/consent", (req, res) => {
-    const p = req.body?.participant || {};
-    if (!p.id) return res.status(400).json({ error: "participant.id required" });
+  app.post("/api/engagement/consent", requireAuth(), (req, res) => {
+    const p = { id: req.user!.id, name: req.user!.name, role: req.user!.role };
     if (p.role === "student" && req.body?.granted && !(req.body?.guardianAttested && req.body?.guardianName)) {
       return res.status(400).json({ error: "A parent or guardian must confirm consent for learners." });
     }
@@ -149,14 +166,13 @@ export function setupEngagementRoutes(app: express.Express) {
       at: new Date().toISOString(),
       userAgent: String(req.headers["user-agent"] || "").slice(0, 200),
     };
-    consent.set(record.participantId, record);
-    append(CONSENT, record);
+    persist("consent", saveConsent(record, "analytics", req.user!.id));
     res.json({ consent: record });
   });
 
-  app.post("/api/engagement/samples", (req, res) => {
+  app.post("/api/engagement/samples", requireAuth(), (req, res) => {
     if (!settings.enabled) return res.status(503).json({ error: "Analytics disabled" });
-    const p = req.body?.participant || {};
+    const p = { id: req.user!.id, name: req.user!.name, role: req.user!.role };
     const c = consent.get(String(p.id));
     if (!c?.granted) return res.status(403).json({ error: "No consent on record" });
     if (c.country && settings.disabledCountries.includes(c.country.toUpperCase())) return res.status(403).json({ error: "Analytics disabled in this region" });
@@ -182,12 +198,15 @@ export function setupEngagementRoutes(app: express.Express) {
     const list = samplesByRoom.get(sample.roomSlug)!;
     list.push(sample);
     if (list.length > 20000) list.splice(0, list.length - 20000);
-    append(SAMPLES, sample);
+    persist(
+      "engagement sample",
+      getDb().then((db: any) => db.insert(schema.engagementSamples).values({ roomSlug: sample.roomSlug, participantId: sample.participant.id, at: new Date(sample.at), data: sample }))
+    );
     res.json({ ok: true });
   });
 
   // ---------------- read side: auditors / analysts only ----------------
-  app.get("/api/engagement/rooms", (req, res) => {
+  app.get("/api/engagement/rooms", requireAuth(), (req, res) => {
     if (!canRead(req)) return res.status(403).json({ error: "Engagement analytics are restricted to auditors and analysts." });
     const rooms = Array.from(samplesByRoom.entries()).map(([roomSlug, list]) => ({
       roomSlug,
@@ -198,7 +217,7 @@ export function setupEngagementRoutes(app: express.Express) {
     res.json({ rooms });
   });
 
-  app.get("/api/engagement/rooms/:slug", (req, res) => {
+  app.get("/api/engagement/rooms/:slug", requireAuth(), (req, res) => {
     if (!canRead(req)) return res.status(403).json({ error: "Engagement analytics are restricted to auditors and analysts." });
     const sinceMs = Date.now() - Math.min(24 * 60, Number(req.query.minutes) || 120) * 60000;
     const list = (samplesByRoom.get(req.params.slug) || []).filter((s) => Date.parse(s.at) >= sinceMs);

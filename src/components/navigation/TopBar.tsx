@@ -304,8 +304,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
                     <BookOpen className="w-4 h-4 text-blue-400" /> Platform docs
                   </button>
                   {currentRole === "admin" && (
-                    <button className="menu-item" onClick={menuAction(() => setIsAuthModalOpen(true))}>
-                      <KeyRound className="w-4 h-4 text-amber-400" /> Switch role portal
+                    <button className="menu-item" onClick={menuAction(logoutUser)}>
+                      <KeyRound className="w-4 h-4 text-amber-400" /> Sign in as someone else
                     </button>
                   )}
                 </div>

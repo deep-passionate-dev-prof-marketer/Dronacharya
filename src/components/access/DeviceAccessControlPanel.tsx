@@ -329,9 +329,16 @@ export const DeviceAccessControlPanel: React.FC = () => {
                   <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">
                     {rule.allowRequestOverride ? "Requests allowed" : "No exceptions"}
                   </span>
+                  {rule.requireDesktopApp && (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-200">Desktop app only</span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
+                <label className={`flex items-center gap-2 text-xs ${isAdmin ? "cursor-pointer" : "opacity-60"}`} title="Only the 21K School desktop app (blocks screen recording) may join">
+                  <input type="checkbox" disabled={!isAdmin} checked={Boolean(rule.requireDesktopApp)} onChange={(e) => toggleRule(rule, { requireDesktopApp: e.target.checked })} className="accent-blue-500" />
+                  Desktop app only
+                </label>
                 <label className={`flex items-center gap-2 text-xs ${isAdmin ? "cursor-pointer" : "opacity-60"}`}>
                   <input type="checkbox" disabled={!isAdmin} checked={rule.allowRequestOverride} onChange={(e) => toggleRule(rule, { allowRequestOverride: e.target.checked })} className="accent-blue-500" />
                   Allow requests

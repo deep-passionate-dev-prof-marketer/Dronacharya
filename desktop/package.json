@@ -1,0 +1,33 @@
+{
+  "name": "dronacharya-desktop",
+  "productName": "21K School Classroom",
+  "version": "1.0.0",
+  "private": true,
+  "description": "21K School classroom app. Blocks screen recording and screenshots of class content.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "check-protection": "DRONACHARYA_SELF_TEST=1 electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "school.21k.classroom",
+    "productName": "21K School Classroom",
+    "files": [
+      "main.cjs",
+      "preload.cjs"
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "hardenedRuntime": true
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}

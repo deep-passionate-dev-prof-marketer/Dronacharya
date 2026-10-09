@@ -33,6 +33,8 @@ export interface Participant {
   /** Local screen-share preview, or a remote screen stream on the peer-to-peer fallback */
   screenStream?: MediaStream;
   isSpeaking?: boolean;
+  /** Learner waiting to be admitted by the host */
+  waiting?: boolean;
   connectionQuality?: "excellent" | "good" | "poor" | "lost" | "unknown";
 }
 
@@ -600,6 +602,8 @@ export interface AuthUser {
   /** ISO-2/ISO-3 country and BCP-47 primary language, used in role URLs and caption language */
   country?: string;
   languageTag?: string;
+  /** "10ABCDEFGH · 4F2A9C": school id + session fingerprint, drawn as the forensic watermark */
+  watermarkId?: string;
 }
 
 // -------------------------------------------------------------

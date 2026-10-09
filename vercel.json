@@ -21,6 +21,10 @@
       "destination": "/api/device-policy/$1"
     },
     {
+      "source": "/api/realtime/(.*)",
+      "destination": "/api/realtime/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

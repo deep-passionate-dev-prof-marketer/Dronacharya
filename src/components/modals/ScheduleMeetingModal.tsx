@@ -33,6 +33,7 @@ import {
 import { RoomRatio } from "../../types";
 import { TeacherMatchPicker, PickedTeacher } from "../matching/TeacherMatchPicker";
 import type { MatchRequest } from "../../services/matching/teacherMatcher";
+import { ClassKind, KIND_LABEL } from "../../services/classLabels";
 
 export const ScheduleMeetingModal: React.FC = () => {
   const {
@@ -74,9 +75,13 @@ export const ScheduleMeetingModal: React.FC = () => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
   const [allowInterpreter, setAllowInterpreter] = useState(false);
+  const [classKind, setClassKind] = useState<ClassKind>("demo");
+  const [classTopic, setClassTopic] = useState("");
   const [matchedTeacher, setMatchedTeacher] = useState<PickedTeacher | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
+  /** Signed sign-in link for the booked learner (no password needed) */
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const matchRequest: MatchRequest = {
     subject: manualCourse,
     gradeLevel: manualGrade,
@@ -90,7 +95,8 @@ export const ScheduleMeetingModal: React.FC = () => {
   };
 
   /** Books through the server matcher (no hard-coded teacher), then records the lead with the real assignment. */
-  const bookMatchedClass = async (): Promise<string | null> => {
+  const bookMatchedClass = async (): Promise<{ roomSlug: string; inviteUrl: string | null } | null> => {
+    setInviteUrl(null);
     setIsBooking(true);
     setBookingError(null);
     try {
@@ -101,8 +107,10 @@ export const ScheduleMeetingModal: React.FC = () => {
           request: matchRequest,
           preferredTeacherId: matchedTeacher?.id,
           student: { key: manualStudentId, name: manualStudentName },
-          sessionType: "demo",
-          actor: { id: authenticatedUser?.id, name: authenticatedUser?.name, role: authenticatedUser?.role },
+          parent: manualParentEmail ? { name: manualParentName, email: manualParentEmail } : undefined,
+          kind: classKind,
+          topic: classTopic.trim() || undefined,
+          course: manualCourse,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -124,7 +132,8 @@ export const ScheduleMeetingModal: React.FC = () => {
         roomCode: body.booking.roomSlug,
         crmSource: "Website Booking",
       });
-      return body.booking.roomSlug as string;
+      setInviteUrl(body.inviteUrl || null);
+      return { roomSlug: body.booking.roomSlug as string, inviteUrl: body.inviteUrl || null };
     } catch (err: any) {
       setBookingError(err?.message || "Booking failed");
       return null;
@@ -160,41 +169,41 @@ export const ScheduleMeetingModal: React.FC = () => {
   });
 
   const handleCopyManualLink = async () => {
-    const roomSlug = await bookMatchedClass();
-    if (!roomSlug) return;
+    const booked = await bookMatchedClass();
+    if (!booked) return;
+    // A signed invite: the learner is signed in automatically on this link (expires in 7 days)
     navigator.clipboard.writeText(
-      generateDemoMeetingUrl({
-        roomCode: roomSlug,
-        studentId: manualStudentId,
-        grade: manualGrade,
-        course: manualCourse,
-        language: manualLanguage,
-        ratio: manualRatio,
-        teacherName: matchedTeacher?.name || manualTeacher,
-      })
+      booked.inviteUrl ||
+        generateDemoMeetingUrl({
+          roomCode: booked.roomSlug,
+          studentId: manualStudentId,
+          grade: manualGrade,
+          course: manualCourse,
+          language: manualLanguage,
+          ratio: manualRatio,
+          teacherName: matchedTeacher?.name || manualTeacher,
+        })
     );
     setCopiedManualLink(true);
     setTimeout(() => setCopiedManualLink(false), 2500);
   };
 
-  const handleCopyManualInvitation = () => {
-    const inviteText = `21K School — Live Interactive Demo Class Invitation
---------------------------------------------------
+  const handleCopyManualInvitation = async () => {
+    // Book first so the invitation carries a real, signed sign-in link for this learner
+    const booked = inviteUrl ? { inviteUrl } : await bookMatchedClass();
+    if (!booked) return;
+    const when = new Date(manualStartLocal).toLocaleString([], { weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    const inviteText = `21K School: ${KIND_LABEL[classKind]}
 Student: ${manualStudentName} (Grade ${manualGrade})
-Course: ${manualCourse}
-Format: ${manualRatio} Interactive Cohort
-Teacher: ${manualTeacher}
-Preferred Language: ${manualLanguage.toUpperCase()}
+Course: ${manualCourse}${classTopic ? `\nTopic: ${classTopic}` : ""}
+When: ${when}
+Teacher: ${matchedTeacher?.name || manualTeacher}
+Language: ${manualLanguage.toUpperCase()}
 
-Direct Student Access Link:
-${liveGeneratedUrl}
+Join here (signs you in automatically, valid 7 days):
+${booked.inviteUrl || liveGeneratedUrl}
 
-Student Check-in Credentials:
-• Student ID: ${manualStudentId}
-• Password: ${manualPassword} (auto-filled on portal)
-
-Real-time 2-way AI Speech Translation across 50+ languages included.
-Edge Delivery: Netflix Open Connect Mesh (<20ms latency SLA).`;
+Please join from a laptop or desktop.`;
 
     navigator.clipboard.writeText(inviteText);
     setCopiedManualInvite(true);
@@ -202,9 +211,9 @@ Edge Delivery: Netflix Open Connect Mesh (<20ms latency SLA).`;
   };
 
   const handleLaunchManualRoom = async () => {
-    const roomSlug = await bookMatchedClass();
-    if (!roomSlug) return;
-    setRoomId(roomSlug);
+    const booked = await bookMatchedClass();
+    if (!booked) return;
+    setRoomId(booked.roomSlug);
     setActiveView("classroom");
     setIsScheduleModalOpen(false);
     startClass();
@@ -495,6 +504,32 @@ Security: Hardware-Accelerated AES-256-GCM`;
                     <option value="1:12">1:12 (Half Cohort Section)</option>
                     <option value="1:24">1:20 - 1:24 (Full Paid Class)</option>
                   </select>
+                </div>
+
+                {/* What kind of session this is: shown to everyone on screen */}
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Session type</label>
+                  <select
+                    value={classKind}
+                    onChange={(e) => setClassKind(e.target.value as ClassKind)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {(Object.keys(KIND_LABEL) as ClassKind[]).map((k) => (
+                      <option key={k} value={k}>
+                        {k === "enrolled" ? "Enrolled class (shows the day)" : KIND_LABEL[k]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Topic</label>
+                  <input
+                    type="text"
+                    value={classTopic}
+                    onChange={(e) => setClassTopic(e.target.value)}
+                    placeholder="e.g. Newton's laws of motion"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
                 </div>
 
                 {/* Class time (your local time) */}

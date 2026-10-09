@@ -1,3 +1,4 @@
+import { ClassHeader, useClassInfo } from "./ClassHeader";
 import React, { useState, useEffect, useRef } from "react";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
@@ -28,6 +29,8 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
   onEnterClassroom,
 }) => {
   const { currentUser, classStatus, roomTitle, roomId } = useClassroom();
+  const classInfo = useClassInfo(roomId);
+  const startsInLabel = classInfo?.kind === "demo" ? "Demo starts in" : classInfo?.kind === "admission" || classInfo?.kind === "counselling" ? "Session starts in" : "Class starts in";
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -312,10 +315,13 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
               <h2 className="text-sm font-black text-white tracking-wide uppercase font-mono">
-                21K School Gamified Waiting Lobby
+                Waiting for class to start
               </h2>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <div className="mt-1 max-w-[70vw]">
+              <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} />
+            </div>
+            <p className="hidden sm:block text-[11px] text-slate-400">
               Interactive Minecraft Voxel Campus · Explore with <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">W</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">A</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">S</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">D</kbd> or Click to Walk
             </p>
           </div>
@@ -327,7 +333,7 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
             <Clock className="w-4 h-4 animate-spin text-amber-400" />
             <div className="text-right">
               <span className="text-[9px] uppercase font-bold text-amber-400/80 block leading-none">
-                Demo Starts In
+                {startsInLabel}
               </span>
               <span className="text-xs font-mono font-black text-amber-300">
                 {formatCountdown(countdownSeconds)}

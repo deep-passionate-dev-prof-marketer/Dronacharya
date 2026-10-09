@@ -43,7 +43,7 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
 
   const activeRoom = pitchRoom || {
     roomId: "bomber-room-1",
-    roomName: "Pitch Room #1 (Alpha)",
+    roomName: "Academic counselling room 1",
     salesRepId: "host-1",
     salesRepName: currentUser?.name || "Dr. Evelyn Vance",
     studentId: "stu-1",

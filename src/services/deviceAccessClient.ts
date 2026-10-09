@@ -126,43 +126,22 @@ export async function evaluateJoin(roomSlug: string, student: AccessActor, devic
     const allowed = isDeviceAllowed(policy, device.deviceType);
     return {
       decision: allowed ? "allow" : "block",
-      policy: { ...policy, allowRequestOverride: true },
+      // Fail closed: no server means nobody could approve a request, so don't offer one
+      policy: { ...policy, allowRequestOverride: false },
       effectiveDeviceType: device.deviceType,
-      integrity: "verified_client",
+      integrity: "unverifiable",
       enforcement: "client_fallback",
     };
   }
 }
 
 export const deviceAccessApi = {
-  createRequest: async (roomSlug: string, student: AccessActor, device: DeviceSnapshot, message: string) => {
-    try {
-      return await api<{ request: DeviceAccessRequest }>("/api/device-access/requests", {
-        method: "POST",
-        body: JSON.stringify({ roomSlug, student, device, message }),
-      }).then((r) => r.request);
-    } catch (err) {
-      console.warn("[DeviceAccessClient] Server request failed, creating local fallback request record", err);
-      const req: DeviceAccessRequest = {
-        id: `dar-local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        roomSlug,
-        student,
-        device,
-        studentMessage: message,
-        policySnapshot: {
-          roomSlug,
-          mode: "auto",
-          context: inferContextFromSlug(roomSlug),
-          allowedDeviceTypes: ["laptop", "desktop"],
-          allowRequestOverride: true,
-          approverRoles: ["instructor", "admin", "sales_rep"],
-        },
-        status: "pending",
-        requestedAt: new Date().toISOString(),
-      };
-      return req;
-    }
-  },
+  createRequest: (roomSlug: string, student: AccessActor, device: DeviceSnapshot, message: string) =>
+    // No local fallback: a request only means something if a teacher can see it on the server
+    api<{ request: DeviceAccessRequest }>("/api/device-access/requests", {
+      method: "POST",
+      body: JSON.stringify({ roomSlug, student, device, message }),
+    }).then((r) => r.request),
 
   getRequest: (id: string) => api<{ request: DeviceAccessRequest }>(`/api/device-access/requests/${encodeURIComponent(id)}`).then((r) => r.request),
 

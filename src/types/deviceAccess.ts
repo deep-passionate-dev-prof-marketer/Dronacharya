@@ -106,6 +106,8 @@ export interface DeviceAccessEvent {
 
 export interface EvaluateResponse {
   decision: "allow" | "block" | "approved_override";
+  /** Why a join was blocked: wrong device type, or the class requires the desktop app */
+  blockReason?: "device_type" | "desktop_app_required";
   policy: ResolvedDevicePolicy;
   effectiveDeviceType: PolicyDeviceType;
   integrity: DeviceSnapshot["integrity"];

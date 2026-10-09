@@ -362,7 +362,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-linear-to-r from-red-600 to-rose-600 text-white text-xs font-bold shadow-md">
             <Flame className="w-3.5 h-3.5 animate-pulse" />
-            <span>1:1 Video Pitch Breakout</span>
+            <span>1:1 Academic counselling</span>
           </div>
 
           <div className="hidden sm:flex items-center gap-2 text-xs">
