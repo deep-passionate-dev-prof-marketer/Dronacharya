@@ -53,15 +53,41 @@ export const DeviceAccessControlPanel: React.FC = () => {
     setError(null);
     try {
       const [a, e, r, ru] = await Promise.all([
-        deviceAccessApi.analytics(),
-        deviceAccessApi.events(filters),
-        deviceAccessApi.listRequests(),
-        deviceAccessApi.rules(),
+        deviceAccessApi.analytics().catch(() => null),
+        deviceAccessApi.events(filters).catch(() => ({ events: [], persisted: false })),
+        deviceAccessApi.listRequests().catch(() => []),
+        deviceAccessApi.rules().catch(() => []),
       ]);
-      setAnalytics(a);
-      setEvents(e.events);
-      setRequests(r);
-      setRules(ru);
+      setAnalytics(
+        a && a.byDevice
+          ? a
+          : {
+              totals: a?.totals || {
+                joinAttempts: 0,
+                blocked: 0,
+                allowedByApproval: 0,
+                deviceMismatches: 0,
+                requests: 0,
+                pending: 0,
+                approved: 0,
+                denied: 0,
+                medianDecisionSeconds: null,
+              },
+              byDevice: a?.byDevice || {
+                phone: { allowed: 0, blocked: 0, approved: 0 },
+                tablet: { allowed: 0, blocked: 0, approved: 0 },
+                laptop: { allowed: 0, blocked: 0, approved: 0 },
+                desktop: { allowed: 0, blocked: 0, approved: 0 },
+              },
+              byRoom: a?.byRoom || {},
+              byApprover: a?.byApprover || {},
+              persisted: false,
+              dataDir: null,
+            }
+      );
+      setEvents(e?.events || []);
+      setRequests(Array.isArray(r) ? r : []);
+      setRules(Array.isArray(ru) ? ru : []);
     } catch (err: any) {
       setError(err?.message?.includes("HTTP 404") ? "The device-access service isn't running on this deployment (it needs the Node server)." : err?.message || "Failed to load");
     } finally {
@@ -131,7 +157,8 @@ export const DeviceAccessControlPanel: React.FC = () => {
             <div className="text-sm font-semibold text-white mb-3">Join outcomes by device</div>
             <div className="space-y-2.5">
               {ALL_DEVICE_TYPES.map((d) => {
-                const row = analytics.byDevice[d] || { allowed: 0, blocked: 0, approved: 0 };
+                const byDev = analytics?.byDevice || {};
+                const row = byDev[d] || { allowed: 0, blocked: 0, approved: 0 };
                 const total = row.allowed + row.blocked + row.approved || 1;
                 const Icon = DEVICE_ICONS[d];
                 return (
@@ -159,7 +186,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
           </div>
           <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 min-w-0">
             <div className="text-sm font-semibold text-white mb-3">Rooms with the most blocks</div>
-            {Object.keys(analytics.byRoom).length === 0 ? (
+            {!analytics?.byRoom || Object.keys(analytics.byRoom).length === 0 ? (
               <div className="text-sm text-slate-500 py-6 text-center">No blocked joins yet</div>
             ) : (
               <div className="overflow-x-auto">
@@ -173,7 +200,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {Object.entries(analytics.byRoom)
+                    {Object.entries(analytics.byRoom || {})
                       .sort((a, b) => b[1].blocked - a[1].blocked)
                       .slice(0, 6)
                       .map(([room, v]) => (

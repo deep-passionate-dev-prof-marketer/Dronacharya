@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, Mail, ArrowLeft, FlaskConical, ShieldCheck, GraduationCap, School, Briefcase, Shield, UserCheck } from "lucide-react";
+import { Loader2, Mail, ArrowLeft, FlaskConical, ShieldCheck, GraduationCap, School, Briefcase, Shield, UserCheck, Eye } from "lucide-react";
 import type { AuthUser } from "../../types";
 import { SchoolLogo } from "../brand/SchoolLogo";
 
@@ -215,7 +215,7 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => devSignIn("tch-vance")}
@@ -242,6 +242,18 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
 
               <button
                 type="button"
+                onClick={() => devSignIn("audit-1")}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 text-xs font-bold transition text-left cursor-pointer"
+              >
+                <Eye className="w-4 h-4 text-purple-400 shrink-0" />
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">Auditor Mode</div>
+                  <div className="text-[10px] text-slate-400 truncate">Marcus Aurelius</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => devSignIn("sales-1")}
                 className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-200 text-xs font-bold transition text-left cursor-pointer"
               >
@@ -255,7 +267,7 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
               <button
                 type="button"
                 onClick={() => devSignIn("admin-1")}
-                className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-200 text-xs font-bold transition text-left cursor-pointer"
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-200 text-xs font-bold transition text-left cursor-pointer col-span-2 sm:col-span-1"
               >
                 <Shield className="w-4 h-4 text-rose-400 shrink-0" />
                 <div className="min-w-0">
