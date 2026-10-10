@@ -5,6 +5,54 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/livekit/(.*)",
+      "destination": "/api/livekit/$1"
+    },
+    {
+      "source": "/api/ai/live-translate-stream",
+      "destination": "/api/ai/live-translate-stream"
+    },
+    {
+      "source": "/api/device-access/(.*)",
+      "destination": "/api/device-access/$1"
+    },
+    {
+      "source": "/api/device-policy/(.*)",
+      "destination": "/api/device-policy/$1"
+    },
+    {
+      "source": "/api/realtime/(.*)",
+      "destination": "/api/realtime/$1"
+    },
+    {
+      "source": "/api/engagement/(.*)",
+      "destination": "/api/engagement/$1"
+    },
+    {
+      "source": "/api/auth/otp/start",
+      "destination": "/api/auth/otp-start"
+    },
+    {
+      "source": "/api/auth/otp/verify",
+      "destination": "/api/auth/otp-verify"
+    },
+    {
+      "source": "/api/auth/dev/accounts",
+      "destination": "/api/auth/dev-accounts"
+    },
+    {
+      "source": "/api/auth/dev/login",
+      "destination": "/api/auth/dev-login"
+    },
+    {
+      "source": "/api/auth/providers",
+      "destination": "/api/auth/providers"
+    },
+    {
+      "source": "/api/auth/(.*)",
+      "destination": "/api/auth/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
