@@ -7,9 +7,6 @@ class RealtimeSocketClient {
   private listeners: Map<string, Set<RealtimeEventHandler>> = new Map();
   private isConnected = false;
   private reconnectTimer: any = null;
-  private pollTimer: any = null;
-  private lastPolledTimestamp = 0;
-  private isPollingActive = false;
   private currentRoomId = "default-room";
   private currentUser: any = null;
   private broadcastChannel: BroadcastChannel | null = null;
@@ -33,9 +30,6 @@ class RealtimeSocketClient {
   public connect(user?: any, roomId: string = "default-room") {
     if (user) this.currentUser = user;
     if (roomId) this.currentRoomId = roomId;
-
-    // Start HTTP serverless polling relay immediately (essential on Vercel where WebSockets are unsupported)
-    this.startHttpPolling();
 
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
       return;
@@ -69,73 +63,29 @@ class RealtimeSocketClient {
       };
 
       this.socket.onclose = () => {
-        if (!this.isPollingActive) {
-          this.isConnected = false;
-          this.emitLocal("connection_status", { status: "disconnected" });
-        }
+        this.isConnected = false;
+        this.emitLocal("connection_status", { status: "disconnected" });
         this.scheduleReconnect();
       };
 
       this.socket.onerror = (err) => {
-        console.warn("[RealtimeSocket] WebSocket error (using serverless HTTP relay):", err);
+        console.warn("[RealtimeSocket] WebSocket error:", err);
       };
     } catch (e) {
-      console.warn("[RealtimeSocket] WebSocket unavailable, relying on serverless HTTP relay:", e);
+      console.error("[RealtimeSocket] Connection initiation error:", e);
       this.scheduleReconnect();
     }
-  }
-
-  private startHttpPolling() {
-    if (this.pollTimer) return;
-    this.isPollingActive = true;
-    this.lastPolledTimestamp = Math.max(0, Date.now() - 30_000);
-
-    const poll = async () => {
-      try {
-        const peerId = this.currentUser?.id || "";
-        const url = `/api/realtime/signals?roomId=${encodeURIComponent(this.currentRoomId)}&peerId=${encodeURIComponent(peerId)}&since=${this.lastPolledTimestamp}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (!this.isConnected) {
-            this.isConnected = true;
-            this.emitLocal("connection_status", { status: "connected" });
-          }
-
-          if (Array.isArray(data.signals) && data.signals.length > 0) {
-            for (const sig of data.signals) {
-              if (sig.timestamp > this.lastPolledTimestamp) {
-                this.lastPolledTimestamp = sig.timestamp;
-              }
-              // Dispatch signal locally
-              this.emitLocal(sig.type, sig.payload || sig);
-            }
-          }
-        }
-      } catch (err) {
-        // network retry
-      }
-    };
-
-    // Immediate initial poll
-    poll();
-    this.pollTimer = setInterval(poll, 600);
   }
 
   private scheduleReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
       this.connect();
-    }, 4000);
+    }, 2500);
   }
 
   public disconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
-    this.isPollingActive = false;
     if (this.socket) {
       this.socket.close();
       this.socket = null;
@@ -174,29 +124,14 @@ class RealtimeSocketClient {
       timestamp: new Date().toISOString(),
     };
 
-    // 1. Post to serverless HTTP signaling relay (works 100% across all devices on Vercel)
-    try {
-      fetch("/api/realtime/signals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomId: this.currentRoomId,
-          senderId: this.currentUser?.id || "unknown",
-          targetId: payload?.targetId || payload?.signal?.targetId,
-          type,
-          payload,
-        }),
-      }).catch(() => {});
-    } catch {}
-
-    // 2. Send over WebSocket if connected
+    // 1. Send over WebSocket if connected
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
         this.socket.send(JSON.stringify(message));
       } catch {}
     }
 
-    // 3. Broadcast across all browser tabs and windows in real-time
+    // 2. Broadcast across all browser tabs and windows in real-time
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.postMessage(message);

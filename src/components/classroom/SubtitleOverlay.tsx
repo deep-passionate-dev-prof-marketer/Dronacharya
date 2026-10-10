@@ -68,16 +68,19 @@ export const SubtitleOverlay: React.FC = () => {
   if (classStatus === "waiting" || !isVisible || !currentLiveCaption || !currentLiveCaption.englishText?.trim()) {
     return (
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 animate-fadeIn max-w-[calc(100%-1rem)]">
-        <div className="flex items-center gap-1.5 sm:gap-2 bg-[#080d1c]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-2.5 sm:px-3.5 py-1.5 shadow-xl shadow-black/80 text-xs text-slate-300">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-surface-sunken/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-2.5 sm:px-3.5 py-1.5 shadow-xl shadow-black/80 text-xs text-slate-300">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-          <span className="font-semibold text-white text-[10px] sm:text-[11px] whitespace-nowrap">
+          <span className="font-semibold text-white text-2xs sm:text-2xs whitespace-nowrap">
             <span className="hidden sm:inline">AI </span>Interpreter:
           </span>
-          <span className="font-mono text-[9px] sm:text-[10px] text-cyan-300 whitespace-nowrap">
+          <span className="font-mono text-2xs sm:text-2xs text-cyan-300 whitespace-nowrap">
             {srcLang.code.toUpperCase()} → {tgtLang.code.toUpperCase()}
           </span>
 
           <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 sm:pl-2 shrink-0">
+            {/* Simulated test phrases are a development aid only: they'd put made-up captions into a real class */}
+            {import.meta.env.DEV && (
+              <>
             <button
               onClick={() =>
                 handleQuickTest(
@@ -87,7 +90,7 @@ export const SubtitleOverlay: React.FC = () => {
                   tgtLang.code
                 )
               }
-              className="px-1.5 sm:px-2 py-0.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap"
+              className="px-1.5 sm:px-2 py-0.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded text-2xs sm:text-2xs font-medium transition whitespace-nowrap"
               title={`Test speech translation into ${tgtLang.name}`}
             >
               <span className="hidden sm:inline">Test {tgtLang.name}</span>
@@ -101,12 +104,14 @@ export const SubtitleOverlay: React.FC = () => {
                   tgtLang.code
                 )
               }
-              className="px-1.5 sm:px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-[9px] sm:text-[10px] font-medium transition whitespace-nowrap flex items-center gap-1"
+              className="px-1.5 sm:px-2 py-0.5 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 rounded text-2xs sm:text-2xs font-medium transition whitespace-nowrap flex items-center gap-1"
               title={`Test Student to ${tgtLang.name} translation`}
             >
               <GraduationCap className="w-3 h-3 text-cyan-400" />
               <span className="hidden sm:inline">Student Query</span>
             </button>
+              </>
+            )}
             <button
               onClick={() => setIsInterpreterModalOpen(true)}
               className="p-1 rounded text-slate-400 hover:text-white"
@@ -122,7 +127,7 @@ export const SubtitleOverlay: React.FC = () => {
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-1rem)] max-w-2xl z-30 pointer-events-auto transition-all duration-300 animate-fadeIn">
-      <div className="bg-[#080d1c]/95 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-black/80 p-2.5 sm:p-3.5 flex flex-col gap-2 sm:gap-2.5 text-slate-100 font-sans">
+      <div className="bg-surface-sunken/95 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-black/80 p-2.5 sm:p-3.5 flex flex-col gap-2 sm:gap-2.5 text-slate-100 font-sans">
         
         {/* Subtitle Header Bar */}
         <div className="flex items-center justify-between text-xs pb-1.5 border-b border-white/10">
@@ -131,15 +136,17 @@ export const SubtitleOverlay: React.FC = () => {
             <span className="font-bold text-white text-[12px] truncate max-w-[150px] sm:max-w-[200px]">
               {currentLiveCaption.speakerName}
             </span>
-            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-cyan-300">
+            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-2xs font-mono text-cyan-300">
               {srcLang.code.toUpperCase()} → {tgtLang.code.toUpperCase()}
             </span>
-            <span className="hidden sm:inline text-[10px] font-mono text-slate-400">
+            <span className="hidden sm:inline text-2xs font-mono text-slate-400">
               {currentLiveCaption.timestamp || "Live"}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5">
+            {import.meta.env.DEV && (
+              <>
             {/* Quick Two-Way Test Triggers */}
             <button
               onClick={() =>
@@ -150,7 +157,7 @@ export const SubtitleOverlay: React.FC = () => {
                   tgtLang.code
                 )
               }
-              className="hidden sm:inline px-1.5 py-0.5 bg-amber-950/40 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded text-[9px] font-semibold transition"
+              className="hidden sm:inline px-1.5 py-0.5 bg-amber-950/40 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded text-2xs font-semibold transition"
               title={`Test speech translation into ${tgtLang.name}`}
             >
               {tgtLang.name}
@@ -164,18 +171,21 @@ export const SubtitleOverlay: React.FC = () => {
                   tgtLang.code
                 )
               }
-              className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/40 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded text-[9px] font-semibold transition"
+              className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/40 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded text-2xs font-semibold transition"
               title={`Test Student Query into ${tgtLang.name}`}
             >
               <GraduationCap className="w-3 h-3 text-cyan-400" />
               <span>Query</span>
             </button>
 
+              </>
+            )}
+
             {/* Quick Language Switch Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-semibold text-cyan-300 transition-colors"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-2xs font-semibold text-cyan-300 transition-colors"
                 title="Change subtitle translation language"
               >
                 <Globe className="w-3 h-3 text-cyan-400" />
@@ -184,7 +194,7 @@ export const SubtitleOverlay: React.FC = () => {
 
               {showLangMenu && (
                 <div className="absolute right-0 bottom-8 w-52 max-h-60 overflow-y-auto bg-slate-900 border border-cyan-500/30 rounded-xl shadow-2xl p-1 z-50 backdrop-blur-xl space-y-0.5 text-xs">
-                  <div className="px-2 py-1 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                  <div className="px-2 py-1 text-2xs uppercase font-bold text-slate-400 border-b border-slate-800">
                     50+ Available Languages
                   </div>
                   {SUPPORTED_LANGUAGES.map((opt) => (
@@ -205,7 +215,7 @@ export const SubtitleOverlay: React.FC = () => {
                       }`}
                     >
                       <span className="truncate">{opt.name}</span>
-                      <span className="text-[10px] text-slate-400 uppercase font-mono">{opt.code}</span>
+                      <span className="text-2xs text-slate-400 uppercase font-mono">{opt.code}</span>
                     </button>
                   ))}
                 </div>
@@ -257,7 +267,7 @@ export const SubtitleOverlay: React.FC = () => {
           {/* Spoken Utterance (Original Spoken Language) */}
           {(subtitleMode === "dual" || subtitleMode === "english_only") && (
             <div className="flex items-start gap-1.5 text-slate-200">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0 uppercase tracking-wider font-mono">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0 uppercase tracking-wider font-mono">
                 {srcLang.code}
               </span>
               <p className="text-white text-xs sm:text-sm font-medium leading-relaxed drop-shadow-sm">
@@ -271,7 +281,7 @@ export const SubtitleOverlay: React.FC = () => {
             currentLiveCaption.translatedText &&
             currentLiveCaption.translatedText !== currentLiveCaption.englishText && (
               <div className="flex items-start gap-1.5 text-emerald-300">
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 shrink-0 uppercase tracking-wider font-mono">
+                <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 shrink-0 uppercase tracking-wider font-mono">
                   {tgtLang.code}
                 </span>
                 <p className="text-emerald-300 text-xs sm:text-sm font-semibold leading-relaxed drop-shadow-sm">

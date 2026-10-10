@@ -1,4 +1,4 @@
-export type UserRole = "instructor" | "student" | "ta" | "admin" | "auditor" | "sales_rep";
+export type UserRole = "instructor" | "student" | "ta" | "admin" | "auditor" | "sales_rep" | "parent";
 
 export type LanguageCode = "en" | "es" | "fr" | "de" | "zh" | "hi" | "ar" | "ja";
 

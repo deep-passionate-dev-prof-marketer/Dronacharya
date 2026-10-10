@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { SampleNotice } from "../ui";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   Flame,
@@ -73,13 +74,14 @@ export const RoomBomberControlCenter: React.FC = () => {
   const selectedRoom = pitchRooms.find((r) => r.roomId === selectedRoomId) || pitchRooms[0];
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#070b14] overflow-y-auto font-sans p-3 sm:p-4 lg:p-6">
+    <div className="w-full h-full flex flex-col bg-canvas overflow-y-auto font-sans p-3 sm:p-4 lg:p-6">
+      <SampleNotice className="mb-4">Pitch rooms here are a working demo: rooms and counsellor stats aren't saved. Counselling sessions held in real class rooms appear in Class analytics.</SampleNotice>
       {/* Top Header Card */}
-      <div className="bg-linear-to-r from-[#991B1B] via-[#DC2626] to-[#EF4444] rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
+      <div className="bg-linear-to-r from-red-800 via-red-600 to-red-500 rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-brand-yellow text-2xs sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
               <Flame className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>Room Bomber 1:1 High-Conversion Sales Engine</span>
             </div>
@@ -105,7 +107,7 @@ export const RoomBomberControlCenter: React.FC = () => {
               <button
                 onClick={handleExecuteBomb}
                 disabled={isTriggering}
-                className="px-6 py-3.5 rounded-xl bg-[#FFBB00] hover:bg-[#e6a800] text-[#001F40] font-black text-sm flex items-center gap-2.5 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider"
+                className="px-6 py-3.5 rounded-xl bg-brand-yellow hover:bg-brand-yellow-strong text-brand-navy-deep font-black text-sm flex items-center gap-2.5 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider"
               >
                 <Zap className="w-5 h-5 text-slate-100 fill-current animate-bounce" />
                 <span>{isTriggering ? "Initiating Admissions Pitch..." : "Execute Admissions Breakout"}</span>
@@ -117,18 +119,18 @@ export const RoomBomberControlCenter: React.FC = () => {
         {/* Live Metrics Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-rose-200 uppercase tracking-wider block">
               Students Available
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
-              <Users className="shrink-0 self-center w-4 h-4 text-[#FFBB00]" />
+              <Users className="shrink-0 self-center w-4 h-4 text-brand-yellow" />
               <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{studentCount}</span>
               <span className="text-xs font-semibold text-white/70 leading-tight">Prospective Families</span>
             </div>
           </div>
 
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-rose-200 uppercase tracking-wider block">
               1:1 Breakout Partition
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
@@ -139,7 +141,7 @@ export const RoomBomberControlCenter: React.FC = () => {
           </div>
 
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-rose-200 uppercase tracking-wider block">
               Target Ratio
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
@@ -150,7 +152,7 @@ export const RoomBomberControlCenter: React.FC = () => {
           </div>
 
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-rose-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-rose-200 uppercase tracking-wider block">
               Conversion Status
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
@@ -183,7 +185,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                 onClick={() => setRatio("1:1")}
                 className={`px-2.5 py-1 rounded-lg font-bold border transition-colors ${
                   ratio === "1:1"
-                    ? "bg-[#003872] text-white border-blue-500/60"
+                    ? "bg-brand-navy text-white border-blue-500/60"
                     : "bg-white/[0.06] text-slate-300 border-white/10"
                 }`}
               >
@@ -193,7 +195,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                 onClick={() => setRatio("1:2")}
                 className={`px-2.5 py-1 rounded-lg font-bold border transition-colors ${
                   ratio === "1:2"
-                    ? "bg-[#003872] text-white border-blue-500/60"
+                    ? "bg-brand-navy text-white border-blue-500/60"
                     : "bg-white/[0.06] text-slate-300 border-white/10"
                 }`}
               >
@@ -214,7 +216,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                   onClick={() => setSelectedRoomId(room.roomId)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                     isSelected
-                      ? "border-[#DC2626] bg-rose-500/10 shadow-md ring-2 ring-rose-500/20"
+                      ? "border-red-600 bg-rose-500/10 shadow-md ring-2 ring-rose-500/20"
                       : "border-white/10 bg-slate-900/70 hover:border-white/20 hover:shadow-xs"
                   }`}
                 >
@@ -225,7 +227,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                         {room.roomName}
                       </span>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        className={`text-2xs font-bold px-2 py-0.5 rounded-full uppercase ${
                           isSigned
                             ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
                             : "bg-amber-500/10 text-amber-300 border border-amber-500/30"
@@ -262,15 +264,15 @@ export const RoomBomberControlCenter: React.FC = () => {
 
                   {/* Progress & Metrics Footer */}
                   <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center justify-between text-2xs">
                       <span className="text-slate-400 font-medium">1:1 Agent Access:</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 rounded text-2xs font-mono font-bold bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center gap-1">
                         <ShieldCheck className="w-3 h-3 text-blue-300" />
                         <span>Locked to {room.salesRepName}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center justify-between text-2xs">
                       <span className="text-slate-400">Tuition Quote:</span>
                       <span className="font-mono font-bold text-slate-100">
                         {room.scholarshipGrantedPercent > 0 ? (
@@ -289,7 +291,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                         e.stopPropagation();
                         handleJoinOneToOneRoom(room);
                       }}
-                      className="w-full py-1.5 px-3 rounded-lg bg-linear-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-[11px] shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className="w-full py-1.5 px-3 rounded-lg bg-linear-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-2xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Flame className="w-3.5 h-3.5 text-amber-300" />
                       <span>Join 1:1 Video Meeting</span>
@@ -306,12 +308,12 @@ export const RoomBomberControlCenter: React.FC = () => {
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div>
-                <span className="text-[10px] font-mono font-bold text-rose-300 uppercase tracking-widest block">
+                <span className="text-2xs font-mono font-bold text-rose-300 uppercase tracking-widest block">
                   Breakout Inspector
                 </span>
                 <h3 className="text-base font-bold text-slate-100">{selectedRoom?.roomName || "Pitch Room #1"}</h3>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/[0.06] text-slate-300">
+              <span className="px-2 py-0.5 rounded text-2xs font-bold bg-white/[0.06] text-slate-300">
                 1:1 Private
               </span>
             </div>
@@ -320,11 +322,11 @@ export const RoomBomberControlCenter: React.FC = () => {
               <div className="space-y-4">
                 {/* Prospect Dossier */}
                 <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs space-y-2">
-                  <div className="font-bold text-slate-200 uppercase tracking-wider text-[10px] flex items-center gap-1.5 text-blue-300">
+                  <div className="font-bold text-slate-200 uppercase tracking-wider text-2xs flex items-center gap-1.5 text-blue-300">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>Family Profile & Contact</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="grid grid-cols-2 gap-2 text-2xs">
                     <div>
                       <span className="text-slate-400 block">Student:</span>
                       <span className="font-bold text-slate-100">{selectedRoom.studentName}</span>
@@ -343,14 +345,14 @@ export const RoomBomberControlCenter: React.FC = () => {
                     </div>
                   </div>
                   <div className="pt-2 border-t border-white/10">
-                    <span className="text-slate-400 text-[10px] block">Target Goals:</span>
-                    <span className="font-medium text-slate-100 text-[11px]">{selectedRoom.academicGoals}</span>
+                    <span className="text-slate-400 text-2xs block">Target Goals:</span>
+                    <span className="font-medium text-slate-100 text-2xs">{selectedRoom.academicGoals}</span>
                   </div>
                 </div>
 
                 {/* Script Progression */}
                 <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs">
-                  <div className="font-bold text-blue-300 uppercase tracking-wider text-[10px] mb-2 flex items-center justify-between">
+                  <div className="font-bold text-blue-300 uppercase tracking-wider text-2xs mb-2 flex items-center justify-between">
                     <span>5-Step Pitch Script Progress</span>
                     <span className="font-mono text-blue-300">Stage {selectedRoom.currentStage} of 5</span>
                   </div>
@@ -373,7 +375,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                         }`}
                       >
                         <span
-                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
+                          className={`w-4 h-4 rounded-full flex items-center justify-center text-2xs font-mono font-bold ${
                             selectedRoom.currentStage >= s.step ? "bg-emerald-600 text-white" : "bg-white/10 text-slate-300"
                           }`}
                         >
@@ -388,7 +390,7 @@ export const RoomBomberControlCenter: React.FC = () => {
                 {/* Closing Offer Status */}
                 <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-emerald-300 block">
+                    <span className="text-2xs uppercase font-bold text-emerald-300 block">
                       Spot Scholarship Status
                     </span>
                     <span className="font-bold text-emerald-950 text-sm">

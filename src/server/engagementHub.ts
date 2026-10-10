@@ -6,7 +6,9 @@
  * - Storage: Postgres (engagement_samples, consents with full history, kv settings) plus in-memory rollups.
  */
 import express from "express";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, notLike } from "drizzle-orm";
+import { DEMO_PREFIX } from "./analytics/demo";
+import { forgetLearnerAttention } from "./analytics/facts";
 import { getDb, schema } from "./db";
 import { kvLoad, kvUpsert, persist } from "./db/kv";
 import { requireAuth } from "./auth/session";
@@ -64,7 +66,7 @@ async function loadFromDb() {
       at: new Date(c.at).toISOString(),
     });
   }
-  const recent = await db.select().from(schema.engagementSamples).orderBy(desc(schema.engagementSamples.at)).limit(50000);
+  const recent = await db.select().from(schema.engagementSamples).where(notLike(schema.engagementSamples.roomSlug, `${DEMO_PREFIX}%`)).orderBy(desc(schema.engagementSamples.at)).limit(50000);
   for (const r of recent.reverse()) {
     const smp = r.data as Sample;
     if (!samplesByRoom.has(smp.roomSlug)) samplesByRoom.set(smp.roomSlug, []);
@@ -84,6 +86,8 @@ export async function saveConsent(record: ConsentRecord, kind: "analytics" | "re
     guardianName: record.guardianName || null,
     country: record.country || null,
   });
+  // After the decision is stored, so recomputed classes already see the withdrawal
+  if (kind === "analytics" && !record.granted) persist("forget attention", forgetLearnerAttention(record.participantId));
 }
 
 const num = (v: any) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1000, Number(v))) : 0);

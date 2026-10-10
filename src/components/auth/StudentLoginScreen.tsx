@@ -108,10 +108,10 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
   return (
     <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col md:flex-row">
       {/* Left Hero Column */}
-      <div className="w-full md:w-5/12 bg-linear-to-br from-[#003872] via-[#0055aa] to-[#0082FF] p-8 text-white flex flex-col justify-between relative overflow-hidden">
+      <div className="w-full md:w-5/12 bg-linear-to-br from-brand-navy via-brand-blue-strong to-brand-blue p-8 text-white flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-[#FFBB00] text-xs font-bold uppercase tracking-wider mb-6 border border-white/10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-brand-yellow text-xs font-bold uppercase tracking-wider mb-6 border border-white/10">
             <Users className="w-4 h-4" />
             <span>Student & Parent Flightdeck</span>
           </div>
@@ -126,13 +126,13 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
           <div className="mt-8 space-y-3">
             <div className="flex items-center gap-3 text-xs text-blue-50">
               <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                <BookOpen className="w-3.5 h-3.5 text-[#00C2E0]" />
+                <BookOpen className="w-3.5 h-3.5 text-brand-cyan" />
               </div>
               <span>Cambridge IGCSE & IB Diploma Accredited Curriculum</span>
             </div>
             <div className="flex items-center gap-3 text-xs text-blue-50">
               <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-[#FFBB00]" />
+                <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
               </div>
               <span>AI-Powered Live Transcripts & Dual Multilingual Subtitles</span>
             </div>
@@ -189,7 +189,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
 
           {/* Preset Profiles */}
           <div className="mb-5 p-3 rounded-xl bg-white border border-slate-200 shadow-xs">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+            <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
               Quick Pre-Fill Sample Learner:
             </span>
             <div className="flex flex-wrap gap-2">
@@ -204,7 +204,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                     "Quantum Computing & AP Physics Track"
                   )
                 }
-                className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0082FF] text-xs font-semibold transition-colors cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-brand-blue text-xs font-semibold transition-colors cursor-pointer"
               >
                 Sophia Chen (Gr 10)
               </button>
@@ -261,7 +261,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                     required
                     value={studentName}
                     onChange={(e) => setStudentName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#0082FF] text-xs font-medium text-slate-800 outline-none"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-blue text-xs font-medium text-slate-800 outline-none"
                     placeholder="e.g. Sophia Chen"
                   />
                 </div>
@@ -278,7 +278,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                     required
                     value={parentName}
                     onChange={(e) => setParentName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#0082FF] text-xs font-medium text-slate-800 outline-none"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-blue text-xs font-medium text-slate-800 outline-none"
                     placeholder="e.g. Mrs. Linda Chen"
                   />
                 </div>
@@ -296,7 +296,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                   required
                   value={parentPhone}
                   onChange={(e) => setParentPhone(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#0082FF] text-xs font-medium text-slate-800 outline-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-blue text-xs font-medium text-slate-800 outline-none"
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
@@ -308,7 +308,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                 <select
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(parseInt(e.target.value, 10))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#0082FF] text-xs font-medium text-slate-800 outline-none cursor-pointer"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-blue text-xs font-medium text-slate-800 outline-none cursor-pointer"
                 >
                   <option value={6}>Grade 6 (Middle School)</option>
                   <option value={7}>Grade 7 (Middle School)</option>
@@ -330,7 +330,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                 type="text"
                 value={academicGoals}
                 onChange={(e) => setAcademicGoals(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#0082FF] text-xs font-medium text-slate-800 outline-none"
+                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-blue text-xs font-medium text-slate-800 outline-none"
                 placeholder="e.g. Cambridge IGCSE Physics & Robotics"
               />
             </div>
@@ -339,7 +339,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
             <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-white flex flex-col gap-2.5 shadow-md">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-[#0082FF]/20 text-[#00C2E0]">
+                  <div className="p-2 rounded-lg bg-brand-blue/20 text-brand-cyan">
                     {detectedAudit?.deviceType === "phone" ? (
                       <Smartphone className="w-5 h-5 text-amber-400" />
                     ) : detectedAudit?.deviceType === "tablet" ? (
@@ -353,26 +353,26 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                   <div>
                     <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
                       <span>{detectedAudit?.deviceModel || "Educational Workstation"}</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 rounded text-2xs font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
                         <span>Auto-Detected</span>
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    <div className="text-2xs text-slate-400 font-mono mt-0.5">
                       {detectedAudit?.osName || "Operating System"} · {detectedAudit?.screenResolution || "Screen Verified"} · {detectedAudit?.browserName}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-mono text-cyan-300 font-semibold uppercase tracking-wider">
+                  <span className="text-2xs font-mono text-cyan-300 font-semibold uppercase tracking-wider">
                     {detectedAudit?.deviceType || "Laptop"}
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-medium">Logged for Audit</span>
+                  <span className="text-2xs text-emerald-400 font-medium">Logged for Audit</span>
                 </div>
               </div>
 
-              <div className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-2 flex items-center justify-between">
+              <div className="text-2xs text-slate-400 border-t border-slate-800/80 pt-2 flex items-center justify-between">
                 <span>Hardware environment automatically verified for 1:1 screen assistance & compliance audit</span>
                 <span className="font-mono text-slate-300">{detectedAudit?.networkType || "Broadband Low-Latency"}</span>
               </div>
@@ -381,7 +381,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-[#0082FF] hover:bg-[#0070dc] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-brand-blue hover:bg-brand-blue-strong text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
             >
               {isLoading ? (
                 <span>Entering Learning Flightdeck...</span>

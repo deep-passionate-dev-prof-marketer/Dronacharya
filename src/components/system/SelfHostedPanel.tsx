@@ -74,7 +74,7 @@ services:
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-y-auto select-none p-3 sm:p-4 lg:p-6">
+    <div className="flex-1 flex flex-col bg-canvas overflow-y-auto select-none p-3 sm:p-4 lg:p-6">
       <div className="max-w-5xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -129,7 +129,7 @@ services:
             <div className="text-lg font-bold text-white font-mono uppercase">
               {systemInfo.status}
             </div>
-            <div className="text-[11px] text-slate-400 font-mono">
+            <div className="text-2xs text-slate-400 font-mono">
               Uptime: {Math.floor(systemInfo.uptimeSeconds / 60)} mins
             </div>
           </div>
@@ -142,7 +142,7 @@ services:
             <div className="text-lg font-bold text-white font-mono">
               {latencyMs} ms
             </div>
-            <div className="text-[11px] text-emerald-400 font-mono">
+            <div className="text-2xs text-emerald-400 font-mono">
               Jitter: &lt;2ms · 0.00% Loss
             </div>
           </div>
@@ -155,7 +155,7 @@ services:
             <div className="text-lg font-bold text-white font-mono">
               {systemInfo.memoryRssMb} MB
             </div>
-            <div className="text-[11px] text-slate-400 font-mono">
+            <div className="text-2xs text-slate-400 font-mono">
               Load Factor: {systemInfo.loadBalanceFactor}
             </div>
           </div>
@@ -168,7 +168,7 @@ services:
             <div className="text-lg font-bold text-emerald-400 font-mono">
               Syncd
             </div>
-            <div className="text-[11px] text-slate-400 font-mono">
+            <div className="text-2xs text-slate-400 font-mono">
               AES-256 Cloud Vault
             </div>
           </div>
@@ -181,7 +181,7 @@ services:
               <h3 className="text-xs font-semibold text-white">
                 Low Latency & Adaptive Quality Orchestration
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-2xs text-slate-400 mt-0.5">
                 Automatically adjusts video encoding bitrates to preserve real-time responsiveness across variable bandwidth.
               </p>
             </div>
@@ -203,7 +203,7 @@ services:
                 }`}
               >
                 <div className="font-semibold text-xs text-white mb-1">{q.label}</div>
-                <div className="text-[10px] text-slate-400">{q.desc}</div>
+                <div className="text-2xs text-slate-400">{q.desc}</div>
               </button>
             ))}
           </div>
@@ -218,17 +218,17 @@ services:
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono text-slate-300 pt-1">
             <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex flex-col gap-1">
-              <span className="text-slate-400 text-[11px]">Cryptographic Protocol:</span>
+              <span className="text-slate-400 text-2xs">Cryptographic Protocol:</span>
               <span className="text-emerald-400">AES-256-GCM Hardware Encrypted Frames</span>
-              <p className="text-[10px] text-slate-400 mt-1 font-sans">
+              <p className="text-2xs text-slate-400 mt-1 font-sans">
                 Each media frame and whiteboard stroke is sealed with ephemeral keys negotiated via Elliptic Curve Diffie-Hellman.
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex flex-col gap-1">
-              <span className="text-slate-400 text-[11px]">Data Sovereignty Guarantee:</span>
+              <span className="text-slate-400 text-2xs">Data Sovereignty Guarantee:</span>
               <span className="text-indigo-400">Zero Cloud Intermediaries</span>
-              <p className="text-[10px] text-slate-400 mt-1 font-sans">
+              <p className="text-2xs text-slate-400 mt-1 font-sans">
                 Student biometric feeds, attendance logs, and chat notes are strictly retained on self-hosted storage.
               </p>
             </div>

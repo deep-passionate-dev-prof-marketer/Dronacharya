@@ -1,0 +1,41 @@
+# The school's own AI server: the fallback (or primary, with AI_PROVIDERS=local) for lecture notes,
+# "ask about this class" and captions. Run on a machine with ≥16 GB RAM; a GPU makes captions for
+# many classes at once practical.
+#
+#   docker compose -f docker-compose.ai.yml up -d
+#   docker compose -f docker-compose.ai.yml exec ollama ollama pull qwen2.5:7b
+#
+# Then point the app at it:
+#   OLLAMA_URL=http://<ai-server>:11434   OLLAMA_MODEL=qwen2.5:7b
+#   WHISPER_URL=http://<ai-server>:8000   WHISPER_MODEL=Systran/faster-whisper-small
+# Keep both ports private (firewall/VPC): they have no authentication of their own.
+services:
+  ollama:
+    image: ollama/ollama:latest # pin a version for production
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: q8_0
+    # NVIDIA GPU: uncomment
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+  whisper:
+    # faster-whisper behind an OpenAI-compatible /v1/audio/transcriptions endpoint
+    image: ghcr.io/speaches-ai/speaches:latest-cpu # use the -cuda tag on a GPU server; pin a version
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper-models:/home/ubuntu/.cache/huggingface/hub
+
+volumes:
+  ollama:
+  whisper-models:

@@ -95,7 +95,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
   if (!activeSession) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs text-white">
-        <div className="p-8 rounded-2xl bg-[#080d1a] border border-slate-800 text-center max-w-md">
+        <div className="p-8 rounded-2xl bg-surface-sunken border border-slate-800 text-center max-w-md">
           <Laptop className="w-12 h-12 text-slate-500 mx-auto mb-3" />
           <h3 className="text-base font-bold">No Active Remote Sessions</h3>
           <p className="text-xs text-slate-400 mt-1 mb-4">
@@ -104,7 +104,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
           <div className="flex justify-center gap-2">
             <button
               onClick={() => setIsRequestModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#0082FF] hover:bg-[#0070df] text-white text-xs font-bold transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-brand-blue hover:bg-brand-blue-strong text-white text-xs font-bold transition-all cursor-pointer"
             >
               Request Remote Access
             </button>
@@ -141,19 +141,19 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
     switch (level) {
       case "full_control":
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
+          <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
             FULL CONTROL
           </span>
         );
       case "annotate":
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">
+          <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">
             ANNOTATE
           </span>
         );
       case "view_only":
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+          <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
             VIEW ONLY
           </span>
         );
@@ -191,22 +191,22 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#050811] text-white font-sans select-none overflow-hidden animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex flex-col bg-surface-sunken text-white font-sans select-none overflow-hidden animate-in fade-in duration-150">
       {/* ------------------------------------------------------------- */}
       {/* Master Top Bar: Multi-Device Tabs & Navigation */}
       {/* ------------------------------------------------------------- */}
-      <header className="h-14 border-b border-slate-800/80 bg-[#070d1e] px-3 flex items-center justify-between shrink-0 gap-2">
+      <header className="h-14 border-b border-slate-800/80 bg-surface-sunken px-3 flex items-center justify-between shrink-0 gap-2">
         {/* Left: Brand & Active Device Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           <div className="flex items-center gap-2 pr-3 border-r border-slate-800 shrink-0">
-            <div className="p-1.5 rounded-lg bg-[#003872] text-[#00C2E0]">
+            <div className="p-1.5 rounded-lg bg-brand-navy text-brand-cyan">
               <Laptop className="w-4 h-4" />
             </div>
             <div className="hidden xl:block">
               <h2 className="text-xs font-bold text-white tracking-wide uppercase font-mono">
                 Remote Cockpit
               </h2>
-              <span className="text-[10px] text-cyan-400 font-mono">
+              <span className="text-2xs text-cyan-400 font-mono">
                 {remoteSessions.filter((s) => s.status === "active").length} Sessions Active
               </span>
             </div>
@@ -224,7 +224,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
                   onClick={() => setActiveRemoteSessionId(session.id)}
                   className={`group flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer shrink-0 ${
                     isSelected
-                      ? "bg-[#001F40] border-[#00C2E0]/60 text-white shadow-md shadow-[#00C2E0]/10"
+                      ? "bg-brand-navy-deep border-brand-cyan/60 text-white shadow-md shadow-brand-cyan/10"
                       : isEnded
                       ? "bg-slate-950/60 border-slate-800 text-slate-500 opacity-60"
                       : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white"
@@ -233,7 +233,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
                   <span
                     className={`${
                       isSelected
-                        ? "text-[#00C2E0]"
+                        ? "text-brand-cyan"
                         : session.deviceType === "phone"
                         ? "text-rose-400"
                         : session.deviceType === "tablet"
@@ -261,7 +261,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
                         }`}
                       />
                     </div>
-                    <span className="text-[10px] font-mono text-slate-400 leading-tight truncate max-w-[130px]">
+                    <span className="text-2xs font-mono text-slate-400 leading-tight truncate max-w-[130px]">
                       {session.deviceModel.split(" ")[0]} · {session.latencyMs}ms
                     </span>
                   </div>
@@ -300,7 +300,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
             onClick={() => setIsSplitDualView((prev) => !prev)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
               isSplitDualView
-                ? "bg-[#0082FF] border-[#0082FF] text-white shadow"
+                ? "bg-brand-blue border-brand-blue text-white shadow"
                 : "bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
             }`}
             title="Toggle Split Dual View to monitor two screens side by side"
@@ -338,7 +338,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
       {/* ------------------------------------------------------------- */}
       {/* Floating Student Safety & Elevation Bar */}
       {/* ------------------------------------------------------------- */}
-      <div className="bg-gradient-to-r from-[#001F40] via-[#05264b] to-[#001F40] border-b border-[#00C2E0]/40 px-4 py-1.5 flex items-center justify-between text-xs text-slate-200">
+      <div className="bg-gradient-to-r from-brand-navy-deep via-brand-navy-ink to-brand-navy-deep border-b border-brand-cyan/40 px-4 py-1.5 flex items-center justify-between text-xs text-slate-200">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span className="font-bold text-white">
@@ -347,15 +347,15 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
           <span className="text-slate-400">·</span>
           <span>Target Learner: <strong>{activeSession.studentName}</strong></span>
           <span className="text-slate-400">·</span>
-          <span className="font-mono text-cyan-300 text-[11px]">
+          <span className="font-mono text-cyan-300 text-2xs">
             {activeSession.screenResolution.width}x{activeSession.screenResolution.height} · {activeSession.latencyMs}ms RTT · 60 FPS
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Permission Level Selector (Live In-Session Elevation/Downgrade) */}
-          <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-slate-800 text-[11px]">
-            <span className="px-2 text-slate-400 font-mono uppercase text-[10px] font-bold">Tier:</span>
+          <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-slate-800 text-2xs">
+            <span className="px-2 text-slate-400 font-mono uppercase text-2xs font-bold">Tier:</span>
             <button
               onClick={() => updateSessionLevel(activeSession.id, "view_only")}
               className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
@@ -416,9 +416,9 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
       {/* ------------------------------------------------------------- */}
       {/* Facilitator Annotate & Control Tool Bar */}
       {/* ------------------------------------------------------------- */}
-      <div className="h-10 bg-[#090f20] border-b border-slate-800/80 px-4 flex items-center justify-between text-xs shrink-0">
+      <div className="h-10 bg-surface-sunken border-b border-slate-800/80 px-4 flex items-center justify-between text-xs shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-bold">
+          <span className="text-2xs text-slate-400 font-mono uppercase tracking-wider font-bold">
             Interactive Tools:
           </span>
 
@@ -426,7 +426,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
             onClick={() => setActiveTool("pointer")}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
               activeTool === "pointer"
-                ? "bg-[#0082FF] text-white font-bold shadow"
+                ? "bg-brand-blue text-white font-bold shadow"
                 : "bg-slate-800/80 text-slate-300 hover:text-white"
             }`}
           >
@@ -438,7 +438,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
             onClick={() => setActiveTool("pen")}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
               activeTool === "pen"
-                ? "bg-[#0082FF] text-white font-bold shadow"
+                ? "bg-brand-blue text-white font-bold shadow"
                 : "bg-slate-800/80 text-slate-300 hover:text-white"
             }`}
           >
@@ -450,11 +450,11 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
             onClick={() => setActiveTool("highlighter")}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
               activeTool === "highlighter"
-                ? "bg-[#0082FF] text-white font-bold shadow"
+                ? "bg-brand-blue text-white font-bold shadow"
                 : "bg-slate-800/80 text-slate-300 hover:text-white"
             }`}
           >
-            <Highlighter className="w-3.5 h-3.5 text-[#FFBB00]" />
+            <Highlighter className="w-3.5 h-3.5 text-brand-yellow" />
             <span>Highlighter</span>
           </button>
 
@@ -484,8 +484,8 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
         </div>
 
         {/* Active App Switcher for Target Device */}
-        <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px]">
-          <span className="text-[10px] text-slate-400 font-mono px-2 uppercase font-bold">Target App:</span>
+        <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-2xs">
+          <span className="text-2xs text-slate-400 font-mono px-2 uppercase font-bold">Target App:</span>
           {(["worksheet", "ide", "terminal", "calculator"] as const).map((app) => (
             <button
               key={app}
@@ -494,7 +494,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
               }
               className={`px-2 py-0.5 rounded capitalize font-medium transition-colors cursor-pointer ${
                 activeSession.interactiveContent.activeApp === app
-                  ? "bg-[#003872] text-[#00C2E0] font-bold"
+                  ? "bg-brand-navy text-brand-cyan font-bold"
                   : "text-slate-400 hover:text-white"
               }`}
             >
@@ -537,7 +537,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
                 <span className="text-xs font-bold text-amber-300 font-mono">
                   [Split Secondary] {secondarySession.studentName} ({secondarySession.deviceModel})
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">
+                <span className="text-2xs font-mono text-slate-400">
                   {secondarySession.latencyMs}ms · {secondarySession.accessLevel}
                 </span>
               </div>
@@ -565,10 +565,10 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
         {/* Right Drawer: Live Action Audit Trail */}
         {/* ------------------------------------------------------------- */}
         {showActionLogDrawer && (
-          <aside className="w-80 border-l border-slate-800 bg-[#070b17] flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
-            <div className="p-3 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
+          <aside className="w-80 border-l border-slate-800 bg-canvas flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
+            <div className="p-3 bg-brand-navy-deep border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-[#00C2E0]" />
+                <History className="w-4 h-4 text-brand-cyan" />
                 <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
                   Session Audit Trail
                 </h3>
@@ -581,7 +581,7 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-3 text-[11px] text-slate-400 border-b border-slate-800/80 bg-slate-950/40">
+            <div className="p-3 text-2xs text-slate-400 border-b border-slate-800/80 bg-slate-950/40">
               <p>
                 Immutable chronological log for child safety and pedagogical compliance.
               </p>
@@ -590,11 +590,11 @@ export const MultiDeviceRemoteConsole: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-3 space-y-2 font-mono text-xs">
               {activeSession.actionLog.map((log, idx) => (
                 <div key={idx} className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                    <span className="font-bold text-[#00C2E0]">{log.actor}</span>
+                  <div className="flex items-center justify-between text-2xs text-slate-400 mb-1">
+                    <span className="font-bold text-brand-cyan">{log.actor}</span>
                     <span>{log.timestamp}</span>
                   </div>
-                  <p className="text-slate-200 text-[11px] font-sans leading-snug">
+                  <p className="text-slate-200 text-2xs font-sans leading-snug">
                     {log.description}
                   </p>
                 </div>
@@ -671,7 +671,7 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
         {/* Phone Top Notch / Dynamic Island */}
         {isPhone && (
           <div className="absolute top-4 inset-x-0 flex justify-center z-40 pointer-events-none">
-            <div className="w-24 h-4 rounded-full bg-black flex items-center justify-between px-2 text-[9px] text-white">
+            <div className="w-24 h-4 rounded-full bg-black flex items-center justify-between px-2 text-2xs text-white">
               <span className="w-2 h-2 rounded-full bg-slate-900" />
               <span className="w-2 h-2 rounded-full bg-cyan-600/60" />
             </div>
@@ -688,12 +688,12 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
           ref={canvasRef}
           onMouseMove={onMouseMove}
           onClick={onClick}
-          className={`w-full h-full bg-[#0a0f1d] rounded-2xl overflow-hidden relative flex flex-col font-mono text-xs select-none ${
+          className={`w-full h-full bg-surface-sunken rounded-2xl overflow-hidden relative flex flex-col font-mono text-xs select-none ${
             isFullControl ? "cursor-default" : "cursor-crosshair"
           }`}
         >
           {/* Top In-Device Status Bar */}
-          <div className="h-7 bg-slate-950/90 border-b border-slate-800/80 px-3 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+          <div className="h-7 bg-slate-950/90 border-b border-slate-800/80 px-3 flex items-center justify-between text-2xs text-slate-400 shrink-0">
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-white">{session.deviceModel}</span>
               <span>·</span>
@@ -701,11 +701,11 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+              <span className="flex items-center gap-1 text-2xs text-emerald-400">
                 <Wifi className="w-3 h-3" />
                 <span>5G · 60fps</span>
               </span>
-              <span className="text-[10px] text-slate-300 font-bold">9:41 AM</span>
+              <span className="text-2xs text-slate-300 font-bold">9:41 AM</span>
             </div>
           </div>
 
@@ -719,7 +719,7 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
           >
             <div className="relative">
               <MousePointer className="w-5 h-5 text-cyan-400 drop-shadow-lg" />
-              <span className="absolute left-4 top-2 px-1.5 py-0.5 rounded bg-[#001F40] border border-cyan-400/50 text-[9px] text-cyan-200 font-mono whitespace-nowrap shadow-lg">
+              <span className="absolute left-4 top-2 px-1.5 py-0.5 rounded bg-brand-navy-deep border border-cyan-400/50 text-2xs text-cyan-200 font-mono whitespace-nowrap shadow-lg">
                 Dr. Vance (Remote)
               </span>
             </div>
@@ -742,11 +742,11 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
           ))}
 
           {/* ACTIVE IN-DEVICE APP CONTENT */}
-          <div className="flex-1 flex flex-col p-3 overflow-hidden bg-[#070b16]">
+          <div className="flex-1 flex flex-col p-3 overflow-hidden bg-canvas">
             {/* 1. WORKSHEET APP */}
             {session.interactiveContent.activeApp === "worksheet" && (
               <div className="flex-1 flex flex-col bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-slate-200 overflow-y-auto">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-[11px] text-cyan-300">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-2xs text-cyan-300">
                   <span className="font-bold">21K School Quantum Worksheet #04</span>
                   <span className="text-slate-400">{session.accessLevel.replace("_", " ")} mode</span>
                 </div>
@@ -762,15 +762,15 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
 
             {/* 2. IDE / CODE EDITOR APP */}
             {session.interactiveContent.activeApp === "ide" && (
-              <div className="flex-1 flex flex-col bg-[#050914] rounded-xl border border-slate-800 overflow-hidden">
-                <div className="h-8 bg-slate-900 px-3 flex items-center justify-between border-b border-slate-800 text-[11px]">
+              <div className="flex-1 flex flex-col bg-canvas rounded-xl border border-slate-800 overflow-hidden">
+                <div className="h-8 bg-slate-900 px-3 flex items-center justify-between border-b border-slate-800 text-2xs">
                   <div className="flex items-center gap-1.5 text-cyan-300">
                     <FileCode className="w-3.5 h-3.5" />
                     <span className="font-bold">quantum_circuit.py</span>
                   </div>
                   <button
                     onClick={() => onTerminalSubmit(new Event("submit") as any)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] transition-all cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-2xs transition-all cursor-pointer"
                   >
                     <Play className="w-3 h-3" />
                     <span>Run in VM</span>
@@ -824,7 +824,7 @@ const DeviceFrameRenderer: React.FC<DeviceFrameRendererProps> = ({
             {session.interactiveContent.activeApp === "calculator" && (
               <div className="flex-1 flex flex-col items-center justify-center p-3 bg-slate-900/60 rounded-xl border border-slate-800">
                 <div className="w-full max-w-[240px] bg-black p-3 rounded-xl border border-slate-800 mb-3 text-right">
-                  <span className="text-[10px] text-slate-500 block">sin(π/4) = cos(π/4)</span>
+                  <span className="text-2xs text-slate-500 block">sin(π/4) = cos(π/4)</span>
                   <span className="text-xl font-mono text-cyan-300 font-bold">{calcDisplay}</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5 w-full max-w-[240px]">

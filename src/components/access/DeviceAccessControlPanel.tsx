@@ -53,41 +53,15 @@ export const DeviceAccessControlPanel: React.FC = () => {
     setError(null);
     try {
       const [a, e, r, ru] = await Promise.all([
-        deviceAccessApi.analytics().catch(() => null),
-        deviceAccessApi.events(filters).catch(() => ({ events: [], persisted: false })),
-        deviceAccessApi.listRequests().catch(() => []),
-        deviceAccessApi.rules().catch(() => []),
+        deviceAccessApi.analytics(),
+        deviceAccessApi.events(filters),
+        deviceAccessApi.listRequests(),
+        deviceAccessApi.rules(),
       ]);
-      setAnalytics(
-        a && a.byDevice
-          ? a
-          : {
-              totals: a?.totals || {
-                joinAttempts: 0,
-                blocked: 0,
-                allowedByApproval: 0,
-                deviceMismatches: 0,
-                requests: 0,
-                pending: 0,
-                approved: 0,
-                denied: 0,
-                medianDecisionSeconds: null,
-              },
-              byDevice: a?.byDevice || {
-                phone: { allowed: 0, blocked: 0, approved: 0 },
-                tablet: { allowed: 0, blocked: 0, approved: 0 },
-                laptop: { allowed: 0, blocked: 0, approved: 0 },
-                desktop: { allowed: 0, blocked: 0, approved: 0 },
-              },
-              byRoom: a?.byRoom || {},
-              byApprover: a?.byApprover || {},
-              persisted: false,
-              dataDir: null,
-            }
-      );
-      setEvents(e?.events || []);
-      setRequests(Array.isArray(r) ? r : []);
-      setRules(Array.isArray(ru) ? ru : []);
+      setAnalytics(a);
+      setEvents(e.events);
+      setRequests(r);
+      setRules(ru);
     } catch (err: any) {
       setError(err?.message?.includes("HTTP 404") ? "The device-access service isn't running on this deployment (it needs the Node server)." : err?.message || "Failed to load");
     } finally {
@@ -144,7 +118,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
         {kpis.map((k) => (
           <div key={k.label} className="rounded-xl border border-white/10 bg-slate-900/80 p-3 min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 truncate">{k.label}</div>
+            <div className="text-2xs font-semibold uppercase tracking-wider text-slate-400 truncate">{k.label}</div>
             <div className={`mt-1 text-2xl font-black tabular-nums ${k.tone || "text-white"}`}>{k.value}</div>
           </div>
         ))}
@@ -157,8 +131,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
             <div className="text-sm font-semibold text-white mb-3">Join outcomes by device</div>
             <div className="space-y-2.5">
               {ALL_DEVICE_TYPES.map((d) => {
-                const byDev = analytics?.byDevice || {};
-                const row = byDev[d] || { allowed: 0, blocked: 0, approved: 0 };
+                const row = analytics.byDevice[d] || { allowed: 0, blocked: 0, approved: 0 };
                 const total = row.allowed + row.blocked + row.approved || 1;
                 const Icon = DEVICE_ICONS[d];
                 return (
@@ -178,7 +151,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
                 );
               })}
             </div>
-            <div className="flex flex-wrap gap-3 mt-3 text-[11px] text-slate-400">
+            <div className="flex flex-wrap gap-3 mt-3 text-2xs text-slate-400">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Allowed</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-sky-400" /> Allowed by approval</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Blocked</span>
@@ -186,7 +159,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
           </div>
           <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 min-w-0">
             <div className="text-sm font-semibold text-white mb-3">Rooms with the most blocks</div>
-            {!analytics?.byRoom || Object.keys(analytics.byRoom).length === 0 ? (
+            {Object.keys(analytics.byRoom).length === 0 ? (
               <div className="text-sm text-slate-500 py-6 text-center">No blocked joins yet</div>
             ) : (
               <div className="overflow-x-auto">
@@ -200,7 +173,7 @@ export const DeviceAccessControlPanel: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {Object.entries(analytics.byRoom || {})
+                    {Object.entries(analytics.byRoom)
                       .sort((a, b) => b[1].blocked - a[1].blocked)
                       .slice(0, 6)
                       .map(([room, v]) => (
@@ -345,10 +318,10 @@ export const DeviceAccessControlPanel: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-semibold text-white">{rule.name}</span>
-                  <span className="text-[10px] font-mono text-slate-500">#{rule.priority}</span>
+                  <span className="text-2xs font-mono text-slate-500">#{rule.priority}</span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">{rule.description}</p>
-                <div className="flex flex-wrap gap-1.5 mt-2 text-[11px]">
+                <div className="flex flex-wrap gap-1.5 mt-2 text-2xs">
                   <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">{describeAllowedDevices(rule.allowedDeviceTypes)}</span>
                   <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">
                     Approvers: {rule.approverRoles.join(", ")}

@@ -33,6 +33,10 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
+if (process.env.NODE_ENV === "production" && process.env.AUTH_DEV_LOGIN === "1") {
+  console.warn("\n[auth] WARNING: dummy test sign-in (AUTH_DEV_LOGIN=1) is ON in production. Anyone can sign in as any test account. Set AUTH_DEV_LOGIN=0.\n");
+}
+
 // Signed sessions: every request gets req.user from the HttpOnly cookie (never from the request body)
 app.use(attachUser());
 setupAuthRoutes(app);

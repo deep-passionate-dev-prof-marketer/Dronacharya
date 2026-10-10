@@ -50,7 +50,7 @@ export const AuthPortalView: React.FC<Props> = ({
       <header className="h-16 px-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <SchoolLogo size="md" showTagline={false} systemName="Dronacharya" theme="dark" />
-          <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#FFBB00] text-[#001F40]">
+          <span className="hidden sm:inline-block px-2 py-0.5 rounded text-2xs font-mono font-bold bg-brand-yellow text-brand-navy-deep">
             Enterprise Portal
           </span>
         </div>
@@ -61,11 +61,11 @@ export const AuthPortalView: React.FC<Props> = ({
             onClick={() => handleRoleChange("instructor")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               selectedRole === "instructor"
-                ? "bg-[#003872] text-white shadow-xs border border-blue-400/30"
+                ? "bg-brand-navy text-white shadow-xs border border-blue-400/30"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            <GraduationCap className="w-3.5 h-3.5 text-[#FFBB00]" />
+            <GraduationCap className="w-3.5 h-3.5 text-brand-yellow" />
             <span className="hidden md:inline">Teacher / Facilitator</span>
             <span className="md:hidden">Teacher</span>
           </button>
@@ -74,7 +74,7 @@ export const AuthPortalView: React.FC<Props> = ({
             onClick={() => handleRoleChange("student")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               selectedRole === "student"
-                ? "bg-[#0082FF] text-white shadow-xs border border-blue-300/40"
+                ? "bg-brand-blue text-white shadow-xs border border-blue-300/40"
                 : "text-slate-400 hover:text-white"
             }`}
           >
@@ -131,7 +131,7 @@ export const AuthPortalView: React.FC<Props> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors"
               title="Read PRD, BRD, LMD, MMD, HMD and Architecture Specs"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#FFBB00]" />
+              <BookOpen className="w-3.5 h-3.5 text-brand-yellow" />
               <span className="hidden sm:inline">System Specs & PRD</span>
             </button>
           )}
@@ -183,7 +183,7 @@ export const AuthPortalView: React.FC<Props> = ({
       </main>
 
       {/* Footer */}
-      <footer className="h-10 px-6 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between shrink-0 font-sans">
+      <footer className="h-10 px-6 bg-slate-950 border-t border-slate-800 text-2xs text-slate-500 flex items-center justify-between shrink-0 font-sans">
         <div className="flex items-center gap-2">
           <Shield className="w-3.5 h-3.5 text-emerald-500" />
           <span>Real Full-Stack Server & WebSocket Infrastructure Active</span>

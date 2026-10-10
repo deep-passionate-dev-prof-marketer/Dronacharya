@@ -32,7 +32,7 @@ export const WaitingLobby: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Top Header */}
       <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ export const WaitingLobby: React.FC = () => {
         {/* Hardware Pre-Flight Self-Check Station */}
         <div className="rounded-xl bg-slate-900 border border-slate-800 p-4 flex flex-col gap-3 shadow-lg">
           <div className="text-xs font-semibold text-white">Hardware Diagnostic & Pre-Entry Check</div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-2xs text-slate-400">
             Verify your local camera resolution, acoustic echo cancellation, and encryption keys before entering the live lecture hall.
           </p>
 
@@ -67,7 +67,7 @@ export const WaitingLobby: React.FC = () => {
                   <Mic className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Microphone</span>
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400">OK</span>
+                <span className="text-2xs font-mono text-emerald-400">OK</span>
               </div>
               {/* Level meter */}
               <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
@@ -85,9 +85,9 @@ export const WaitingLobby: React.FC = () => {
                   <Video className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Camera Stream</span>
                 </span>
-                <span className="text-[10px] font-mono text-indigo-400">1080p 60fps</span>
+                <span className="text-2xs font-mono text-indigo-400">1080p 60fps</span>
               </div>
-              <div className="text-[10px] text-slate-400">Hardware accelerated</div>
+              <div className="text-2xs text-slate-400">Hardware accelerated</div>
             </div>
           </div>
         </div>
@@ -96,7 +96,7 @@ export const WaitingLobby: React.FC = () => {
         <div className="flex flex-col gap-2">
           <div className="text-xs font-semibold text-slate-300 flex items-center justify-between">
             <span>Students in Waiting Queue</span>
-            <span className="text-[11px] font-mono text-indigo-400">{waitingList.length} Pending</span>
+            <span className="text-2xs font-mono text-indigo-400">{waitingList.length} Pending</span>
           </div>
 
           {waitingList.length === 0 ? (
@@ -115,7 +115,7 @@ export const WaitingLobby: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-medium text-white">{waiter.name}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">
+                    <div className="text-2xs text-slate-400 font-mono">
                       Requested {waiter.requestedAt} · Devices Ready
                     </div>
                   </div>
@@ -138,7 +138,7 @@ export const WaitingLobby: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <span className="text-[11px] text-slate-400 italic">Waiting for host</span>
+                  <span className="text-2xs text-slate-400 italic">Waiting for host</span>
                 )}
               </div>
             ))

@@ -1,0 +1,19 @@
+# Local LiveKit server for development:  livekit-server --dev --config livekit.dev.yaml
+# --dev already sets API key "devkey" / secret "secret" (match LIVEKIT_API_KEY/SECRET in .env).
+# Webhooks tell the app about attendance (join/leave), rooms closing and recording results.
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: false
+keys:
+  devkey: secret
+webhook:
+  api_key: devkey
+  urls:
+    - http://localhost:3000/api/livekit/webhook
+room:
+  # Close an empty room 30s after the last person leaves (ends a class the host forgot to end)
+  empty_timeout: 300
+  departure_timeout: 30

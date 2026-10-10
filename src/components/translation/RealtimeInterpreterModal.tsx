@@ -96,10 +96,10 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn relative w-full max-w-4xl max-h-[94dvh] sm:max-h-[90dvh] flex flex-col bg-[#0b1329] border border-cyan-500/30 rounded-t-3xl sm:rounded-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans">
+      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn relative w-full max-w-4xl max-h-[94dvh] sm:max-h-[90dvh] flex flex-col bg-surface border border-cyan-500/30 rounded-t-3xl sm:rounded-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans">
         
         {/* Header Bar */}
-        <div className="px-5 py-4 border-b border-slate-800 bg-[#0f1b38]/80 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-slate-800 bg-surface-raised/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
               <Globe className="w-5 h-5 text-white animate-pulse" />
@@ -109,7 +109,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   AI Live Real-Time Interpreter
                 </h2>
-                <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                <span className="px-2 py-0.5 text-2xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   Live & Zero Lag
                 </span>
@@ -136,7 +136,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-[#080d1c] px-4 overflow-x-auto text-xs font-medium">
+        <div className="flex border-b border-slate-800 bg-surface-sunken px-4 overflow-x-auto text-xs font-medium">
           <button
             onClick={() => setActiveTab("settings")}
             className={`py-3 px-3.5 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${
@@ -227,7 +227,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                         </option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-2xs text-slate-400">
                       Currently set: <span className="text-cyan-300 font-semibold">{myLang.name}</span>
                     </p>
                   </div>
@@ -251,7 +251,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                         </option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-2xs text-slate-400">
                       Currently set: <span className="text-emerald-300 font-semibold">{targetLang.name}</span>
                     </p>
                   </div>
@@ -282,7 +282,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                         }`}
                       >
                         <div className="font-semibold text-xs text-white">{sub.label}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{sub.desc}</div>
+                        <div className="text-2xs text-slate-400 truncate">{sub.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -373,7 +373,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                         }
                         className="w-full accent-cyan-400 cursor-pointer"
                       />
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-2xs text-slate-500">
                         Lower volume allows translated speech to be heard crisply
                       </p>
                     </div>
@@ -395,7 +395,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                         }
                         className="w-full accent-emerald-400 cursor-pointer"
                       />
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-2xs text-slate-500">
                         Synthesized AI speech voice in your chosen language
                       </p>
                     </div>
@@ -428,7 +428,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                       }`}
                     >
                       <div className="font-semibold text-xs text-white">{m.label}</div>
-                      <div className="text-[10px] text-slate-400">{m.desc}</div>
+                      <div className="text-2xs text-slate-400">{m.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -657,7 +657,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                   <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/40 space-y-1.5">
                     <div className="flex items-center justify-between text-xs text-emerald-400 font-semibold">
                       <span>Live Translation Output (Latency: {lastSimResult.latencyMs}ms)</span>
-                      <span className="text-[10px] text-slate-400">{lastSimResult.timestamp}</span>
+                      <span className="text-2xs text-slate-400">{lastSimResult.timestamp}</span>
                     </div>
                     <div className="text-xs text-slate-300">
                       Original [{lastSimResult.sourceLanguage}]:{" "}
@@ -690,7 +690,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
                     <div className="text-xs text-slate-400">1. Speaker Utterance</div>
                     <div className="text-sm font-bold text-amber-400">1 Audio Stream</div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-2xs text-slate-500">
                       1 STT inference only, independent of class size.
                     </div>
                   </div>
@@ -698,7 +698,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
                     <div className="text-xs text-slate-400">2. Deduplication Router</div>
                     <div className="text-sm font-bold text-cyan-400">Unique Pairs Only</div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-2xs text-slate-500">
                       50 students with 3 languages = only 3 translations!
                     </div>
                   </div>
@@ -706,7 +706,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                   <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
                     <div className="text-xs text-slate-400">3. Distributed Synthesis</div>
                     <div className="text-sm font-bold text-emerald-400">Client-Side TTS</div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-2xs text-slate-500">
                       Hardware-accelerated audio rendering on listener devices.
                     </div>
                   </div>
@@ -717,7 +717,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
                     <Zap className="w-3.5 h-3.5" />
                     Scale Verification (1000+ Parallel Rooms with 50+ Participants):
                   </div>
-                  <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+                  <ul className="list-disc list-inside space-y-1 text-slate-300 text-2xs">
                     <li>Mesh WebRTC SFU streaming without centralized media transcoding</li>
                     <li>Translation Cache hit rate: {metrics.totalTranslations > 0 ? Math.round((metrics.cacheHits / metrics.totalTranslations) * 100) : 94}%</li>
                     <li>Graceful fallback: Zero disruption if network or translation service is unreachable</li>
@@ -732,27 +732,27 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
             <div className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <div className="text-[11px] text-slate-400">Average Latency</div>
+                  <div className="text-2xs text-slate-400">Average Latency</div>
                   <div className="text-lg font-bold text-emerald-400">{metrics.averageLatencyMs} ms</div>
-                  <div className="text-[10px] text-emerald-500/80">Target &lt; 1500 ms</div>
+                  <div className="text-2xs text-emerald-500/80">Target &lt; 1500 ms</div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <div className="text-[11px] text-slate-400">P50 Latency</div>
+                  <div className="text-2xs text-slate-400">P50 Latency</div>
                   <div className="text-lg font-bold text-cyan-400">{metrics.p50LatencyMs} ms</div>
-                  <div className="text-[10px] text-slate-500">Median response</div>
+                  <div className="text-2xs text-slate-500">Median response</div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <div className="text-[11px] text-slate-400">P95 Latency</div>
+                  <div className="text-2xs text-slate-400">P95 Latency</div>
                   <div className="text-lg font-bold text-indigo-400">{metrics.p95LatencyMs} ms</div>
-                  <div className="text-[10px] text-slate-500">95th percentile</div>
+                  <div className="text-2xs text-slate-500">95th percentile</div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <div className="text-[11px] text-slate-400">Parallel Room Capacity</div>
+                  <div className="text-2xs text-slate-400">Parallel Room Capacity</div>
                   <div className="text-lg font-bold text-amber-400">{metrics.activeRoomsSupported}+</div>
-                  <div className="text-[10px] text-amber-500/80">1000+ Rooms Ready</div>
+                  <div className="text-2xs text-amber-500/80">1000+ Rooms Ready</div>
                 </div>
               </div>
 
@@ -782,7 +782,7 @@ export const RealtimeInterpreterModal: React.FC<Props> = ({ isOpen, onClose }) =
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3 border-t border-slate-800 bg-[#0f1b38]/80 flex items-center justify-between text-xs">
+        <div className="px-5 py-3 border-t border-slate-800 bg-surface-raised/80 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Zero Paid API Dependency &bull; Encrypted In-Memory Stream</span>

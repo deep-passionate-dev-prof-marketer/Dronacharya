@@ -4,7 +4,7 @@
  */
 import crypto from "crypto";
 import express from "express";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, notLike, or } from "drizzle-orm";
 import { getDb, schema } from "./db";
 import { requireAuth } from "./auth/session";
 import { auditInsert, persist } from "./db/kv";
@@ -36,6 +36,16 @@ const allow = (sid: string) => {
 };
 
 export function setupSecurityRoutes(app: express.Express) {
+  /** Public: where to download the desktop classroom app (installer links are set per deployment). */
+  app.get("/api/desktop/downloads", (_req, res) => {
+    const url = (v?: string) => (v && /^https:\/\//.test(v) ? v : null);
+    res.json({
+      version: process.env.DESKTOP_APP_VERSION || null,
+      mac: url(process.env.DESKTOP_DOWNLOAD_MAC),
+      windows: url(process.env.DESKTOP_DOWNLOAD_WIN),
+    });
+  });
+
   app.post("/api/security/events", requireAuth(), (req, res) => {
     const u = req.user!;
     const type = String(req.body?.type || "");
@@ -66,7 +76,7 @@ export function setupSecurityRoutes(app: express.Express) {
     const rows = await db
       .select()
       .from(schema.auditEvents)
-      .where(and(eq(schema.auditEvents.stream, "security"), gte(schema.auditEvents.at, since)))
+      .where(and(eq(schema.auditEvents.stream, "security"), gte(schema.auditEvents.at, since), or(isNull(schema.auditEvents.roomSlug), notLike(schema.auditEvents.roomSlug, "demo-%"))))
       .orderBy(desc(schema.auditEvents.at))
       .limit(1000);
     res.json({ events: rows.map((r: any) => ({ id: r.id, at: r.at, type: r.type, roomSlug: r.roomSlug, ...r.data })) });

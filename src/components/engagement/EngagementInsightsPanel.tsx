@@ -28,7 +28,7 @@ const tone = (l: string) => TONE[l] || "bg-slate-400";
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export const EngagementInsightsPanel: React.FC<{ roomSlug?: string }> = ({ roomSlug }) => {
-  const { currentRole, roomId, participants, attentionAudits } = useClassroom();
+  const { currentRole, roomId } = useClassroom();
   const [rooms, setRooms] = useState<Array<{ roomSlug: string; participants: number; lastActivity: string }>>([]);
   const [room, setRoom] = useState(roomSlug || roomId);
   const [people, setPeople] = useState<PersonRollup[]>([]);
@@ -46,46 +46,13 @@ export const EngagementInsightsPanel: React.FC<{ roomSlug?: string }> = ({ roomS
       setRooms(r.rooms || []);
       setPeople(d.participants || []);
       setError(null);
-    } catch {
-      // Resilient local fallback from active participants and attention audits
-      const localPeople: PersonRollup[] = (participants || []).map((p) => {
-        const audit = attentionAudits?.[p.id];
-        const eyeContact = (audit?.attentionScore ?? 85) / 100;
-        const dominant = audit?.engagementLevel === "High Focus" ? "focused" : audit?.engagementLevel === "Attentive" ? "engaged" : "curious";
-        return {
-          participant: { id: p.id, name: p.name, role: p.role },
-          latest: {
-            dominant,
-            states: [
-              { label: dominant, score: eyeContact },
-              { label: "listening", score: 0.7 },
-            ],
-            eyeContact,
-            presence: 1,
-            blinkPerMin: audit?.blinkRate ?? 15,
-            talkRatio: p.role === "instructor" ? 0.7 : 0.2,
-          },
-          lastSeen: new Date().toISOString(),
-          presentMinutes: 10,
-          avgEyeContact: eyeContact,
-          avgTalkRatio: p.role === "instructor" ? 0.7 : 0.2,
-          stateDistribution: [
-            { label: dominant, share: 0.75 },
-            { label: "listening", share: 0.25 },
-          ],
-          timeline: [
-            { at: new Date().toISOString(), dominant, eyeContact, presence: 1 },
-          ],
-          alerts: audit?.distractionAlert ? ["Distraction detected"] : [],
-        };
-      });
-      setPeople(localPeople);
-      setError(null);
+    } catch (e: any) {
+      setError(e?.error || "Engagement service unavailable on this deployment.");
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, currentRole, participants, attentionAudits]);
+  }, [room, currentRole]);
 
   useEffect(() => {
     load();
@@ -117,7 +84,7 @@ export const EngagementInsightsPanel: React.FC<{ roomSlug?: string }> = ({ roomS
         </div>
       </div>
 
-      <p className="text-[11px] text-slate-500 flex gap-1.5">
+      <p className="text-2xs text-slate-500 flex gap-1.5">
         <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
         Estimated from facial expression and head/eye movement on each participant's own device, with their (or their guardian's) consent. Signals, not diagnoses. Don't use them alone to judge a person.
       </p>
@@ -133,14 +100,14 @@ export const EngagementInsightsPanel: React.FC<{ roomSlug?: string }> = ({ roomS
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-white truncate">{p.participant.name}</div>
-                <div className="text-[11px] text-slate-500 capitalize">{p.participant.role.replace("_", " ")} · seen {new Date(p.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                <div className="text-2xs text-slate-500 capitalize">{p.participant.role.replace("_", " ")} · seen {new Date(p.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
               </div>
               <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-semibold text-slate-950 capitalize ${tone(p.latest.dominant)}`}>{p.latest.dominant}</span>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
               {p.latest.states.map((s) => (
-                <span key={s.label} className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 capitalize">
+                <span key={s.label} className="text-2xs px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 capitalize">
                   {s.label} <span className="text-slate-500">{pct(s.score)}</span>
                 </span>
               ))}

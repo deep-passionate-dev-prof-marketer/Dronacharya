@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SampleNotice } from "../ui";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   Flame,
@@ -228,13 +229,14 @@ export const SalesHub: React.FC = () => {
   const closedCount = leads.filter((l) => l.status === "closed_won").length;
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#070b14] overflow-y-auto text-slate-100 font-sans p-3 sm:p-4 lg:p-6 select-none">
+    <div className="w-full h-full flex flex-col bg-canvas overflow-y-auto text-slate-100 font-sans p-3 sm:p-4 lg:p-6 select-none">
+      <SampleNotice className="mb-4">Leads, pipeline numbers and conversion figures on this page are sample data. Real counselling and admission results are in Class analytics (Counselling).</SampleNotice>
       {/* Top Header Card */}
-      <div className="bg-gradient-to-r from-[#991B1B] via-[#C2410C] to-[#EA580C] rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
+      <div className="bg-gradient-to-r from-red-800 via-orange-700 to-orange-600 rounded-2xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden mb-4 sm:mb-6 shrink-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-[#FFBB00] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-brand-yellow text-2xs sm:text-xs font-bold uppercase tracking-wider mb-2 border border-white/20 max-w-full">
               <Flame className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>Admissions Sales Engine & Automated Lead Assignment</span>
             </div>
@@ -256,7 +258,7 @@ export const SalesHub: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveView("crm")}
-              className="px-4 py-2.5 rounded-xl bg-[#001F40] hover:bg-[#002b59] border border-blue-400/30 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-brand-navy-deep hover:bg-brand-navy-ink border border-blue-400/30 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md cursor-pointer"
             >
               <Database className="w-4 h-4 text-cyan-300" />
               <span>CRM Webhook Matrix</span>
@@ -267,18 +269,18 @@ export const SalesHub: React.FC = () => {
         {/* Live Metrics Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-amber-200 uppercase tracking-wider block">
               Inbound CRM Leads
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
-              <Users className="shrink-0 self-center w-4 h-4 text-[#FFBB00]" />
+              <Users className="shrink-0 self-center w-4 h-4 text-brand-yellow" />
               <span className="text-xl sm:text-2xl font-black text-white leading-none tabular-nums">{totalLeads}</span>
               <span className="text-xs font-semibold text-white/70 leading-tight">Total Prospects</span>
             </div>
           </div>
 
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-amber-200 uppercase tracking-wider block">
               Active Pitch Sessions
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
@@ -289,7 +291,7 @@ export const SalesHub: React.FC = () => {
           </div>
 
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-amber-200 uppercase tracking-wider block">
               Assigned & Ready
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
@@ -300,7 +302,7 @@ export const SalesHub: React.FC = () => {
           </div>
 
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
-            <span className="text-[11px] font-bold text-amber-200 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-amber-200 uppercase tracking-wider block">
               Average Conversion
             </span>
             <div className="mt-1.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap min-w-0">
@@ -349,13 +351,13 @@ export const SalesHub: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-white text-sm">{lead.studentName}</h3>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          <span className="px-2 py-0.5 rounded text-2xs font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
                             Grade {lead.gradeLevel} · {lead.curriculum}
                           </span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="px-2 py-0.5 rounded text-2xs font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             {lead.preferredLanguage}
                           </span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          <span className="px-2 py-0.5 rounded text-2xs font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
                             Score {lead.leadScore}/100
                           </span>
                         </div>
@@ -363,7 +365,7 @@ export const SalesHub: React.FC = () => {
                         <p className="text-xs text-slate-400 mt-1">
                           Parent: <strong className="text-slate-200">{lead.parentName}</strong> ({lead.parentEmail}) · {lead.parentPhone}
                         </p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
+                        <p className="text-2xs text-slate-500 mt-0.5">
                           CRM Source: <span className="text-slate-300 font-medium">{lead.crmSource}</span> · Timezone: {lead.timezone}
                         </p>
                       </div>
@@ -381,7 +383,7 @@ export const SalesHub: React.FC = () => {
                             <span>1-Click Join Pitch Room</span>
                           </button>
                           {lead.pitchRoomUrl && (
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                            <div className="flex items-center gap-1.5 text-2xs text-slate-400 font-mono">
                               <span>{lead.pitchRoomCode}</span>
                               <button
                                 onClick={() => handleCopyLink(lead.pitchRoomUrl!)}
@@ -411,12 +413,12 @@ export const SalesHub: React.FC = () => {
 
                   {/* Assignment Rationale Banner */}
                   {lead.assignmentReason && (
-                    <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-2">
+                    <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-2xs text-slate-400 flex-wrap gap-2">
                       <div className="flex items-center gap-1.5 text-amber-300">
                         <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
                         <span><strong>Assigned to:</strong> {lead.assignedRepName}</span>
                       </div>
-                      <div className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
+                      <div className="text-2xs text-slate-400 bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
                         Logic: {lead.assignmentReason}
                       </div>
                     </div>
@@ -436,7 +438,7 @@ export const SalesHub: React.FC = () => {
                 <UserCheck className="w-4 h-4 text-emerald-400" />
                 <h3 className="font-bold text-white text-sm">Admissions Counselors Roster</h3>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">{reps.length} Reps</span>
+              <span className="text-2xs font-mono text-slate-400">{reps.length} Reps</span>
             </div>
 
             <div className="space-y-2.5">
@@ -454,7 +456,7 @@ export const SalesHub: React.FC = () => {
                     </div>
                     <div className="truncate">
                       <p className="text-xs font-bold text-white truncate">{rep.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">
+                      <p className="text-2xs text-slate-400 truncate">
                         {rep.languages.join(", ")} · {rep.salesCluster.split(" ")[0]}
                       </p>
                     </div>
@@ -464,7 +466,7 @@ export const SalesHub: React.FC = () => {
                     <span className="text-xs font-bold text-emerald-400 font-mono">
                       {rep.conversionRatePercent}% Win
                     </span>
-                    <p className="text-[10px] text-slate-500 font-mono">
+                    <p className="text-2xs text-slate-500 font-mono">
                       Load: {rep.currentLeadCount}/{rep.maxConcurrentLeads}
                     </p>
                   </div>
@@ -485,7 +487,7 @@ export const SalesHub: React.FC = () => {
 
             <form onSubmit={handleSimulateCrmInbound} className="space-y-3 text-xs">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                <label className="block text-2xs font-semibold text-slate-300 mb-1">
                   CRM Source API
                 </label>
                 <select
@@ -501,7 +503,7 @@ export const SalesHub: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  <label className="block text-2xs font-semibold text-slate-300 mb-1">
                     Student Name
                   </label>
                   <input
@@ -513,7 +515,7 @@ export const SalesHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  <label className="block text-2xs font-semibold text-slate-300 mb-1">
                     Parent Name
                   </label>
                   <input
@@ -528,7 +530,7 @@ export const SalesHub: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  <label className="block text-2xs font-semibold text-slate-300 mb-1">
                     Grade Level
                   </label>
                   <select
@@ -542,7 +544,7 @@ export const SalesHub: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  <label className="block text-2xs font-semibold text-slate-300 mb-1">
                     Preferred Language
                   </label>
                   <select

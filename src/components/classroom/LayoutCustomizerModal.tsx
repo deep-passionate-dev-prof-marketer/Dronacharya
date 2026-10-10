@@ -54,7 +54,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">Adjust Layout & Grids</h3>
-              <p className="text-[11px] text-slate-400">Customize video grid density, stage focus, and split view</p>
+              <p className="text-2xs text-slate-400">Customize video grid density, stage focus, and split view</p>
             </div>
           </div>
           <button
@@ -86,7 +86,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
               >
                 <Grid3X3 className="w-5 h-5 text-blue-400" />
                 <span className="text-xs font-bold">Auto Grid</span>
-                <span className="text-[10px] text-slate-400">Dynamic balance</span>
+                <span className="text-2xs text-slate-400">Dynamic balance</span>
               </button>
 
               <button
@@ -99,7 +99,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
               >
                 <Maximize2 className="w-5 h-5 text-indigo-400" />
                 <span className="text-xs font-bold">Spotlight</span>
-                <span className="text-[10px] text-slate-400">Speaker hero</span>
+                <span className="text-2xs text-slate-400">Speaker hero</span>
               </button>
 
               <button
@@ -112,7 +112,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
               >
                 <Columns className="w-5 h-5 text-cyan-400" />
                 <span className="text-xs font-bold">Filmstrip</span>
-                <span className="text-[10px] text-slate-400">Sidebar row</span>
+                <span className="text-2xs text-slate-400">Sidebar row</span>
               </button>
 
               <button
@@ -125,7 +125,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
               >
                 <Tv className="w-5 h-5 text-amber-400" />
                 <span className="text-xs font-bold">Theater</span>
-                <span className="text-[10px] text-slate-400">Clean lecture</span>
+                <span className="text-2xs text-slate-400">Clean lecture</span>
               </button>
             </div>
           </div>
@@ -136,7 +136,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                 Manual Grid Columns
               </label>
-              <span className="text-[11px] font-mono text-blue-400 font-semibold">
+              <span className="text-2xs font-mono text-blue-400 font-semibold">
                 {manualGridColumns === 0 ? "Automatic" : `${manualGridColumns} Columns`}
               </span>
             </div>
@@ -188,7 +188,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-white block">Self View Tile</span>
-                <span className="text-[10px] text-slate-400">Show your camera in grid</span>
+                <span className="text-2xs text-slate-400">Show your camera in grid</span>
               </div>
               <button
                 onClick={() => setShowSelfView(!showSelfView)}
@@ -205,14 +205,14 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-white block">Pinned Spotlight</span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-2xs text-slate-400">
                   {pinnedParticipantId ? "Active pin" : "None pinned"}
                 </span>
               </div>
               {pinnedParticipantId && (
                 <button
                   onClick={() => setPinnedParticipantId(null)}
-                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold"
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30 text-2xs font-bold"
                 >
                   Unpin
                 </button>
@@ -226,7 +226,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                 Stage vs Tools Dock Split
               </label>
-              <span className="text-[11px] font-mono text-blue-400 font-semibold">
+              <span className="text-2xs font-mono text-blue-400 font-semibold">
                 {dockSplitRatio}% Stage / {100 - dockSplitRatio}% Dock
               </span>
             </div>
@@ -241,7 +241,7 @@ export const LayoutCustomizerModal: React.FC<LayoutCustomizerModalProps> = ({
                 <button
                   key={preset.label}
                   onClick={() => setDockSplitRatio(preset.ratio)}
-                  className={`py-2 px-1.5 rounded-xl border text-[11px] font-bold transition-all truncate text-center ${
+                  className={`py-2 px-1.5 rounded-xl border text-2xs font-bold transition-all truncate text-center ${
                     dockSplitRatio === preset.ratio
                       ? "bg-blue-600 text-white border-blue-500 shadow-sm"
                       : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10"

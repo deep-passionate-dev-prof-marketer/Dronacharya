@@ -8,6 +8,27 @@
       "when": 1791545860361,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791565014869,
+      "tag": "0001_recordings_storage",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791566263277,
+      "tag": "0002_remarks",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791586374382,
+      "tag": "0003_analytics",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,6 @@ export type SpeechCallback = (event: SpeechCaptionEvent) => void;
 class RealtimeSpeechRecognitionEngine {
   private listeners: Set<SpeechCallback> = new Set();
   private currentSpeaker = "You (Local Speaker)";
-  private activeSourceLanguage = "hi";
   private activeTargetLanguage: LanguageCode = "es";
 
   constructor() {
@@ -40,7 +39,7 @@ class RealtimeSpeechRecognitionEngine {
         try {
           const res = await TranslationEngine.translate(
             event.text,
-            this.activeSourceLanguage,
+            speechTranslationEngine.getSpokenLanguage(),
             this.activeTargetLanguage,
             "general"
           );
@@ -71,10 +70,9 @@ class RealtimeSpeechRecognitionEngine {
   }
 
   public setSourceLanguage(lang: string) {
-    this.activeSourceLanguage = lang.toLowerCase();
-    speechTranslationEngine.setSpokenLanguage(this.activeSourceLanguage);
+    speechTranslationEngine.setSpokenLanguage(lang.toLowerCase());
     realtimeInterpreterService.updatePreferences({
-      mySpokenLanguage: this.activeSourceLanguage,
+      mySpokenLanguage: lang.toLowerCase(),
     });
   }
 
@@ -129,7 +127,7 @@ class RealtimeSpeechRecognitionEngine {
       try {
         const res = await TranslationEngine.translate(
           cleanText,
-          this.activeSourceLanguage,
+          speechTranslationEngine.getSpokenLanguage(),
           this.activeTargetLanguage,
           "general"
         );

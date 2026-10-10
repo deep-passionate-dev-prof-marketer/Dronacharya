@@ -3,7 +3,7 @@
  * synchronous rules logic and persist every change here). Single-instance by design: to scale out,
  * move reads to the database per request.
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, notLike, or, sql } from "drizzle-orm";
 import { getDb, schema } from "./index";
 
 export async function kvLoad<T>(namespace: string): Promise<Array<{ key: string; value: T }>> {
@@ -37,10 +37,13 @@ export async function auditInsert(stream: string, e: { id: string; at: string; t
     .onConflictDoNothing();
 }
 
-/** Most recent events of a stream, oldest first. */
+/** Most recent events of a stream, oldest first (demo analytics history excluded). */
 export async function auditLoad<T>(stream: string, limit = 20000): Promise<T[]> {
   const db: any = await getDb();
-  const rows = await db.select().from(schema.auditEvents).where(eq(schema.auditEvents.stream, stream)).orderBy(desc(schema.auditEvents.at)).limit(limit);
+  const rows = await db
+    .select()
+    .from(schema.auditEvents)
+    .where(and(eq(schema.auditEvents.stream, stream), or(isNull(schema.auditEvents.roomSlug), notLike(schema.auditEvents.roomSlug, "demo-%")))).orderBy(desc(schema.auditEvents.at)).limit(limit);
   return rows.reverse().map((r: any) => r.data as T);
 }
 

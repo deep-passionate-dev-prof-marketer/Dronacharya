@@ -89,7 +89,7 @@ export const GalleryGrid: React.FC<{ participants: Participant[]; renderTile: Pr
         </div>
       )}
       {pages > 1 && (
-        <div className="text-center text-[11px] text-slate-400 pt-1">
+        <div className="text-center text-2xs text-slate-400 pt-1">
           Page {current + 1} of {pages} · {ordered.length} people
         </div>
       )}
@@ -113,7 +113,7 @@ const ScreenView: React.FC<{ presenter: Participant; localStream?: MediaStream |
   return (
     <div className="relative w-full h-full rounded-2xl bg-black border border-white/10 overflow-hidden">
       <video ref={ref} autoPlay playsInline muted disablePictureInPicture controlsList="nodownload noremoteplayback" className="w-full h-full object-contain" />
-      <span className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-black/60 text-[11px] text-slate-200">
+      <span className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-black/60 text-2xs text-slate-200">
         <MonitorUp className="w-3.5 h-3.5 text-emerald-400" />
         {presenter.isLocal ? "You are presenting" : `${presenter.name} is presenting`}
       </span>

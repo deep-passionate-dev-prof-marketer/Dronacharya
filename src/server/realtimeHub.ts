@@ -24,6 +24,11 @@ import { setupEngagementRoutes } from "./engagementHub";
 import { setupClassRoutes } from "./classesHub";
 import { setupSecurityRoutes } from "./securityHub";
 import { setupRoomControlRoutes } from "./roomControlHub";
+import { setupClassSessionRoutes } from "./classSessionHub";
+import { setupParentRoutes } from "./parentHub";
+import { createSttServer, providerChainTranscriber, sameOrigin, setupSttRoutes } from "./sttHub";
+import { setupAnalyticsRoutes } from "./analytics/routes";
+import { setupAttendanceRoutes } from "./analytics/attendanceRoutes";
 
 export interface ConnectedClient {
   ws: WebSocket;
@@ -212,7 +217,22 @@ export const realtimeStore = new RealtimeStateStore();
 // -------------------------------------------------------------
 
 export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Express) {
-  const wss = new WebSocketServer({ server: httpServer });
+  // One HTTP server, routed by path: /stt is server speech-to-text, everything else is the realtime room socket
+  const wss = new WebSocketServer({ noServer: true });
+  const stt = createSttServer(providerChainTranscriber);
+  httpServer.on("upgrade", async (req, socket, head) => {
+    try {
+      if (await stt.handleUpgrade(req, socket, head)) return;
+      if (!sameOrigin(req)) {
+        socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+    } catch {
+      socket.destroy();
+    }
+  });
 
   // Broadcast helper
   function broadcast(message: any, filterFn?: (client: ConnectedClient) => boolean) {
@@ -243,6 +263,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   setupClassRoutes(app);
   setupSecurityRoutes(app);
   setupRoomControlRoutes(app);
+  setupClassSessionRoutes(app);
+  setupParentRoutes(app);
+  setupSttRoutes(app);
+  setupAnalyticsRoutes(app);
+  setupAttendanceRoutes(app);
 
   // Active WebSocket Connection Listener
   wss.on("connection", (ws: WebSocket, upgradeReq: http.IncomingMessage) => {
@@ -438,9 +463,18 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
           // Peer-to-peer fallback: classroom data messages and WebRTC signaling relayed to the room
           case "ROOM_DATA":
           case "MESH_SIGNAL": {
-            const roomId = String(payload?.roomId || currentClient?.roomId || "");
-            if (!roomId) return;
-            broadcastToRoom(roomId, { type, ...payload }, ws);
+            // Only signed-in sockets, only into their own room, and the sender is stamped by us
+            if (!currentClient) return;
+            const roomId = currentClient.roomId;
+            if (type === "ROOM_DATA") {
+              const message = payload?.message && typeof payload.message === "object" ? payload.message : null;
+              if (!message) return;
+              broadcastToRoom(roomId, { type, roomId, message: { ...message, from: currentClient.userId, fromRole: currentClient.role } }, ws);
+            } else {
+              const signal = payload?.signal && typeof payload.signal === "object" ? payload.signal : null;
+              if (!signal) return;
+              broadcastToRoom(roomId, { type, roomId, signal: { ...signal, senderId: currentClient.userId } }, ws);
+            }
             break;
           }
 
@@ -508,14 +542,9 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
           // Automatic Device Audit Telemetry Log
           case "DEVICE_AUDIT_LOG": {
             if (!currentClient) return;
+            // Stored for staff only (GET /api/audit/devices); never broadcast to the room
             const record = payload.record;
-            if (record) {
-              realtimeStore.deviceAudits.set(record.userId || currentClient.userId, record);
-              broadcastToRoom(currentClient.roomId, {
-                type: "DEVICE_AUDIT_LOG_BROADCAST",
-                record,
-              });
-            }
+            if (record && typeof record === "object") realtimeStore.deviceAudits.set(currentClient.userId, { ...record, userId: currentClient.userId });
             break;
           }
 
@@ -1158,10 +1187,9 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   });
 
   app.post("/api/audit/devices", requireAuth(), (req, res) => {
+    // A device record always belongs to the signed-in sender
     const record = req.body;
-    if (record && record.userId) {
-      realtimeStore.deviceAudits.set(record.userId, record);
-    }
+    if (record && typeof record === "object") realtimeStore.deviceAudits.set(req.user!.id, { ...record, userId: req.user!.id });
     res.json({ success: true });
   });
 

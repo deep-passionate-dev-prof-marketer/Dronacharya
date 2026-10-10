@@ -83,7 +83,7 @@ export const DeviceAccessInbox: React.FC = () => {
         >
           <ShieldQuestion className="w-4 h-4" />
           {requests.length > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-[10px] font-bold text-slate-950 flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-2xs font-bold text-slate-950 flex items-center justify-center">
               {requests.length}
             </span>
           )}
@@ -120,7 +120,7 @@ export const DeviceAccessInbox: React.FC = () => {
           {toasts.map((r) => (
             <div key={r.id} className="pointer-events-auto rounded-2xl border border-amber-500/30 bg-slate-900/95 backdrop-blur-xl shadow-2xl animate-fadeIn">
               <div className="flex items-center justify-between px-3 pt-2.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">New device request</span>
+                <span className="text-2xs font-semibold uppercase tracking-wider text-amber-300">New device request</span>
                 <button onClick={() => setToastIds((t) => t.filter((x) => x !== r.id))} className="p-1 rounded-lg hover:bg-white/10 text-slate-400" aria-label="Dismiss">
                   <X className="w-3.5 h-3.5" />
                 </button>

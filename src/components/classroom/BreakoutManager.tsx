@@ -45,7 +45,7 @@ export const BreakoutManager: React.FC = () => {
   const students = participants.filter((p) => p.role === "student" || p.role === "ta");
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Top Header */}
       <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -157,9 +157,9 @@ export const BreakoutManager: React.FC = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-semibold text-white">{room.name}</h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{room.topic}</p>
+                    <p className="text-2xs text-slate-400 mt-0.5">{room.topic}</p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/40 text-[10px] font-mono text-indigo-300">
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/40 text-2xs font-mono text-indigo-300">
                     <Radio className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
                     <span>{assignedStudents.length} Students</span>
                   </div>
@@ -168,7 +168,7 @@ export const BreakoutManager: React.FC = () => {
                 {/* Assigned student avatars */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {assignedStudents.length === 0 ? (
-                    <span className="text-[11px] text-slate-500 italic">
+                    <span className="text-2xs text-slate-500 italic">
                       No students currently assigned
                     </span>
                   ) : (
@@ -178,7 +178,7 @@ export const BreakoutManager: React.FC = () => {
                         className="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-300"
                       >
                         <div
-                          className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-2xs font-bold text-white"
                           style={{ backgroundColor: s.avatarColor }}
                         >
                           {s.name.charAt(0)}
@@ -227,7 +227,7 @@ export const BreakoutManager: React.FC = () => {
                       onChange={(e) =>
                         assignStudentToBreakout(student.id, e.target.value || null)
                       }
-                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500"
+                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-2xs text-slate-300 focus:outline-none focus:border-indigo-500"
                     >
                       <option value="">Main Hall (Default)</option>
                       {breakoutRooms.map((r) => (

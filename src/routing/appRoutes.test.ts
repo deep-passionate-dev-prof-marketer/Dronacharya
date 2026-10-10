@@ -15,6 +15,14 @@ describe("role URLs", () => {
     expect(parsePath(path)).toMatchObject({ role: "student", userId: "10ABCDEFGH", page: "notebook" });
   });
 
+  it("gives parents their own URL without family names", () => {
+    const path = buildPath({ id: "par-lchen", name: "Linda Chen", role: "parent", country: "IN", languageTag: "en-IN" }, "parent_home");
+    expect(path).toBe("/guardian/IND/en-IN/par-lchen/my-children");
+    expect(path.toLowerCase()).not.toContain("linda");
+    expect(parsePath(path)).toMatchObject({ role: "parent", userId: "par-lchen", page: "parent_home" });
+    expect(parsePath(buildPath({ id: "audit-1", name: "Marcus", role: "auditor", country: "GB" }, "recordings"))).toMatchObject({ role: "auditor", page: "recordings" });
+  });
+
   it("validates language tags (2–22 chars, BCP-47 shape) and rejects junk paths", () => {
     expect(LANG_TAG_RE.test("en")).toBe(true);
     expect(LANG_TAG_RE.test("zh-Hant-TW")).toBe(true);

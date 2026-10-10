@@ -4,6 +4,7 @@
  *   staff:    /{facilitator|admissions|auditor|admin}/{ISO-3 country}/{lang-tag}/{userId}/{name-slug}/{page}[/{feature}]
  *             e.g. /facilitator/IND/hi-IN/tch-vance/dr-evelyn-vance/live-stage/whiteboard
  *   learners: /learner/{ISO-3 country}/{lang-tag}/{studentCode}/{page}[/{feature}]   (no names of minors in URLs)
+ *   parents:  /guardian/{ISO-3 country}/{lang-tag}/{userId}/{page}                     (no family names in URLs)
  *
  * Shareable class links stay /room/{slug} and /s/{code}.
  */
@@ -24,7 +25,9 @@ export type AppPage =
   | "blockchain"
   | "selfhosted"
   | "remote_access"
-  | "device_audit";
+  | "device_audit"
+  | "recordings"
+  | "parent_home";
 
 const ROLE_SEGMENT: Record<string, string> = {
   instructor: "facilitator",
@@ -33,6 +36,7 @@ const ROLE_SEGMENT: Record<string, string> = {
   auditor: "auditor",
   admin: "admin",
   student: "learner",
+  parent: "guardian",
 };
 const SEGMENT_ROLE: Record<string, UserRole> = {
   facilitator: "instructor",
@@ -40,6 +44,7 @@ const SEGMENT_ROLE: Record<string, UserRole> = {
   auditor: "auditor",
   admin: "admin",
   learner: "student",
+  guardian: "parent",
 };
 
 const PAGE_SLUG: Record<AppPage, string> = {
@@ -58,6 +63,8 @@ const PAGE_SLUG: Record<AppPage, string> = {
   selfhosted: "self-hosted",
   remote_access: "remote-access",
   device_audit: "device-access",
+  recordings: "recordings",
+  parent_home: "my-children",
 };
 const SLUG_PAGE = Object.fromEntries(Object.entries(PAGE_SLUG).map(([k, v]) => [v, k])) as Record<string, AppPage>;
 
@@ -68,6 +75,13 @@ const ISO2_TO_ISO3: Record<string, string> = {
   BD: "BGD", PK: "PAK", MY: "MYS", ID: "IDN", PH: "PHL", JP: "JPN", CN: "CHN", HK: "HKG", NZ: "NZL", ZA: "ZAF",
   NG: "NGA", KE: "KEN", EG: "EGY", BR: "BRA", MX: "MEX", IE: "IRL", CH: "CHE", SE: "SWE", NO: "NOR", DK: "DNK",
 };
+
+/** ISO-3 → ISO-2 (for display names via Intl.DisplayNames). */
+export const ISO3_TO_ISO2: Record<string, string> = Object.fromEntries(
+  Object.entries(ISO2_TO_ISO3)
+    .filter(([iso2]) => iso2 !== "UK")
+    .map(([iso2, iso3]) => [iso3, iso2])
+);
 
 /** BCP-47 tag like "hi-IN", "en", "zh-Hant-TW"; 2–22 chars as required. */
 export const LANG_TAG_RE = /^(?=.{2,22}$)[a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8}){0,3}$/;
@@ -115,6 +129,7 @@ export function buildPath(identity: RouteIdentity, page: AppPage, feature?: stri
     const code = encodeURIComponent(identity.studentCode || identity.id);
     return `/learner/${iso3}/${lang}/${code}/${pageSlug}${tail}`;
   }
+  if (seg === "guardian") return `/guardian/${iso3}/${lang}/${encodeURIComponent(identity.id)}/${pageSlug}${tail}`;
   return `/${seg}/${iso3}/${lang}/${encodeURIComponent(identity.id)}/${slugify(identity.name)}/${pageSlug}${tail}`;
 }
 
@@ -134,7 +149,8 @@ export function parsePath(pathname: string): ParsedRoute | null {
   if (!role) return null;
   const [_, iso3, lang, userId] = parts;
   if (!iso3 || !ISO3_RE.test(iso3.toUpperCase()) || !lang || !LANG_TAG_RE.test(lang) || !userId) return null;
-  const rest = role === "student" ? parts.slice(4) : parts.slice(5);
+  const idOnly = role === "student" || role === "parent";
+  const rest = idOnly ? parts.slice(4) : parts.slice(5);
   const page = SLUG_PAGE[rest[0]];
   if (!page) return null;
   return {
@@ -142,7 +158,7 @@ export function parsePath(pathname: string): ParsedRoute | null {
     iso3: iso3.toUpperCase(),
     lang,
     userId,
-    nameSlug: role === "student" ? undefined : parts[4],
+    nameSlug: idOnly ? undefined : parts[4],
     page,
     feature: rest[1],
   };

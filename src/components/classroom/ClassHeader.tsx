@@ -39,13 +39,13 @@ export const ClassHeader: React.FC<Props> = ({ roomSlug, fallbackTitle, kindOver
 
   return (
     <div className="flex items-center gap-2 min-w-0">
-      <span className={`shrink-0 px-2 py-0.5 rounded-md border text-[11px] font-semibold whitespace-nowrap ${KIND_TONE[kind]}`}>{heading.badge}</span>
+      <span className={`shrink-0 px-2 py-0.5 rounded-md border text-2xs font-semibold whitespace-nowrap ${KIND_TONE[kind]}`}>{heading.badge}</span>
       <div className="min-w-0">
         <div className={`truncate font-semibold text-white ${compact ? "text-xs" : "text-sm"}`} title={heading.title}>
           {heading.title}
         </div>
         {heading.detail && !compact && (
-          <div className="truncate text-[11px] text-slate-400 flex items-center gap-1" title={heading.detail}>
+          <div className="truncate text-2xs text-slate-400 flex items-center gap-1" title={heading.detail}>
             {kind === "enrolled" && <CalendarDays className="w-3 h-3 shrink-0" />}
             {heading.detail}
           </div>

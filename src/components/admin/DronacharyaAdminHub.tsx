@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SampleNotice } from "../ui";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   Workflow,
@@ -63,12 +64,13 @@ export const DronacharyaAdminHub: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#070b14] overflow-y-auto select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-y-auto select-none">
+      <SampleNotice className="m-3 sm:m-4 lg:m-6 mb-0 sm:mb-0 lg:mb-0">Automation rules and their run log are illustrative; running a rule doesn't send anything.</SampleNotice>
       {/* 21K School Dronacharya Admin Header */}
       <div className="bg-slate-900/70 border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-300">
+            <span className="font-mono text-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-300">
               Campus Operations Engine
             </span>
             <span className="text-xs text-slate-400">·</span>
@@ -99,7 +101,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                   isActive
-                    ? "bg-[#003872] text-white shadow-xs"
+                    ? "bg-brand-navy text-white shadow-xs"
                     : "text-slate-300 hover:text-white hover:bg-white/10"
                 }`}
               >
@@ -122,7 +124,7 @@ export const DronacharyaAdminHub: React.FC = () => {
       )}
 
       {failoverToast && (
-        <div className="bg-[#FFBB00] text-blue-300 px-6 py-2 text-xs font-bold flex items-center justify-between">
+        <div className="bg-brand-yellow text-blue-300 px-6 py-2 text-xs font-bold flex items-center justify-between">
           <span>Emergency substitute facilitator successfully reassigned. Student lobby notified.</span>
           <button onClick={() => setFailoverToast(false)} className="hover:opacity-80 p-0.5" aria-label="Close toast">
             <X className="w-3.5 h-3.5" />
@@ -145,7 +147,7 @@ export const DronacharyaAdminHub: React.FC = () => {
             {/* Quick Batch Generator Banner */}
             <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
               <div>
-                <span className="font-mono text-[10px] font-bold text-[#0082FF] uppercase">
+                <span className="font-mono text-2xs font-bold text-brand-blue uppercase">
                   BATCH AUTOMATION ENGINE
                 </span>
                 <h3 className="font-headline font-bold text-base text-blue-300 mt-0.5">
@@ -165,7 +167,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                       setRoomCreatedToast(true);
                       setTimeout(() => setRoomCreatedToast(false), 3000);
                     }}
-                    className="px-3 py-2 rounded-lg bg-blue-500/10 text-blue-300 hover:bg-[#003872] hover:text-white text-xs font-bold transition-colors"
+                    className="px-3 py-2 rounded-lg bg-blue-500/10 text-blue-300 hover:bg-brand-navy hover:text-white text-xs font-bold transition-colors"
                   >
                     + Grade {g} Batch
                   </button>
@@ -244,7 +246,7 @@ export const DronacharyaAdminHub: React.FC = () => {
               <div className="flex justify-end pt-2 border-t border-white/5">
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-[#003872] text-white text-xs font-bold hover:bg-[#00264d] transition-colors shadow-sm"
+                  className="px-5 py-2 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy-ink transition-colors shadow-sm"
                 >
                   Create Virtual Room
                 </button>
@@ -263,7 +265,7 @@ export const DronacharyaAdminHub: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-white/[0.03] text-slate-400 font-mono text-[11px] border-b border-white/10">
+                    <tr className="bg-white/[0.03] text-slate-400 font-mono text-2xs border-b border-white/10">
                       <th className="p-3 pl-4">Grade & Section</th>
                       <th className="p-3">Course Curriculum</th>
                       <th className="p-3">Assigned Facilitator</th>
@@ -282,12 +284,12 @@ export const DronacharyaAdminHub: React.FC = () => {
                         <td className="p-3 font-semibold text-slate-100">{room.courseName}</td>
                         <td className="p-3 text-slate-300">{room.teacherName}</td>
                         <td className="p-3 font-mono text-slate-400">{room.studentCount} enrolled</td>
-                        <td className="p-3 font-mono text-[#0082FF]">{room.roomCode}</td>
+                        <td className="p-3 font-mono text-brand-blue">{room.roomCode}</td>
                         <td className="p-3 font-mono text-slate-400">{room.scheduledTime}</td>
                         <td className="p-3 pr-4 text-right">
                           <button
                             onClick={() => setActiveView("classroom")}
-                            className="px-2.5 py-1 rounded-md bg-[#003872]/10 text-blue-300 hover:bg-[#003872] hover:text-white text-xs font-bold transition-colors inline-flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-md bg-brand-navy/10 text-blue-300 hover:bg-brand-navy hover:text-white text-xs font-bold transition-colors inline-flex items-center gap-1"
                           >
                             <span>Enter Stage</span>
                             <ExternalLink className="w-3 h-3" />
@@ -368,7 +370,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                       </div>
 
                       <span
-                        className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded ${
+                        className={`text-2xs font-mono font-bold uppercase px-2 py-0.5 rounded ${
                           teacher.status === "in_class"
                             ? "bg-emerald-500/10 text-emerald-300"
                             : "bg-white/[0.06] text-slate-300"
@@ -392,7 +394,7 @@ export const DronacharyaAdminHub: React.FC = () => {
 
                       {/* Workload Progress Bar */}
                       <div className="flex flex-col gap-1 mt-1">
-                        <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+                        <div className="flex justify-between text-2xs text-slate-400 font-mono">
                           <span>Teaching Capacity</span>
                           <span>
                             {teacher.weeklyHours} / {teacher.maxHours} hrs/wk ({workloadPercent}%)
@@ -401,7 +403,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                         <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
                           <div
                             className={`h-full ${
-                              workloadPercent > 80 ? "bg-amber-500" : "bg-[#003872]"
+                              workloadPercent > 80 ? "bg-amber-500" : "bg-brand-navy"
                             }`}
                             style={{ width: `${workloadPercent}%` }}
                           />
@@ -430,7 +432,7 @@ export const DronacharyaAdminHub: React.FC = () => {
 
               <button
                 onClick={() => alert("CSV student cohort bulk import simulator triggered.")}
-                className="px-4 py-2 rounded-lg bg-[#003872] text-white text-xs font-bold hover:bg-[#00264d] shadow-sm"
+                className="px-4 py-2 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy-ink shadow-sm"
               >
                 + Import Cohort CSV
               </button>
@@ -443,7 +445,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                   className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 flex flex-col justify-between gap-4 shadow-sm"
                 >
                   <div>
-                    <span className="text-[10px] font-mono font-bold text-[#0082FF] uppercase">
+                    <span className="text-2xs font-mono font-bold text-brand-blue uppercase">
                       GRADE {cohort.gradeLevel} SECTION {cohort.section}
                     </span>
                     <h4 className="font-headline font-bold text-sm text-blue-300 mt-0.5">
@@ -456,7 +458,7 @@ export const DronacharyaAdminHub: React.FC = () => {
                       {cohort.courseTracks.map((t, i) => (
                         <span
                           key={i}
-                          className="px-2 py-0.5 rounded bg-white/[0.06] text-slate-200 text-[10px] font-semibold"
+                          className="px-2 py-0.5 rounded bg-white/[0.06] text-slate-200 text-2xs font-semibold"
                         >
                           {t}
                         </span>
@@ -520,13 +522,13 @@ export const DronacharyaAdminHub: React.FC = () => {
                       <div>
                         <div className="font-bold text-blue-300">{log.ruleName}</div>
                         <div className="text-slate-200 mt-0.5">{log.actionTaken}</div>
-                        <div className="text-slate-400 text-[11px] font-mono mt-1">
+                        <div className="text-slate-400 text-2xs font-mono mt-1">
                           Trigger: {log.triggerEvent} · {log.details}
                         </div>
                       </div>
                     </div>
 
-                    <span className="font-mono text-slate-400 text-[11px] shrink-0">
+                    <span className="font-mono text-slate-400 text-2xs shrink-0">
                       {log.timestamp}
                     </span>
                   </div>

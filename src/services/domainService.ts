@@ -39,8 +39,8 @@ export function getAppOrigin(): string {
     return window.location.origin;
   }
   if (typeof process !== "undefined" && process.env) {
-    if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    const configured = process.env.PUBLIC_APP_URL || process.env.APP_URL;
+    if (configured) return configured.replace(/\/$/, "");
     if (process.env.PORT) return `http://localhost:${process.env.PORT}`;
   }
   return "http://localhost:3000";

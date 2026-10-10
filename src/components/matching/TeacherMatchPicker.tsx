@@ -66,7 +66,7 @@ export const TeacherMatchPicker: React.FC<Props> = ({ request, value, onChange }
   return (
     <div className="rounded-xl border border-white/10 bg-slate-950 p-3 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+        <span className="text-2xs font-semibold text-slate-400 flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Matched teacher
         </span>
         {loading && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />}
@@ -107,7 +107,7 @@ export const TeacherMatchPicker: React.FC<Props> = ({ request, value, onChange }
           </select>
           <div className="flex flex-wrap gap-1.5">
             {selected.reasons.map((r) => (
-              <span key={r} className="text-[11px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1">
+              <span key={r} className="text-2xs px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" /> {r}
               </span>
             ))}
@@ -117,11 +117,11 @@ export const TeacherMatchPicker: React.FC<Props> = ({ request, value, onChange }
 
       {excluded.length > 0 && (
         <div>
-          <button type="button" onClick={() => setShowWhyNot((v) => !v)} className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1">
+          <button type="button" onClick={() => setShowWhyNot((v) => !v)} className="text-2xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWhyNot ? "rotate-180" : ""}`} /> Why not the other {excluded.length}?
           </button>
           {showWhyNot && (
-            <ul className="mt-1.5 space-y-1 text-[11px]">
+            <ul className="mt-1.5 space-y-1 text-2xs">
               {excluded.map((c) => (
                 <li key={c.teacherId} className="text-slate-400">
                   <span className="text-slate-200">{c.teacherName}:</span> {c.blockers.join("; ")}

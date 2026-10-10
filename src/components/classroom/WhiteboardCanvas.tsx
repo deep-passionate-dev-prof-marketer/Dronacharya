@@ -172,7 +172,7 @@ export const WhiteboardCanvas: React.FC<Props> = ({ variant = "dock" }) => {
     }`;
 
   return (
-    <div ref={rootRef} className="flex-1 min-h-0 flex flex-col bg-[#070b14] overflow-hidden select-none">
+    <div ref={rootRef} className="flex-1 min-h-0 flex flex-col bg-canvas overflow-hidden select-none">
       <div className="h-12 border-b border-white/10 bg-slate-900/95 px-1.5 sm:px-2 flex items-center gap-1 shrink-0 overflow-x-auto no-scrollbar">
         {TOOLS.map((t) => {
           const Icon = t.icon;
@@ -238,7 +238,7 @@ export const WhiteboardCanvas: React.FC<Props> = ({ variant = "dock" }) => {
           className="absolute inset-0 w-full h-full block touch-none"
         />
         {variant === "stage" && (
-          <span className="absolute top-2 left-2 px-2 py-1 rounded-md bg-black/60 text-[11px] text-slate-300 pointer-events-none">Whiteboard · live for everyone</span>
+          <span className="absolute top-2 left-2 px-2 py-1 rounded-md bg-black/60 text-2xs text-slate-300 pointer-events-none">Whiteboard · live for everyone</span>
         )}
       </div>
     </div>

@@ -1,76 +1,94 @@
 # High-Level Model Document (HMD)
-## Dronacharya: Enterprise Edge Mesh Infrastructure, Real-Time Networking & Security Posture
+## Dronacharya: Infrastructure, Scaling, Security and Privacy
 
-**Document Version:** 2.4.0  
-**Target Environment:** Global Multi-Region Edge Mesh / Sub-20ms Peering
+**Document version:** 4.0 (class analytics release)
 
----
-
-### 1. Macro Infrastructure Architecture
-
-Dronacharya is architected as an edge-accelerated, cloud-native real-time communication platform designed to minimize packet traversal time across global cohorts:
-
-```
-                                  [GLOBAL DNS / ANYCAST BGP]
-                                              |
-                   +--------------------------+--------------------------+
-                   |                                                     |
-                   v                                                     v
-        [BOM-1: Mumbai PoP]                                   [FRA-1: Frankfurt PoP]
-       (Sub-15ms India Central)                              (Sub-20ms Europe Central)
-                   |                                                     |
-       +-----------+-----------+                             +-----------+-----------+
-       |           |           |                             |           |           |
-    [Node 1]    [Node 2]    [Node 3]                      [Node 1]    [Node 2]    [Node 3]
-       |                                                     |
-       +---------------------- [REDIS PUB/SUB MESH] --------+
-                                              |
-                              +---------------+---------------+
-                              |                               |
-                              v                               v
-                   [Cloud Datastore & Audit Log]   [Google Gemini 2.5/3.0 Cluster]
-```
-
-#### 1.1 Edge Points of Presence (PoPs)
-- **Primary Hubs**: BOM-1 (Mumbai, 8ms avg), DEL-1 (Delhi NCR, 11ms), BLR-1 (Bengaluru, 9ms), SIN-1 (Singapore, 12ms), DXB-1 (Dubai, 14ms), LHR-1 (London, 13ms), FRA-1 (Frankfurt, 15ms), JFK-1 (New York, 11ms), SJC-1 (San Jose, 10ms).
-- **Transport Protocols**: WebRTC DataChannels over QUIC / HTTP/3 with automatic fallback to native WebSocket (RFC 6455) over TLS 1.3.
+> Earlier versions described a multi-region edge mesh with Redis and "measured" latencies. That was a design
+> vision, not the deployed system. This version describes what actually runs.
 
 ---
 
-### 2. High-Availability & Room Bomber Scalability
+### 1. Deployment
 
-#### 2.1 Micro-Breakout Partition Scaling
-When an administrator triggers a **Room Bomb**, the backend:
-1. Performs deterministic partition clustering within the current process memory boundary.
-2. If the demo session exceeds 500 concurrent participants, the partition state is broadcast across worker nodes via distributed cluster bus.
-3. Each breakout room operates as an isolated namespace with dedicated audio/video SFU routing, preventing cross-room signal bleeding.
+```
+                      Users (browsers, desktop app)
+                         │ HTTPS + WSS                    │ WebRTC
+             ┌───────────▼───────────────┐      ┌─────────▼───────────────────┐
+             │ Dronacharya app service   │◀────▶│ LiveKit Cloud (SFU, Egress) │
+             │ one Node process          │ API, │ region nearest the class    │
+             │ (Docker / Render / Fly /  │ hooks└─────────────────────────────┘
+             │  Railway)                 │
+             │ API + WebSockets + SPA    │──────▶ Google Gemini (notes, ask, live STT)
+             └──────┬───────────┬────────┘──────▶ optional AI host: Ollama + whisper.cpp
+                    │           │                  (docker-compose.ai.yml)
+       ┌────────────▼───┐   ┌───▼───────────────────┐
+       │ Supabase       │   │ Supabase Storage      │
+       │ Postgres (TLS, │   │ recordings (S3 API)   │
+       │ CA-verified)   │   └───────────────────────┘
+       └────────────────┘
+```
 
-#### 2.2 Failover & Recovery
-- **Heartbeat Daemon**: Clients transmit ping heartbeats every 5,000ms. If a connection drops, the client enters an offline-tolerant state with an exponential backoff reconnect attempt every 1,500ms.
-- **Session Rehydration**: Upon reconnecting, the server supplies a full state snapshot of the room, restoring active whiteboard strokes, remote control sessions, and current pitch stage.
+- **App**: `Dockerfile` / `render.yaml`. `npm start` runs `server.ts` (tsx): REST API, room WebSocket, `/stt`
+  WebSocket and the built SPA. Database migrations run on start.
+- **Development**: the same process with PGlite (embedded Postgres in `data/pglite`), LiveKit in dev mode
+  (`npm run livekit:dev`) and optional local AI (`npm run ai:ollama`, `npm run ai:whisper`).
 
 ---
 
-### 3. Security, Privacy & Zero-Trust Governance
+### 2. Scaling and resilience
 
-#### 3.1 End-to-End Security Architecture
-- **In-Transit Encryption**: AES-256-GCM hardware-accelerated TLS encryption for all WebSocket traffic.
-- **Role-Based Access Control (RBAC)**: Strict server-side permission validation. A user authenticated as `student` cannot emit `ROOM_BOMBER_TRIGGER`, `MUTE_ALL`, or `TERMINAL_COMMAND_EXEC` messages.
-- **Auditor Silent Observation**: Auditors join rooms in "shadow mode," receiving telemetry and media streams without publishing presence to the student or parent viewports.
-- **Child Privacy Compliance (COPPA / GDPR-K)**: No biometric face landmarks are ever stored or transmitted to external third-party telemetry aggregators; gaze tracking is computed locally in-browser via TensorFlow.js / WebGL.
+- **Single instance by design (today)**: some hubs keep a hot in-memory copy (device rules, room state,
+  admitted learners, class sessions) and write through to Postgres. To run several instances, move those reads
+  to the database per request (or a shared cache) and pin WebSocket rooms.
+- **Restarts**: class sessions, admitted learners and device decisions are reloaded from Postgres; sessions are
+  reconciled against LiveKit (a session is ended only after two misses five minutes apart); notes for classes
+  that ended during downtime are generated on start; analytics facts are backfilled in batches.
+- **AI outages**: providers are tried in `AI_PROVIDERS` order; a provider that fails, times out or hits its
+  quota is skipped for 2 minutes (captions fail over mid-class). With no AI, notes are extractive.
+- **Webhooks**: LiveKit retries are deduplicated by event id.
+- **Analytics load**: one fact row per finished session; aggregation in memory over the selected period
+  (thousands of rows), cached 60 s and cleared when facts are written.
 
 ---
 
-### 4. SLA & Performance Benchmarks
+### 3. Security
 
-```
-+-----------------------------------------------------------------------------------+
-| Metric                              | Target SLA          | Measured Production  |
-+-----------------------------------------------------------------------------------+
-| Edge WebSocket RTT Latency          | < 25ms              | 11.4ms (BOM-1)       |
-| Remote Cursor Input Latency         | < 30ms              | 16.2ms               |
-| Room Bomber Partition Execution     | < 1,000ms           | 140ms (50 Rooms)     |
-| Multi-Device Frame Render Rate      | 60 FPS              | 60 FPS Locked        |
-| Availability / Uptime               | 99.95%              | 99.99%               |
-+-----------------------------------------------------------------------------------+
-```
+- **Sessions**: signed, HTTP-only cookies (`SESSION_SECRET`); Google Workspace SSO restricted to the school
+  domain; one-time email codes with attempt limits; dummy sign-in only with `AUTH_DEV_LOGIN=1`.
+- **Authorisation on every endpoint** (`requireAuth(role…)`): e.g. analytics for auditors and admins, settings
+  for admins, attendance for teachers (own classes), auditors and admins.
+- **Live class trust rules**: only the server sends class status and poll results; only hosts send stage and
+  whiteboard sync; learners can clear only their own strokes; the room WebSocket stamps the sender and checks
+  the Origin.
+- **LiveKit tokens**: identity and role come from the session, never the request body; learners pass the device
+  check; auditors are hidden and can't publish.
+- **Content protection**: watermark, capture deterrence and logging on class-content pages; OS-level blocking in
+  the desktop app (attested with `DESKTOP_APP_KEY`).
+- **Exports**: CSV cells starting with `= + - @` are neutralised; analytics exports and settings changes are
+  logged to the `analytics_access` audit stream.
+
+---
+
+### 4. Privacy
+
+- **Engagement analytics** run on the learner's device (MediaPipe) only with consent (learner or guardian);
+  only summary signals are sent. Withdrawing consent clears past attention values.
+- **Recording consent** per learner; learners without it are left out of the video layout.
+- **Class analytics**: auditors and admins only; teachers never see scores about themselves; learner groups
+  under 3 hidden; no individual learners in learner-level views.
+- **URLs**: learners appear by student code, parents by id; no names of minors.
+- **Device-access log** keeps device details for audit; legacy device telemetry is stored per signed-in sender
+  and never broadcast to a room.
+
+---
+
+### 5. Service goals
+These are goals to monitor, not measured figures.
+
+| Area | Goal |
+| :--- | :--- |
+| Class start (host clicks Start → everyone sees it) | < 2 s |
+| Notes after class (Gemini) | < 2 min; local model a few minutes on modest hardware |
+| Analytics page (90 days, ~600 sessions) | first load < 2 s, cached < 300 ms |
+| Facts available after a class ends | ~20 s, refreshed at 10 min |
+| Availability | 99.9% for the app service (LiveKit and Supabase have their own SLAs) |

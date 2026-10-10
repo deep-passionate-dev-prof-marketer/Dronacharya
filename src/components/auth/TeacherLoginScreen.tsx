@@ -87,10 +87,10 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
   return (
     <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col md:flex-row">
       {/* Left Hero Column */}
-      <div className="w-full md:w-5/12 bg-linear-to-br from-[#002244] via-[#003872] to-[#004f9e] p-8 text-white flex flex-col justify-between relative overflow-hidden">
+      <div className="w-full md:w-5/12 bg-linear-to-br from-brand-navy-deep via-brand-navy to-brand-blue-strong p-8 text-white flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-[#FFBB00] text-xs font-bold uppercase tracking-wider mb-6 border border-white/10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-brand-yellow text-xs font-bold uppercase tracking-wider mb-6 border border-white/10">
             <GraduationCap className="w-4 h-4" />
             <span>Faculty & Facilitator Portal</span>
           </div>
@@ -104,13 +104,13 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
 
           <div className="mt-8 space-y-3 font-sans">
             <div className="flex items-center gap-3 text-xs text-slate-200">
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[#FFBB00]">
+              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-brand-yellow">
                 <Laptop className="w-4 h-4" />
               </div>
               <span>Multi-device remote screen control across phone, tablet, and PC</span>
             </div>
             <div className="flex items-center gap-3 text-xs text-slate-200">
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[#00C2E0]">
+              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-brand-cyan">
                 <Sparkles className="w-4 h-4" />
               </div>
               <span>Live 3D Bloch sphere & real-time multilingual subtitles</span>
@@ -144,7 +144,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
               <span className="text-slate-500">Other Portals:</span>
               <button
                 onClick={() => onSwitchPortal("student")}
-                className="text-[#0082FF] hover:underline font-bold"
+                className="text-brand-blue hover:underline font-bold"
               >
                 Student
               </button>
@@ -178,25 +178,25 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
 
           {/* Quick-Fill Profile Selectors */}
           <div className="mb-6 p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+            <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
               Quick One-Click Demo Profiles:
             </span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handleQuickFill("Dr. Evelyn Vance", "e.vance@faculty.21k.school", "Quantum Physics & STEM")}
-                className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-[#003872] text-xs transition-colors shadow-2xs"
+                className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-brand-navy text-xs transition-colors shadow-2xs"
               >
                 <div className="font-bold text-slate-800">Dr. Evelyn Vance</div>
-                <div className="text-[10px] text-slate-500 truncate">Quantum Physics & Applied STEM</div>
+                <div className="text-2xs text-slate-500 truncate">Quantum Physics & Applied STEM</div>
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickFill("Prof. Arjun Sharma", "a.sharma@faculty.21k.school", "Advanced Robotics & AI")}
-                className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-[#003872] text-xs transition-colors shadow-2xs"
+                className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-brand-navy text-xs transition-colors shadow-2xs"
               >
                 <div className="font-bold text-slate-800">Prof. Arjun Sharma</div>
-                <div className="text-[10px] text-slate-500 truncate">Advanced Robotics & AI</div>
+                <div className="text-2xs text-slate-500 truncate">Advanced Robotics & AI</div>
               </button>
             </div>
           </div>
@@ -214,7 +214,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="faculty@21k.school"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#003872] focus:ring-2 focus:ring-[#003872]/20 text-xs font-medium text-slate-800 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 text-xs font-medium text-slate-800 outline-none transition-all"
                 />
               </div>
             </div>
@@ -231,7 +231,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="••••••••••••"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-[#003872] focus:ring-2 focus:ring-[#003872]/20 text-xs font-medium text-slate-800 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 text-xs font-medium text-slate-800 outline-none transition-all"
                 />
               </div>
             </div>
@@ -245,7 +245,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 outline-none focus:border-[#003872]"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 outline-none focus:border-brand-navy"
                 />
               </div>
               <div>
@@ -256,7 +256,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
                   type="text"
                   value={section}
                   onChange={(e) => setSection(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 outline-none focus:border-[#003872]"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-800 outline-none focus:border-brand-navy"
                 />
               </div>
             </div>
@@ -264,7 +264,7 @@ export const TeacherLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPo
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-[#003872] hover:bg-[#002852] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-brand-navy hover:bg-brand-navy-ink text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
             >
               {isLoading ? (
                 <span>Authenticating Faculty Session...</span>

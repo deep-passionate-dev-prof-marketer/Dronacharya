@@ -27,6 +27,7 @@ import {
   MoreHorizontal,
   Captions,
   BarChart3,
+  Gauge,
 } from "lucide-react";
 import { WaitingRoomButton, QuickPollSheet } from "./controls/TeacherControls";
 import { LayoutCustomizerModal } from "./LayoutCustomizerModal";
@@ -47,8 +48,9 @@ export const BottomMeetingControls: React.FC = () => {
     subtitleLanguage,
     setIsInterpreterModalOpen,
     participants,
-    setIsAiSummaryModalOpen,
     setActiveView,
+    transportState,
+    setLowBandwidth,
     startRoomBreak,
     setIsAuditDrawerOpen,
     setIsParentHelpModalOpen,
@@ -90,15 +92,26 @@ export const BottomMeetingControls: React.FC = () => {
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isPollSheetOpen, setIsPollSheetOpen] = useState(false);
-  const isTeacher = currentRole === "instructor" || currentRole === "admin";
+  // Hosts run the class: teachers, admins, and counsellors on their sessions
+  const isTeacher = currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
   const isStudent = currentRole === "student";
+  // Auditors observe hidden, without camera or microphone
+  const isObserver = currentRole === "auditor";
 
   type MoreItem = { key: string; label: string; icon: React.ComponentType<{ className?: string }>; onClick: () => void; tone?: string; active?: boolean; show?: boolean; mobileOnly?: boolean };
   const moreItems: MoreItem[] = [
-    { key: "share", label: isScreenSharing ? "Stop sharing" : "Share screen", icon: Share2, onClick: toggleScreenShare, active: isScreenSharing, mobileOnly: true },
-    { key: "hand", label: handRaised ? "Lower hand" : "Raise hand", icon: Hand, onClick: toggleHandRaise, active: handRaised, mobileOnly: true },
-    { key: "poll", label: "Quick poll", icon: BarChart3, onClick: () => setIsPollSheetOpen(true), tone: "text-blue-300", show: isTeacher || currentRole === "sales_rep" },
+    { key: "share", label: isScreenSharing ? "Stop sharing" : "Share screen", icon: Share2, onClick: toggleScreenShare, active: isScreenSharing, mobileOnly: true, show: !isObserver },
+    { key: "hand", label: handRaised ? "Lower hand" : "Raise hand", icon: Hand, onClick: toggleHandRaise, active: handRaised, mobileOnly: true, show: !isObserver },
+    { key: "poll", label: "Quick poll", icon: BarChart3, onClick: () => setIsPollSheetOpen(true), tone: "text-blue-300", show: isTeacher },
     { key: "interpreter", label: "Language settings", icon: Globe, onClick: () => setIsInterpreterModalOpen(true), tone: "text-cyan-300" },
+    {
+      key: "lowbw",
+      label: transportState.lowBandwidth ? "Low-bandwidth mode: on" : "Low-bandwidth mode",
+      icon: Gauge,
+      onClick: () => setLowBandwidth(!transportState.lowBandwidth),
+      active: Boolean(transportState.lowBandwidth),
+      tone: "text-emerald-300",
+    },
     { key: "layout", label: "Layout & grid", icon: LayoutGrid, onClick: () => setIsLayoutModalOpen(true) },
     { key: "dock", label: dockSplitRatio < 100 ? "Hide tools panel" : "Show tools panel", icon: Layers, onClick: toggleDock, show: typeof window !== "undefined" && window.innerWidth >= 1024 },
     { key: "break", label: "5-min break", icon: Coffee, onClick: () => startRoomBreak(5, "5-Minute Cognitive Refresh"), tone: "text-amber-300", show: isTeacher },
@@ -112,8 +125,7 @@ export const BottomMeetingControls: React.FC = () => {
     },
     { key: "parent", label: "Ask parent", icon: HelpCircle, onClick: () => setIsParentHelpModalOpen(true), tone: "text-blue-300", show: isStudent },
     { key: "cx", label: "Tech help", icon: ShieldAlert, onClick: () => setIsCxHelpModalOpen(true), tone: "text-rose-300", show: isStudent },
-    { key: "notebook", label: "LLM notebook", icon: BookOpen, onClick: () => setActiveView("notebook"), tone: "text-amber-300" },
-    { key: "summary", label: "AI lecture digest", icon: Sparkles, onClick: () => setIsAiSummaryModalOpen(true), tone: "text-indigo-300" },
+    { key: "notebook", label: "Class notebook", icon: BookOpen, onClick: () => setActiveView("notebook"), tone: "text-amber-300" },
     { key: "end", label: "End class for all", icon: PhoneOff, onClick: endClass, tone: "text-amber-300", show: isTeacher && classStatus === "in_progress" },
   ].filter((i) => i.show !== false);
 
@@ -123,19 +135,21 @@ export const BottomMeetingControls: React.FC = () => {
 
   return (
     <>
-      <div className="@container w-full shrink-0 z-30 select-none bg-[#080d19] border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
+      <div className="@container w-full shrink-0 z-30 select-none bg-surface-sunken border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
         <div className="h-16 @2xl:h-[72px] px-2 @md:px-3 @4xl:px-5 flex items-center gap-2">
           {/* Left: session status */}
           <div className="hidden @4xl:flex items-center gap-2 min-w-0 flex-1 basis-0">
             <div className="flex items-center gap-2 h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-xs shrink-0">
               <span className={`w-2 h-2 rounded-full ${classStatus === "in_progress" ? "bg-rose-400 animate-pulse" : "bg-amber-400"}`} />
-              <span className="font-mono font-bold text-slate-200">{classStatus === "in_progress" ? formatDuration(classDurationSeconds) : "Waiting"}</span>
+              <span className="font-mono font-bold text-slate-200">{classStatus === "in_progress" ? formatDuration(classDurationSeconds) : classStatus === "ended" ? "Ended" : "Not started"}</span>
             </div>
             <span className="hidden @5xl:block truncate text-xs text-slate-400 min-w-0">{roomTitle.split("·")[0] || "21K Live Room"}</span>
           </div>
 
           {/* Center: primary controls */}
           <div className="flex items-center justify-center gap-1.5 @md:gap-2 flex-1 @4xl:flex-none min-w-0">
+            {!isObserver && (
+            <>
             <button
               onClick={toggleAudio}
               className={`${ctrl} inline-flex ${isAudioMuted ? "bg-rose-600/20 text-rose-200 border-rose-500/40 hover:bg-rose-600/30" : neutral}`}
@@ -178,6 +192,8 @@ export const BottomMeetingControls: React.FC = () => {
               <Hand className="w-[18px] h-[18px]" />
               <span className="hidden @5xl:inline">{handRaised ? "Lower" : "Raise"}</span>
             </button>
+            </>
+            )}
 
             {/* Captions and interpreter are always one tap away, on every screen size */}
             <button
@@ -187,7 +203,9 @@ export const BottomMeetingControls: React.FC = () => {
                 !isLiveSubtitlesActive
                   ? "Turn captions on"
                   : captionHealth.state === "listening"
-                  ? "Captions on"
+                  ? captionHealth.via === "server"
+                    ? "Captions on (transcribed by the school server)"
+                    : "Captions on"
                   : "reason" in captionHealth
                   ? captionHealth.reason
                   : "Captions on"
@@ -199,7 +217,7 @@ export const BottomMeetingControls: React.FC = () => {
               <span className="hidden @5xl:inline">CC · {subtitleLanguage.toUpperCase()}</span>
               {isLiveSubtitlesActive && (
                 <span
-                  className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-[#080d19] ${
+                  className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-surface-sunken ${
                     captionHealth.state === "listening"
                       ? "bg-emerald-400"
                       : captionHealth.state === "recovering"
@@ -223,14 +241,14 @@ export const BottomMeetingControls: React.FC = () => {
               <span className="hidden @5xl:inline">Interpret</span>
             </button>
 
-            {isTeacher && classStatus === "waiting" && (
+            {isTeacher && classStatus !== "in_progress" && (
               <button onClick={startClass} className={`${ctrl} hidden @md:inline-flex bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/40 font-bold`} title="Start live class">
                 <Play className="w-4 h-4 fill-current" />
                 <span className="hidden @xl:inline">Start</span>
               </button>
             )}
 
-            {(isTeacher || currentRole === "sales_rep") && <WaitingRoomButton />}
+            {isTeacher && <WaitingRoomButton />}
 
             <div className="relative">
               <button
@@ -270,7 +288,7 @@ export const BottomMeetingControls: React.FC = () => {
                               item.onClick();
                               setIsMoreOpen(false);
                             }}
-                            className={`${item.mobileOnly ? "@md:hidden" : ""} flex flex-col items-center justify-center gap-1.5 min-h-[76px] px-1.5 py-2 rounded-xl border text-center text-[11px] leading-tight font-medium transition-colors ${
+                            className={`${item.mobileOnly ? "@md:hidden" : ""} flex flex-col items-center justify-center gap-1.5 min-h-[76px] px-1.5 py-2 rounded-xl border text-center text-2xs leading-tight font-medium transition-colors ${
                               item.active ? "bg-blue-600/20 border-blue-500/40 text-white" : "bg-white/[0.04] border-white/10 text-slate-200 hover:bg-white/10"
                             }`}
                           >
@@ -300,7 +318,7 @@ export const BottomMeetingControls: React.FC = () => {
 
           {/* Right: room info + quick panels */}
           <div className="hidden @4xl:flex items-center justify-end gap-2 flex-1 basis-0 min-w-0">
-            <span className="hidden @6xl:flex items-center gap-1.5 h-9 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-mono whitespace-nowrap">
+            <span className="hidden @6xl:flex items-center gap-1.5 h-9 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-2xs text-emerald-400 font-mono whitespace-nowrap">
               <ShieldCheck className="w-3.5 h-3.5" /> E2EE
             </span>
             <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-300" title="Participants">

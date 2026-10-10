@@ -146,9 +146,9 @@ export const DocumentationModal: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md font-sans">
       <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn w-full max-w-6xl h-[94dvh] sm:h-[88vh] bg-slate-900/70 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="h-16 px-6 bg-[#001F40] text-white flex items-center justify-between shrink-0 border-b border-slate-800">
+        <div className="h-16 px-6 bg-brand-navy-deep text-white flex items-center justify-between shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#003872] flex items-center justify-center text-[#FFBB00]">
+            <div className="w-9 h-9 rounded-xl bg-brand-navy flex items-center justify-center text-brand-yellow">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
@@ -156,7 +156,7 @@ export const DocumentationModal: React.FC<Props> = ({
                 <h2 className="text-base font-bold text-white leading-tight">
                   Dronacharya Engineering & Business Documentation
                 </h2>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FFBB00] text-[#001F40]">
+                <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-brand-yellow text-brand-navy-deep">
                   Standalone Suite
                 </span>
               </div>
@@ -211,7 +211,7 @@ export const DocumentationModal: React.FC<Props> = ({
               />
             </div>
 
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
+            <div className="text-2xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
               Document Catalog
             </div>
 
@@ -224,14 +224,14 @@ export const DocumentationModal: React.FC<Props> = ({
                     onClick={() => setActiveDocId(doc.id)}
                     className={`w-full text-left p-2.5 rounded-xl text-xs font-bold transition-all flex flex-col gap-1 cursor-pointer ${
                       isSelected
-                        ? "bg-[#003872] text-white shadow-xs"
+                        ? "bg-brand-navy text-white shadow-xs"
                         : "text-slate-200 hover:bg-white/10"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[11px]">{doc.id}</span>
+                      <span className="font-mono text-2xs">{doc.id}</span>
                       <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                        className={`text-2xs px-1.5 py-0.5 rounded font-mono ${
                           isSelected ? "bg-white/20 text-white" : "bg-white/10 text-slate-300"
                         }`}
                       >
@@ -245,7 +245,7 @@ export const DocumentationModal: React.FC<Props> = ({
             </div>
 
             {/* Storage path notice */}
-            <div className="mt-4 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-300 font-mono">
+            <div className="mt-4 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-2xs text-blue-300 font-mono">
               <span className="block font-bold">File Location:</span>
               <span>/docs/{currentMeta.file}</span>
             </div>

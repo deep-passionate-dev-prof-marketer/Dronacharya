@@ -152,7 +152,7 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#060a14] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-canvas overflow-y-auto">
       {/* Background Ambience Glow */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -238,10 +238,10 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
           <div className="p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-2xl flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
             <div>
-              <div className="text-[11px] font-bold text-cyan-200">
+              <div className="text-2xs font-bold text-cyan-200">
                 AI Real-Time Speech Translation & Subtitles Active
               </div>
-              <p className="text-[10px] text-slate-400 leading-normal">
+              <p className="text-2xs text-slate-400 leading-normal">
                 Speak naturally in your preferred language. Two-way AI translation and live dual subtitles will automatically stream during class.
               </p>
             </div>
@@ -254,19 +254,19 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
             {/* Class Scheduled Time & Live Countdown Header */}
             <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 border border-blue-500/30 mb-5 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-300 tracking-wider font-mono block">
+                <span className="text-2xs uppercase font-bold text-blue-300 tracking-wider font-mono block">
                   Scheduled Live Demo ({urlRatio})
                 </span>
                 <span className="text-xs font-bold text-white">
                   {urlCourse}
                 </span>
-                <span className="text-[11px] text-slate-300 block">
+                <span className="text-2xs text-slate-300 block">
                   Instructor: <strong className="text-white">{urlTeacher}</strong> · Grade {urlGrade}
                 </span>
               </div>
 
               <div className="text-right shrink-0 pl-2">
-                <span className="text-[9px] uppercase font-bold text-amber-300 tracking-wider font-mono block">
+                <span className="text-2xs uppercase font-bold text-amber-300 tracking-wider font-mono block">
                   Starts In
                 </span>
                 <span className="text-sm font-mono font-black text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-500/30">
@@ -279,12 +279,12 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
             <form onSubmit={handleJoinClass} className="space-y-4">
               {/* Student ID (2-Digit Numeric + 8-Character Alphabet) */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
+                <label className="block text-2xs font-bold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-blue-400" />
                     <span>Student ID (2-Digit + 8-Char Alpha)</span>
                   </span>
-                  <span className="text-[10px] text-emerald-400 font-mono font-normal flex items-center gap-1">
+                  <span className="text-2xs text-emerald-400 font-mono font-normal flex items-center gap-1">
                     <Check className="w-3 h-3 text-emerald-400" />
                     <span>Pre-Filled Credentials</span>
                   </span>
@@ -298,7 +298,7 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
                     placeholder="e.g. 21SCHOLARX"
                     required
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-2xs font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
                     ID
                   </div>
                 </div>
@@ -306,12 +306,12 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
 
               {/* Password (Last 4 Digits of Student ID Auto-Fill) */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
+                <label className="block text-2xs font-bold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Password (Last 4 Digits Auto-Filled)</span>
                   </span>
-                  <span className="text-[10px] text-indigo-300 font-mono font-normal">
+                  <span className="text-2xs text-indigo-300 font-mono font-normal">
                     Auto-Resolved ({password})
                   </span>
                 </label>
@@ -326,7 +326,7 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-2xs text-slate-400 hover:text-slate-200 cursor-pointer"
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
@@ -335,7 +335,7 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
 
               {/* Student Display Name */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                <label className="block text-2xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                   Scholar Full Name
                 </label>
                 <input
@@ -361,7 +361,7 @@ export const DedicatedStudentLogin: React.FC<Props> = ({
           </div>
 
           {/* Security & Verification Footer */}
-          <div className="pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="pt-4 border-t border-white/10 flex items-center justify-between text-2xs text-slate-400">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>AES-256 E2EE WebRTC Mesh</span>

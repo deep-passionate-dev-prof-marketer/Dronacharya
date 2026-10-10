@@ -160,12 +160,12 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
       {/* Desktop Quick Layout Mode Pill Bar on Top Right */}
       {!isMobile && (
         <div className="hidden">
-          <span className="text-[10px] text-slate-400 font-semibold px-1.5 uppercase tracking-wider">
+          <span className="text-2xs text-slate-400 font-semibold px-1.5 uppercase tracking-wider">
             Split
           </span>
           <button
             onClick={() => applyPreset("50")}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+            className={`px-2 py-0.5 rounded-lg text-2xs font-semibold transition-all ${
               splitRatio === 50
                 ? "bg-blue-600 text-white shadow-sm"
                 : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -176,7 +176,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
           </button>
           <button
             onClick={() => applyPreset("65")}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+            className={`px-2 py-0.5 rounded-lg text-2xs font-semibold transition-all ${
               splitRatio === 65
                 ? "bg-blue-600 text-white shadow-sm"
                 : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -187,7 +187,7 @@ export const SplitViewContainer: React.FC<SplitViewContainerProps> = ({
           </button>
           <button
             onClick={() => applyPreset("80")}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+            className={`px-2 py-0.5 rounded-lg text-2xs font-semibold transition-all ${
               splitRatio === 80
                 ? "bg-blue-600 text-white shadow-sm"
                 : "text-slate-400 hover:text-white hover:bg-white/5"

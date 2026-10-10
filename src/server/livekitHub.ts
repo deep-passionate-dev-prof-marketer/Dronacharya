@@ -8,7 +8,9 @@ import express from "express";
 import { AccessToken, TrackSource } from "livekit-server-sdk";
 import { actorFromSession, evaluateJoinRequest } from "./deviceAccessHub";
 import { requireAuth } from "./auth/session";
-import { admittedByRoom } from "./roomControlHub";
+import { admittedByRoom, admittedLoaded } from "./roomControlHub";
+import { isRecordingExcluded } from "./recording/consent";
+import { rememberTimezone } from "./analytics/geo";
 
 const STAFF_ROLES = ["instructor", "admin", "sales_rep", "auditor", "ta"];
 
@@ -49,6 +51,8 @@ export function setupLivekitRoutes(app: express.Express) {
     const role: string = user.role;
     if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
     if (role === "parent") return res.status(403).json({ error: "Parents can't join live classes from this account." });
+    // Class analytics group learners and teachers by their own timezone
+    rememberTimezone(user.id, req.body?.device?.timezone).catch(() => {});
 
     if (!STAFF_ROLES.includes(role)) {
       const evaluation = evaluateJoinRequest(req, roomSlug, actorFromSession(req), req.body?.device);
@@ -60,6 +64,7 @@ export function setupLivekitRoutes(app: express.Express) {
     const isAuditor = role === "auditor";
     const isHost = role === "instructor" || role === "admin";
     // Learners wait in the lobby (no media in or out) until the host admits them
+    await admittedLoaded();
     const waiting = role === "student" && !admittedByRoom.get(roomSlug)?.has(user.id);
     const token = new AccessToken(cfg.apiKey, cfg.apiSecret, {
       identity: String(user.id).slice(0, 120),
@@ -71,6 +76,8 @@ export function setupLivekitRoutes(app: express.Express) {
         studentCode: user.studentCode,
         gradeLevel: user.gradeLevel,
         waiting,
+        // The recording layout leaves these learners out (no recording consent)
+        recordingExcluded: await isRecordingExcluded(user),
       }),
     });
     token.addGrant({

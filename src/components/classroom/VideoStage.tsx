@@ -34,21 +34,20 @@ import {
 } from "lucide-react";
 import { generateDemoMeetingUrl } from "../../services/demoClassService";
 import { SubtitleOverlay } from "./SubtitleOverlay";
-import { ClassHeader } from "./ClassHeader";
+import { ClassHeader, useClassInfo } from "./ClassHeader";
 import { LivePollCard } from "./controls/TeacherControls";
+import { ClassEndedCard } from "./ClassEndedCard";
 import { classroomTransport } from "../../services/media/classroomTransport";
 import { StageLayout, Presentation } from "./stage/StageLayout";
 import { TranscriptFeed } from "./TranscriptFeed";
 import { FloatingAttentionHUD } from "./FloatingAttentionHUD";
 import { ParticipantTileActions } from "./ParticipantTileActions";
 import { RoomBreakOverlay } from "./RoomBreakOverlay";
-import { AttentionAuditDrawer } from "./AttentionAuditDrawer";
 import { MultiDeviceRemoteConsole } from "./MultiDeviceRemoteConsole";
 import { RemoteAccessOfferModal } from "./RemoteAccessOfferModal";
 import { IncomingAccessNotification } from "./IncomingAccessNotification";
 import { HelpEscalationModals } from "./HelpEscalationModals";
 import { ChildFeedbackModal } from "./ChildFeedbackModal";
-import { AuditorCockpitView } from "./AuditorCockpitView";
 import { EdgeMeshLatencyHUD } from "./EdgeMeshLatencyHUD";
 import { OneToOnePitchStage } from "../bomber/OneToOnePitchStage";
 import { ParticipantVideoTile } from "./ParticipantVideoTile";
@@ -97,7 +96,11 @@ export const VideoStage: React.FC = () => {
     classDurationSeconds,
     startClass,
     endClass,
-    connectDemoStudent,
+    classRecording,
+    recordingExcludedMe,
+    classSessionError,
+    setLowBandwidth,
+    dismissLowBandwidthSuggestion,
     triggerRoomBomber,
     roomRatio,
     setIsScheduleModalOpen,
@@ -112,6 +115,7 @@ export const VideoStage: React.FC = () => {
     hostAction,
   } = useClassroom();
   const isHost = currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
+  const classInfo = useClassInfo(roomId);
   const isCompact = useIsCompact();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -181,7 +185,7 @@ export const VideoStage: React.FC = () => {
 
   if (hasLeftClass) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 bg-[#070b14]">
+      <div className="flex-1 flex items-center justify-center p-6 bg-canvas">
         <div className="max-w-sm w-full text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-6">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
             <PhoneOff className="w-6 h-6 text-slate-300" />
@@ -200,7 +204,7 @@ export const VideoStage: React.FC = () => {
   if (transportState.error === "removed" || transportState.error === "denied") {
     const denied = transportState.error === "denied";
     return (
-      <div className="flex-1 flex items-center justify-center p-6 bg-[#070b14]">
+      <div className="flex-1 flex items-center justify-center p-6 bg-canvas">
         <div className="max-w-md w-full text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-6">
           <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} />
           <h2 className="text-lg font-bold text-white">{denied ? "Your teacher didn't let you in this time" : "You were removed from this class"}</h2>
@@ -216,7 +220,7 @@ export const VideoStage: React.FC = () => {
   // Learner connected but not yet admitted by the host
   if (transportState.waiting) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 bg-[#070b14]">
+      <div className="flex-1 flex items-center justify-center p-6 bg-canvas">
         <div className="max-w-md w-full text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-6">
           <div className="relative mx-auto w-14 h-14">
             <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
@@ -230,23 +234,12 @@ export const VideoStage: React.FC = () => {
     );
   }
 
-  if (currentRole === "auditor") {
-    return (
-      <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
-        <AuditorCockpitView />
-        <AttentionAuditDrawer />
-        <MultiDeviceRemoteConsole />
-        <HelpEscalationModals />
-        <ChildFeedbackModal />
-        <BottomMeetingControls />
-      </div>
-    );
-  }
-
   // Filter participants based on showSelfView setting
   // Learners in the waiting room never appear on stage (hosts admit them from the bar)
   const displayParticipants = participants.filter((p) => {
     if (p.waiting) return false;
+    // Auditors observe hidden: no tile of their own
+    if (currentRole === "auditor" && p.isLocal) return false;
     if (!showSelfView && p.isLocal) return false;
     return true;
   });
@@ -326,13 +319,34 @@ export const VideoStage: React.FC = () => {
   };
 
   return (
-    <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
+    <div className="relative flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Connection & audio notices: the class keeps running underneath */}
-      {(transportState.status === "reconnecting" || transportState.audioBlocked || mediaJoinError || transportState.error === "duplicate_identity") && (
+      {(transportState.status === "reconnecting" || transportState.audioBlocked || mediaJoinError || transportState.error === "duplicate_identity" || transportState.lowBandwidth || transportState.suggestLowBandwidth) && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 w-[calc(100%-1rem)] max-w-md pointer-events-none">
           {transportState.status === "reconnecting" && (
             <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-100 text-xs font-semibold flex items-center gap-2 shadow-lg">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Connection unstable, reconnecting… you're still in class
+            </div>
+          )}
+          {transportState.suggestLowBandwidth && !transportState.lowBandwidth && (
+            <div className="pointer-events-auto px-3 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-100 text-xs flex flex-wrap items-center gap-2 shadow-lg" role="status">
+              <span>Your connection is weak. Switch to audio and slides only?</span>
+              <span className="flex gap-1.5 ml-auto">
+                <button onClick={() => setLowBandwidth(true)} className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-semibold">
+                  Switch
+                </button>
+                <button onClick={dismissLowBandwidthSuggestion} className="px-2.5 py-1 rounded-lg bg-white/10 text-amber-100">
+                  Not now
+                </button>
+              </span>
+            </div>
+          )}
+          {transportState.lowBandwidth && (
+            <div className="pointer-events-auto px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-100 text-xs flex items-center gap-2 shadow-lg" role="status">
+              <span>Low-bandwidth mode · audio and slides only</span>
+              <button onClick={() => setLowBandwidth(false)} className="px-2 py-0.5 rounded-md bg-white/10 font-semibold">
+                Turn off
+              </button>
             </div>
           )}
           {transportState.error === "duplicate_identity" && (
@@ -369,7 +383,7 @@ export const VideoStage: React.FC = () => {
           }}
         >
           <div className="w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg shadow-cyan-500/80 animate-ping" />
-          <span className="text-[10px] font-mono font-bold bg-cyan-900/90 text-cyan-200 px-2 py-0.5 rounded shadow">
+          <span className="text-2xs font-mono font-bold bg-cyan-900/90 text-cyan-200 px-2 py-0.5 rounded shadow">
             {remotePointer.label}
           </span>
         </div>
@@ -392,12 +406,30 @@ export const VideoStage: React.FC = () => {
                 <span className="text-xs font-mono font-bold text-white bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-500/30">
                   {formatDuration(classDurationSeconds)}
                 </span>
+                {classRecording?.status === "recording" && (
+                  <span
+                    className="inline-flex items-center gap-1 text-2xs font-black tracking-wider text-white bg-rose-600 px-1.5 py-0.5 rounded-md whitespace-nowrap"
+                    title={
+                      recordingExcludedMe
+                        ? "This class is being recorded. You're not included in the recording."
+                        : classRecording.mode === "video"
+                        ? "This class is being recorded (video and transcript)."
+                        : "This class is being recorded as a transcript (video recording isn't available)."
+                    }
+                    role="status"
+                    aria-label={recordingExcludedMe ? "Recording; you are not included" : "This class is being recorded"}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    REC
+                    {recordingExcludedMe ? <span className="font-semibold normal-case tracking-normal hidden @md:inline"> · not you</span> : classRecording.mode === "transcript_only" ? <span className="font-semibold normal-case tracking-normal hidden @md:inline"> · transcript</span> : null}
+                  </span>
+                )}
               </>
             ) : (
               <>
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
                 <span className="text-xs font-black tracking-wider uppercase text-amber-300 font-mono whitespace-nowrap">
-                  Waiting room
+                  {classStatus === "ended" ? "Class ended" : "Not started"}
                 </span>
               </>
             )}
@@ -405,39 +437,24 @@ export const VideoStage: React.FC = () => {
             <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} compact={isCompact} />
           </div>
 
-          <span className="hidden @lg:flex items-center gap-1.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30 whitespace-nowrap">
+          <span className="hidden @lg:flex items-center gap-1.5 text-2xs font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30 whitespace-nowrap">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
             AI translation ready
           </span>
         </div>
 
-        {/* End-of-Session Cloud Recording / Google Drive Archival Indicator */}
-        {classStatus === "ended" && (
-          <div className="p-4 mb-3 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-blue-950/80 border border-emerald-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl backdrop-blur-xl shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
-                <Cloud className="w-5 h-5 animate-pulse" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white flex items-center gap-2">
-                  <span>Demo & Sales Pitch Recordings Secured</span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono">Google Drive Synced</span>
-                </h4>
-                <p className="text-[11px] text-slate-300 mt-0.5">
-                  Teacher lecture & admissions sales pitch audio/video archived to <code className="text-cyan-300">/21K-Dronacharya/Demos/2026-10-12-{roomId}.mp4</code>.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors shrink-0"
-            >
-              Close & Teardown Room
-            </button>
-          </div>
-        )}
+        {/* Class ended: what happened to the recording and notes */}
+        {classStatus === "ended" && <ClassEndedCard isHost={isHost} />}
 
-        {displayParticipants.length === 0 ? (
+        {displayParticipants.length === 0 && currentRole === "auditor" ? (
+              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center my-auto">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-line flex items-center justify-center text-ink-3 mb-4">
+                  <Users className="w-7 h-7" />
+                </div>
+                <h3 className="text-base font-bold text-ink mb-1">{classStatus === "in_progress" ? "Waiting for video" : "The class hasn't started yet"}</h3>
+                <p className="text-sm text-ink-3 max-w-sm">You're observing without camera or microphone, and nobody in the class can see you. The teacher and learners appear here when they join.</p>
+              </div>
+        ) : displayParticipants.length === 0 ? (
               /* Completely Empty Stage */
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-slate-900/40 rounded-3xl border border-white/5 my-auto">
                 <div className="w-16 h-16 rounded-3xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
@@ -463,7 +480,7 @@ export const VideoStage: React.FC = () => {
                       onClick={() => setIsScheduleModalOpen(true)}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-cyan-200 border border-cyan-500/30 font-bold text-xs transition-colors cursor-pointer"
                     >
-                      <Sliders className="w-4 h-4 text-[#FFBB00]" />
+                      <Sliders className="w-4 h-4 text-brand-yellow" />
                       <span>Manual Link & Room Builder (No CRM)</span>
                     </button>
                   )}
@@ -500,18 +517,18 @@ export const VideoStage: React.FC = () => {
                         Waiting for Teacher to Start Class
                       </h3>
                       <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                        Dr. Evelyn Vance hasn't started the live class yet. Your camera and microphone are tested and connected. You will automatically enter the live stage as soon as the teacher starts the lecture.
+                        {classInfo?.teacherName || "Your teacher"} hasn't started the class yet. Your camera and microphone are ready. The class opens here automatically when it starts.
                       </p>
                       <div className="p-3 bg-blue-950/50 border border-blue-500/30 rounded-xl space-y-1.5 mb-4">
                         <div className="flex items-center gap-2 text-xs font-semibold text-cyan-300">
                           <Sparkles className="w-4 h-4 text-cyan-400" />
                           <span>AI Real-time Interpreter & Dual Subtitles Ready</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 leading-normal">
-                          When your teacher speaks in Hindi, English, Spanish or 50+ languages, live translated speech and captions will stream directly to your headphones.
+                        <p className="text-2xs text-slate-400 leading-normal">
+                          Turn on captions (CC) in the control bar to read what's said, translated into your language if you like.
                         </p>
                       </div>
-                      <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                      <div className="text-2xs text-slate-400 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-400" />
                         <span>Ready to learn as <strong className="text-white">{displayParticipants[0].name}</strong></span>
                       </div>
@@ -537,16 +554,11 @@ export const VideoStage: React.FC = () => {
                           className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <Play className="w-4 h-4 fill-current" />
-                          <span>Start Live Class (Zoom/Meet Mode)</span>
+                          <span>Start class for everyone</span>
                         </button>
+                        <p className="text-2xs text-slate-400 text-center">Starting the class also starts its recording.</p>
+                        {classSessionError && <p className="text-xs text-rose-300 text-center">{classSessionError}</p>}
 
-                        <button
-                          onClick={connectDemoStudent}
-                          className="w-full py-2.5 px-4 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <GraduationCap className="w-4 h-4 text-cyan-400" />
-                          <span>Pair Demo Student (Sophia Chen)</span>
-                        </button>
 
                         <button
                           onClick={handleCopyStudentLink}
@@ -561,7 +573,7 @@ export const VideoStage: React.FC = () => {
                             onClick={() => setIsScheduleModalOpen(true)}
                             className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 hover:from-blue-900/60 hover:to-indigo-900/60 border border-blue-500/30 text-cyan-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                           >
-                            <Sliders className="w-3.5 h-3.5 text-[#FFBB00]" />
+                            <Sliders className="w-3.5 h-3.5 text-brand-yellow" />
                             <span>Manual Link & Room Builder (No CRM)</span>
                           </button>
                         )}
@@ -595,8 +607,7 @@ export const VideoStage: React.FC = () => {
       </div>
       <BottomMeetingControls />
 
-      {/* Attention/audio audit drawer: auditors and admins only */}
-      {currentRole === "admin" && <AttentionAuditDrawer />}
+      {/* Live engagement for auditors and admins is real data: Class analytics → Live engagement, and the observer panel */}
 
       {/* Multi-Device Remote System Access Console */}
       <MultiDeviceRemoteConsole />

@@ -70,7 +70,7 @@ export const AiSummaryModal: React.FC = () => {
             <Sparkles className="w-5 h-5 text-indigo-400" />
             <div>
               <h2 className="text-sm font-bold text-white">Automated AI Post-Session Digest</h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-2xs text-slate-400">
                 Generated via Google Gemini 3.8 from live classroom transcript & telemetry
               </p>
             </div>

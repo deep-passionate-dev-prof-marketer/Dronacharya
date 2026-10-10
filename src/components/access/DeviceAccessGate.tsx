@@ -178,7 +178,7 @@ export const DeviceAccessGate: React.FC<Props> = ({ user, roomId, onAllowed, onC
   const fmtElapsed = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#060a14] text-slate-100 overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-canvas text-slate-100 overflow-y-auto">
       <div className="min-h-full flex items-start sm:items-center justify-center px-4 py-6 sm:py-10 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="w-full max-w-md">
           {phase === "checking" && (
@@ -231,10 +231,10 @@ export const DeviceAccessGate: React.FC<Props> = ({ user, roomId, onAllowed, onC
                   <DeviceIcon className="w-5 h-5 text-amber-300" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">You're on a {DEVICE_TYPE_LABELS[effective].toLowerCase()}</div>
+                  <div className="text-2xs uppercase tracking-wider text-slate-500 font-semibold">You're on a {DEVICE_TYPE_LABELS[effective].toLowerCase()}</div>
                   <div className="text-sm text-slate-200 break-words">{device.osName} · {device.browserName} · {device.screenWidth}×{device.screenHeight}</div>
                 </div>
-                <span className="w-full sm:w-auto text-center text-[11px] font-semibold px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 whitespace-nowrap">
+                <span className="w-full sm:w-auto text-center text-2xs font-semibold px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 whitespace-nowrap">
                   Required: {describeAllowedDevices(policy.allowedDeviceTypes).toLowerCase()}
                 </span>
               </div>
@@ -374,7 +374,7 @@ export const DeviceAccessGate: React.FC<Props> = ({ user, roomId, onAllowed, onC
             </Card>
           )}
 
-          <p className="mt-4 text-[11px] text-slate-600 text-center flex items-center justify-center gap-1.5">
+          <p className="mt-4 text-2xs text-slate-600 text-center flex items-center justify-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5" /> Device checks are logged for your school's records.
           </p>
         </div>

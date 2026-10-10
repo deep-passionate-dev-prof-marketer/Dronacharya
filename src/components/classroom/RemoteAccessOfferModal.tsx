@@ -69,11 +69,11 @@ export const RemoteAccessOfferModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs select-none">
-      <div className="w-full max-w-lg rounded-2xl bg-[#080d1a] border border-[#003872] shadow-2xl overflow-hidden flex flex-col font-sans text-white animate-in fade-in zoom-in-95 duration-150">
+      <div className="w-full max-w-lg rounded-2xl bg-surface-sunken border border-brand-navy shadow-2xl overflow-hidden flex flex-col font-sans text-white animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-4 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-brand-navy-deep border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#0082FF] text-white">
+            <div className="p-2 rounded-xl bg-brand-blue text-white">
               <Share2 className="w-5 h-5" />
             </div>
             <div>
@@ -96,11 +96,11 @@ export const RemoteAccessOfferModal: React.FC = () => {
           {/* Zero Question Device Auto-Detection Card */}
           <div className="p-4 rounded-xl bg-slate-900/90 border border-cyan-500/30 shadow-md">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-2xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 Hardware Environment Auto-Detected
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 border border-cyan-700/50 text-cyan-300 uppercase">
+              <span className="px-2 py-0.5 rounded text-2xs font-mono bg-cyan-950 border border-cyan-700/50 text-cyan-300 uppercase">
                 {detectedDevice}
               </span>
             </div>
@@ -118,12 +118,12 @@ export const RemoteAccessOfferModal: React.FC = () => {
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-white truncate">{detectedModel}</h4>
-                <p className="text-[11px] text-slate-400 mt-0.5">
+                <p className="text-2xs text-slate-400 mt-0.5">
                   {detectedOs} · {screenRes} · {latestDeviceAudit?.audioInputsCount || 1} Mics · {latestDeviceAudit?.videoInputsCount || 1} Cams
                 </p>
               </div>
             </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
+            <div className="mt-2.5 pt-2 border-t border-slate-800 text-2xs text-slate-400 flex items-center justify-between">
               <span>Telemetry Auto-Audit Status:</span>
               <span className="text-emerald-400 font-semibold">100% Compliant (Zero-Friction Detection)</span>
             </div>
@@ -156,7 +156,7 @@ export const RemoteAccessOfferModal: React.FC = () => {
                         <span className="text-xs font-bold text-white">{tier.label}</span>
                         {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                       </div>
-                      <p className="text-[11px] text-slate-300 mt-0.5">{tier.desc}</p>
+                      <p className="text-2xs text-slate-300 mt-0.5">{tier.desc}</p>
                     </div>
                   </div>
                 );
@@ -175,7 +175,7 @@ export const RemoteAccessOfferModal: React.FC = () => {
 
         {/* Footer */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
-          <div className="text-[11px] text-slate-400 font-mono">
+          <div className="text-2xs text-slate-400 font-mono">
             Sending to: <span className="text-white font-bold">{primaryTeacher.name}</span>
           </div>
 

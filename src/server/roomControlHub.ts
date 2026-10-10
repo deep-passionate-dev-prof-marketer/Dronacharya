@@ -13,13 +13,33 @@ import { getDb, schema } from "./db";
 import { requireAuth, SessionUser } from "./auth/session";
 import { livekitConfig } from "./livekitHub";
 import { classByRoom } from "./classesHub";
-import { auditInsert, persist } from "./db/kv";
+import { auditInsert, persist, kvLoad, kvUpsert, kvDelete } from "./db/kv";
 
 /** Identities admitted in each room for this class session (rejoin after refresh skips the lobby). */
 export const admittedByRoom = new Map<string, Set<string>>();
 
+// Kept in the database too, so a server restart or deploy mid-class doesn't send everyone back to the lobby
+let admittedReady: Promise<void> | null = null;
+export function admittedLoaded() {
+  if (!admittedReady) {
+    admittedReady = kvLoad<string[]>("room_admitted").then((rows) => {
+      for (const { key, value } of rows) admittedByRoom.set(key, new Set(value));
+    });
+  }
+  return admittedReady;
+}
+function saveAdmitted(roomSlug: string) {
+  const set = admittedByRoom.get(roomSlug);
+  persist("admitted", set && set.size ? kvUpsert("room_admitted", [{ key: roomSlug, value: [...set] }]) : kvDelete("room_admitted", roomSlug));
+}
+/** New class session: everyone waits to be admitted again. */
+export function clearAdmitted(roomSlug: string) {
+  admittedByRoom.delete(roomSlug);
+  saveAdmitted(roomSlug);
+}
+
 let roomService: RoomServiceClient | null = null;
-function rooms(): RoomServiceClient | null {
+export function rooms(): RoomServiceClient | null {
   const cfg = livekitConfig();
   if (!cfg) return null;
   if (!roomService) roomService = new RoomServiceClient(cfg.url.replace(/^ws/, "http"), cfg.apiKey, cfg.apiSecret);
@@ -54,7 +74,8 @@ const log = (req: express.Request, type: string, detail: Record<string, unknown>
     })
   );
 
-async function send(roomSlug: string, topic: string, payload: unknown) {
+/** Server-originated data message to everyone in a LiveKit room (clients trust only these for class state). */
+export async function send(roomSlug: string, topic: string, payload: unknown) {
   const svc = rooms();
   if (!svc) return;
   const data = new TextEncoder().encode(JSON.stringify({ topic, payload, from: "server" }));
@@ -71,6 +92,7 @@ async function tally(pollId: string) {
 }
 
 export function setupRoomControlRoutes(app: express.Express) {
+  admittedLoaded();
   // ---------------- waiting room ----------------
   app.post("/api/rooms/:slug/admit", requireAuth(), hostOnly, async (req, res) => {
     const ids: string[] = Array.isArray(req.body?.identities) ? req.body.identities.map(String) : [String(req.body?.identity || "")];
@@ -96,6 +118,7 @@ export function setupRoomControlRoutes(app: express.Express) {
         console.warn("[rooms] admit failed", identity, e?.message);
       }
     }
+    saveAdmitted(req.params.slug);
     log(req, "admit", { identities: admitted });
     res.json({ admitted });
   });
@@ -127,6 +150,7 @@ export function setupRoomControlRoutes(app: express.Express) {
   app.post("/api/rooms/:slug/remove", requireAuth(), hostOnly, async (req, res) => {
     const identity = String(req.body?.identity || "");
     admittedByRoom.get(req.params.slug)?.delete(identity);
+    saveAdmitted(req.params.slug);
     await rooms()!.removeParticipant(req.params.slug, identity).catch(() => {});
     log(req, "remove", { identity, reason: req.body?.reason ? String(req.body.reason).slice(0, 200) : undefined });
     res.json({ ok: true });

@@ -22,14 +22,30 @@ let dbPromise: Promise<Db> | null = null;
 let closeFn: (() => Promise<void>) | null = null;
 export let dbKind: "postgres" | "pglite" = "pglite";
 
+function withoutSslMode(url: string) {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("sslmode");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 async function open(): Promise<Db> {
   dbKind = process.env.DATABASE_URL ? "postgres" : "pglite";
   if (process.env.DATABASE_URL) {
     const { Pool } = await import("pg");
+    // TLS: verify the server with the provider's CA when given (Supabase publishes one); otherwise
+    // encrypt without verification, and say so in production logs
+    const wantsTls = /supabase|sslmode=require/.test(process.env.DATABASE_URL);
+    const ca = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n");
+    if (wantsTls && !ca && process.env.NODE_ENV === "production") console.warn("[db] DATABASE_CA_CERT not set: database TLS is encrypted but the server certificate isn't verified");
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: /supabase|sslmode=require/.test(process.env.DATABASE_URL) ? { rejectUnauthorized: false } : undefined,
-      max: 10,
+      // Our ssl settings apply only if the URL doesn't carry its own sslmode
+      connectionString: withoutSslMode(process.env.DATABASE_URL),
+      ssl: ca ? { ca, rejectUnauthorized: true } : wantsTls ? { rejectUnauthorized: false } : undefined,
+      max: Number(process.env.DATABASE_POOL_MAX || 10),
     });
     const db = drizzlePg(pool, { schema });
     closeFn = () => pool.end();

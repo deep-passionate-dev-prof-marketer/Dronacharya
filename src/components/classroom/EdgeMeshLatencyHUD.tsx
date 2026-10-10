@@ -68,8 +68,8 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
         </span>
         <span className="font-bold tracking-tight text-white">{currentPing}ms</span>
-        <span className="text-[10px] text-emerald-300/80 hidden sm:inline">[{activePop.code}]</span>
-        <span className="hidden xl:inline px-1 py-0.2 rounded bg-emerald-500/20 text-[9px] font-bold text-emerald-200">
+        <span className="text-2xs text-emerald-300/80 hidden sm:inline">[{activePop.code}]</span>
+        <span className="hidden xl:inline px-1 py-0.2 rounded bg-emerald-500/20 text-2xs font-bold text-emerald-200">
           SUB-20MS EDGE
         </span>
       </button>
@@ -77,9 +77,9 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
       {/* Global Edge Mesh Routing Modal */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-[#0b111e] border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl text-slate-200 overflow-hidden font-sans">
+          <div className="bg-surface border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl text-slate-200 overflow-hidden font-sans">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-[#0d1627] to-[#111f38]">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-surface to-surface-raised">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
                   <Zap className="w-5 h-5" />
@@ -89,7 +89,7 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
                     <h2 className="text-base font-bold text-white">
                       Global Edge Mesh Architecture
                     </h2>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-2xs font-mono font-bold">
                       Netflix Open Connect Inspired
                     </span>
                   </div>
@@ -119,54 +119,54 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
               {/* Telemetry Metrics Bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
-                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                  <div className="text-2xs text-slate-400 font-mono flex items-center gap-1.5">
                     <Radio className="w-3.5 h-3.5 text-emerald-400" />
                     <span>ACTIVE LATENCY</span>
                   </div>
                   <div className="text-2xl font-bold text-emerald-400 mt-1 font-mono">
                     {currentPing} ms
                   </div>
-                  <div className="text-[10px] text-emerald-500/90 font-medium mt-0.5 flex items-center gap-1">
+                  <div className="text-2xs text-emerald-500/90 font-medium mt-0.5 flex items-center gap-1">
                     <Check className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>100% compliant with &lt;20ms SLA</span>
                   </div>
                 </div>
 
                 <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
-                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                  <div className="text-2xs text-slate-400 font-mono flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-cyan-400" />
                     <span>OCA CACHE RATIO</span>
                   </div>
                   <div className="text-2xl font-bold text-cyan-400 mt-1 font-mono">
                     {activePop.openConnectCacheHitRatio}%
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="text-2xs text-slate-400 mt-0.5">
                     Direct ISP Peering Cache
                   </div>
                 </div>
 
                 <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
-                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                  <div className="text-2xs text-slate-400 font-mono flex items-center gap-1.5">
                     <Cpu className="w-3.5 h-3.5 text-indigo-400" />
                     <span>JITTER &amp; LOSS</span>
                   </div>
                   <div className="text-2xl font-bold text-indigo-300 mt-1 font-mono">
                     {activePop.jitterMs}ms / {activePop.packetLossPercent}%
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="text-2xs text-slate-400 mt-0.5">
                     Zero-Packet Resync
                   </div>
                 </div>
 
                 <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
-                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                  <div className="text-2xs text-slate-400 font-mono flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                     <span>PROTOCOL</span>
                   </div>
                   <div className="text-xl font-bold text-amber-300 mt-1 font-mono">
                     QUIC / HTTP3
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="text-2xs text-slate-400 mt-0.5">
                     0-RTT Handshake
                   </div>
                 </div>
@@ -213,9 +213,9 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
                             {pop.measuredPingMs} ms
                           </span>
                         </div>
-                        <div className="flex items-center justify-between mt-2 text-[11px] text-slate-400">
+                        <div className="flex items-center justify-between mt-2 text-2xs text-slate-400">
                           <span>{pop.region} · {pop.country}</span>
-                          <span className="text-emerald-400/90 text-[10px] font-mono">
+                          <span className="text-emerald-400/90 text-2xs font-mono">
                             OCA {pop.openConnectCacheHitRatio}%
                           </span>
                         </div>
@@ -234,7 +234,7 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
 
                 <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
                   <table className="w-full text-left text-xs font-sans">
-                    <thead className="bg-slate-950/80 text-[11px] font-mono text-slate-400 border-b border-slate-800">
+                    <thead className="bg-slate-950/80 text-2xs font-mono text-slate-400 border-b border-slate-800">
                       <tr>
                         <th className="py-2.5 px-3">Student Name</th>
                         <th className="py-2.5 px-3">Geo Location</th>
@@ -250,22 +250,22 @@ export const EdgeMeshLatencyHUD: React.FC = () => {
                           <td className="py-2.5 px-3 font-medium text-white">
                             {student.studentName}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-300 font-mono text-[11px]">
+                          <td className="py-2.5 px-3 text-slate-300 font-mono text-2xs">
                             {student.geoCity}
                           </td>
                           <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-[11px] font-bold">
+                            <span className="px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-2xs font-bold">
                               {student.assignedEdgePop}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">
                             {student.sub20msLatency} ms
                           </td>
-                          <td className="py-2.5 px-3 text-slate-300 font-mono text-[11px]">
+                          <td className="py-2.5 px-3 text-slate-300 font-mono text-2xs">
                             {student.abrBandwidthMbps} Mbps
                           </td>
                           <td className="py-2.5 px-3">
-                            <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
+                            <span className="flex items-center gap-1 text-emerald-400 text-2xs font-medium">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Direct OCA</span>
                             </span>

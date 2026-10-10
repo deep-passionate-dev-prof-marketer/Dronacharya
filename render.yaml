@@ -1,0 +1,61 @@
+# Render blueprint: one web service built from the Dockerfile.
+# Secrets marked sync: false are entered in the Render dashboard (never committed).
+services:
+  - type: web
+    name: dronacharya
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/auth/providers
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL # Supabase Postgres connection string (pooler, sslmode=require)
+        sync: false
+      - key: DATABASE_CA_CERT # Supabase's CA certificate (PEM), so TLS is verified
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_APP_URL # e.g. https://classroom.21k.school
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: LIVEKIT_EGRESS # "1" when LiveKit Egress (or LiveKit Cloud) records video
+        value: "0"
+      - key: RECORDING_S3_BUCKET # Supabase Storage bucket for class videos
+        sync: false
+      - key: RECORDING_S3_ENDPOINT # https://<project>.supabase.co/storage/v1/s3
+        sync: false
+      - key: RECORDING_S3_REGION
+        sync: false
+      - key: RECORDING_S3_ACCESS_KEY
+        sync: false
+      - key: RECORDING_S3_SECRET
+        sync: false
+      - key: GEMINI_API_KEY # AI lecture notes, "ask about this class", server captions
+        sync: false
+      - key: AI_PROVIDERS # gemini first, the school's AI server as fallback ("local" = never send to Google)
+        value: gemini,local
+      - key: OLLAMA_URL # the school's AI server (docker-compose.ai.yml), private network only
+        sync: false
+      - key: OLLAMA_MODEL
+        value: qwen2.5:7b
+      - key: WHISPER_URL
+        sync: false
+      - key: WHISPER_MODEL
+        value: Systran/faster-whisper-small
+      - key: STT_PREFER_SERVER # "1" = transcribe everyone on our servers instead of the browser
+        value: "0"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_ALLOWED_DOMAIN
+        sync: false
+      - key: DESKTOP_APP_KEY
+        sync: false
+      - key: AUTH_DEV_LOGIN # keep "0" in production
+        value: "0"

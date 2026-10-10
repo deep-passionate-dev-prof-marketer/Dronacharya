@@ -170,7 +170,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
           <p className="text-xs text-rose-200/80 leading-relaxed">
             Creating and modifying standard room links and shortlinks is restricted to certified Instructors, Admissions Officers, and Platform Administrators.
           </p>
-          <div className="text-[11px] font-mono text-slate-400 bg-black/40 px-3 py-1 rounded-full border border-white/10">
+          <div className="text-2xs font-mono text-slate-400 bg-black/40 px-3 py-1 rounded-full border border-white/10">
             Current Role: <span className="text-amber-400 font-bold uppercase">{currentRole}</span> (Unauthorized)
           </div>
           <button
@@ -188,9 +188,9 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 bg-slate-950/80 backdrop-blur-sm font-sans" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-4xl bg-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[94dvh] sm:max-h-[90dvh] animate-sheetUp sm:animate-fadeIn">
         {/* Header */}
-        <div className="min-h-16 py-3 px-4 sm:px-6 bg-[#001F40] text-white flex items-center justify-between gap-3 shrink-0">
+        <div className="min-h-16 py-3 px-4 sm:px-6 bg-brand-navy-deep text-white flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#003872] flex items-center justify-center text-[#FFBB00]">
+            <div className="w-9 h-9 rounded-xl bg-brand-navy flex items-center justify-center text-brand-yellow">
               <Link2 className="w-5 h-5" />
             </div>
             <div>
@@ -198,7 +198,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                 <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
                   Room links & device rules
                 </h2>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono">
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-2xs font-mono">
                   <ShieldCheck className="w-3 h-3 text-emerald-400" />
                   <span>Authorized: {currentRole.toUpperCase()}</span>
                 </span>
@@ -225,7 +225,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
             {/* School Brand & Country Server */}
             <div className="space-y-3">
               <div>
-                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-2xs">
                   1. School Entity Brand
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -234,7 +234,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                     onClick={() => setSchoolBrand("21kos")}
                     className={`p-2 rounded-lg border font-bold text-xs text-center transition-colors ${
                       schoolBrand === "21kos"
-                        ? "bg-[#003872] text-white border-blue-500/60 shadow-xs"
+                        ? "bg-brand-navy text-white border-blue-500/60 shadow-xs"
                         : "bg-slate-900/70 text-slate-200 border-white/10 hover:bg-white/[0.05]"
                     }`}
                   >
@@ -245,7 +245,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                     onClick={() => setSchoolBrand("21klf")}
                     className={`p-2 rounded-lg border font-bold text-xs text-center transition-colors ${
                       schoolBrand === "21klf"
-                        ? "bg-[#003872] text-white border-blue-500/60 shadow-xs"
+                        ? "bg-brand-navy text-white border-blue-500/60 shadow-xs"
                         : "bg-slate-900/70 text-slate-200 border-white/10 hover:bg-white/[0.05]"
                     }`}
                   >
@@ -255,7 +255,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-2xs">
                   2. Country Edge Server
                 </label>
                 <select
@@ -275,7 +275,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
             {/* Grade Level & Curriculum / Course */}
             <div className="space-y-3">
               <div>
-                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px] flex justify-between">
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-2xs flex justify-between">
                   <span>3. Grade Level</span>
                   <span className="font-mono text-blue-300">gr{gradeLevel}</span>
                 </label>
@@ -287,7 +287,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                   onChange={(e) => setGradeLevel(parseInt(e.target.value, 10))}
                   className="w-full accent-blue-500 cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                <div className="flex justify-between text-2xs text-slate-400 font-mono">
                   <span>gr1</span>
                   <span>gr6</span>
                   <span>gr12</span>
@@ -295,7 +295,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-2xs">
                   {schoolBrand === "21kos" ? "4. Academic Curriculum" : "4. Learning Floww Course"}
                 </label>
                 {schoolBrand === "21kos" ? (
@@ -329,7 +329,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
             {/* Subject Code & Section / Teacher */}
             <div className="space-y-3">
               <div>
-                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-2xs">
                   5. Subject Identifier
                 </label>
                 <input
@@ -342,7 +342,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-[11px]">
+                <label className="block font-bold text-slate-200 uppercase tracking-wider mb-1 text-2xs">
                   6. Section / Teacher Suffix
                 </label>
                 <input
@@ -359,7 +359,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
           {/* Session type & device access policy */}
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">Session type & device access</span>
+              <span className="text-2xs font-bold uppercase tracking-wider text-slate-300">Session type & device access</span>
               <span className="text-xs text-slate-400">Students on other devices must request approval</span>
             </div>
 
@@ -435,11 +435,11 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
           {/* Active Generated Nomenclature Display Card */}
           <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-[#0082FF]" />
+              <span className="text-2xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-brand-blue" />
                 <span>Computed Standard Room Slug</span>
               </span>
-              <span className="text-[11px] font-mono text-slate-400 font-bold">
+              <span className="text-2xs font-mono text-slate-400 font-bold">
                 Server Node: {COUNTRIES_MAP[countryCode]?.regionServer || "Edge"}
               </span>
             </div>
@@ -460,15 +460,15 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
 
             {/* Base62 Shortlink Row */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-white/10">
-              <div className="flex-1 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 font-mono text-xs font-bold text-[#0082FF] break-all select-all flex items-center justify-between">
+              <div className="flex-1 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 font-mono text-xs font-bold text-brand-blue break-all select-all flex items-center justify-between">
                 <span>{shortUrl}</span>
-                <span className="text-[10px] uppercase font-bold text-blue-300 bg-slate-900/70 px-2 py-0.5 rounded border border-blue-500/30">
+                <span className="text-2xs uppercase font-bold text-blue-300 bg-slate-900/70 px-2 py-0.5 rounded border border-blue-500/30">
                   Base62 6-Char
                 </span>
               </div>
               <button
                 onClick={handleCopyShort}
-                className="px-3 py-2 rounded-lg bg-[#0082FF] hover:bg-[#0070dc] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
+                className="px-3 py-2 rounded-lg bg-brand-blue hover:bg-brand-blue-strong text-white text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
               >
                 {copiedShort ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedShort ? "Copied" : "Copy Shortlink"}</span>
@@ -477,7 +477,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
               <button
                 onClick={handleCreateAndSave}
                 disabled={isGenerating}
-                className="px-4 py-2 rounded-lg bg-[#FFBB00] hover:bg-[#e6a800] text-[#001F40] text-xs font-black flex items-center gap-1.5 transition-colors shrink-0"
+                className="px-4 py-2 rounded-lg bg-brand-yellow hover:bg-brand-yellow-strong text-brand-navy-deep text-xs font-black flex items-center gap-1.5 transition-colors shrink-0"
               >
                 <Plus className="w-3.5 h-3.5 text-slate-100" />
                 <span>Save & Provision</span>
@@ -488,7 +488,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
           {/* Active Provisioned Shortlinks Roster */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">
                 Active Provisioned Shortlinks Directory ({linksList.length})
               </span>
             </div>
@@ -502,16 +502,16 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-mono font-bold text-blue-300 break-all">{link.slug}</span>
-                      <span className="font-mono text-[10px] text-blue-300 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/30 break-all">
+                      <span className="font-mono text-2xs text-blue-300 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/30 break-all">
                         {link.shortUrl}
                       </span>
                       {(link as any).devicePolicy?.allowedDeviceTypes && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-200">
+                        <span className="text-2xs font-semibold px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-200">
                           {describeAllowedDevices((link as any).devicePolicy.allowedDeviceTypes)}
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">
+                    <div className="text-2xs text-slate-400 mt-0.5">
                       Teacher: {link.assignedTeacherName || "Faculty Assigned"} · {link.createdAt} · {link.clicksCount} clicks
                     </div>
                   </div>
@@ -523,7 +523,7 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
                         if (onApplyRoomSlug) onApplyRoomSlug(link.slug, link.shortUrl);
                         onClose();
                       }}
-                      className="px-2.5 py-1 rounded-md bg-[#003872] text-white font-bold text-[11px] hover:bg-[#00264d] transition-colors"
+                      className="px-2.5 py-1 rounded-md bg-brand-navy text-white font-bold text-2xs hover:bg-brand-navy-ink transition-colors"
                     >
                       Copy & Launch
                     </button>

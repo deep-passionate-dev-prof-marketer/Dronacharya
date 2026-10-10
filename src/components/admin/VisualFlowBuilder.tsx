@@ -80,13 +80,13 @@ export const VisualFlowBuilder: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#070b14] p-6 overflow-y-auto">
+    <div className="flex-1 flex flex-col bg-canvas p-6 overflow-y-auto">
       <div className="max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/70 p-5 rounded-2xl border border-white/10 shadow-sm">
           <div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#003872]/10 text-blue-300 flex items-center justify-center font-bold">
+              <div className="w-8 h-8 rounded-lg bg-brand-navy/10 text-blue-300 flex items-center justify-center font-bold">
                 <Workflow className="w-4 h-4 text-blue-300" />
               </div>
               <h2 className="font-headline font-bold text-lg text-blue-300">
@@ -101,7 +101,7 @@ export const VisualFlowBuilder: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowNewRuleModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#003872] text-white text-xs font-bold hover:bg-[#00264d] transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy-ink transition-colors shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create Automation Rule</span>
@@ -111,7 +111,7 @@ export const VisualFlowBuilder: React.FC = () => {
 
         {/* Create Rule Modal */}
         {showNewRuleModal && (
-          <div className="p-5 rounded-2xl bg-slate-900/70 border-2 border-[#003872]/30 shadow-xl flex flex-col gap-4">
+          <div className="p-5 rounded-2xl bg-slate-900/70 border-2 border-brand-navy/30 shadow-xl flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <h3 className="font-headline font-bold text-sm text-blue-300">
                 Configure New Dronacharya Operational Flow
@@ -186,7 +186,7 @@ export const VisualFlowBuilder: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-[#003872] text-white text-xs font-bold hover:bg-[#00264d] shadow-sm"
+                  className="px-5 py-2 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy-ink shadow-sm"
                 >
                   Save & Activate Flow
                 </button>
@@ -229,18 +229,18 @@ export const VisualFlowBuilder: React.FC = () => {
                         className="text-slate-400 hover:text-blue-300"
                       >
                         {rule.enabled ? (
-                          <ToggleRight className="w-5 h-5 text-[#0082FF]" />
+                          <ToggleRight className="w-5 h-5 text-brand-blue" />
                         ) : (
                           <ToggleLeft className="w-5 h-5 text-slate-300" />
                         )}
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-slate-400 font-sans mt-1 line-clamp-2">
+                    <p className="text-2xs text-slate-400 font-sans mt-1 line-clamp-2">
                       {rule.description}
                     </p>
 
-                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-2xs font-mono text-slate-400">
                       <span className="text-emerald-300 font-semibold font-sans">
                         {rule.runCount} Executions
                       </span>
@@ -260,7 +260,7 @@ export const VisualFlowBuilder: React.FC = () => {
                 <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-300">
+                      <span className="font-mono text-2xs font-bold uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-300">
                         {activeRule.category.replace("_", " ")}
                       </span>
                       <span className="text-xs font-semibold text-emerald-300 flex items-center gap-1">
@@ -279,7 +279,7 @@ export const VisualFlowBuilder: React.FC = () => {
                   <button
                     onClick={() => handleTestRun(activeRule.id)}
                     disabled={testingRuleId === activeRule.id}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFBB00] text-blue-300 text-xs font-bold hover:bg-[#e6a800] transition-colors shadow-sm shrink-0"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-yellow text-blue-300 text-xs font-bold hover:bg-brand-yellow-strong transition-colors shadow-sm shrink-0"
                   >
                     <Play className={`w-3.5 h-3.5 fill-current ${testingRuleId === activeRule.id ? "animate-spin" : ""}`} />
                     <span>{testingRuleId === activeRule.id ? "Simulating..." : "Test Dry-Run"}</span>
@@ -287,22 +287,22 @@ export const VisualFlowBuilder: React.FC = () => {
                 </div>
 
                 {/* Visual Flow Canvas */}
-                <div className="relative rounded-xl bg-[#070b14] border border-white/10 p-6 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="relative rounded-xl bg-canvas border border-white/10 p-6 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4">
                   {/* Subtle Grid Background */}
                   <div className="absolute inset-0 opacity-40 pointer-events-none bg-[radial-gradient(#003872_1px,transparent_1px)] [background-size:16px_16px]" />
 
                   {/* 1. Trigger Node */}
-                  <div className="relative z-10 w-full md:w-56 rounded-xl bg-slate-900/70 border-2 border-[#0082FF] p-4 shadow-sm flex flex-col gap-1.5">
+                  <div className="relative z-10 w-full md:w-56 rounded-xl bg-slate-900/70 border-2 border-brand-blue p-4 shadow-sm flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] font-bold text-[#0082FF] uppercase">
+                      <span className="font-mono text-2xs font-bold text-brand-blue uppercase">
                         TRIGGER
                       </span>
-                      <Clock className="w-3.5 h-3.5 text-[#0082FF]" />
+                      <Clock className="w-3.5 h-3.5 text-brand-blue" />
                     </div>
                     <div className="font-headline font-bold text-xs text-blue-300">
                       {activeRule.trigger.label}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-mono bg-white/[0.03] p-1.5 rounded">
+                    <div className="text-2xs text-slate-400 font-mono bg-white/[0.03] p-1.5 rounded">
                       Value: {activeRule.trigger.value}
                     </div>
                   </div>
@@ -313,17 +313,17 @@ export const VisualFlowBuilder: React.FC = () => {
                   </div>
 
                   {/* 2. Condition / Filter Node */}
-                  <div className="relative z-10 w-full md:w-56 rounded-xl bg-slate-900/70 border-2 border-[#FFBB00] p-4 shadow-sm flex flex-col gap-1.5">
+                  <div className="relative z-10 w-full md:w-56 rounded-xl bg-slate-900/70 border-2 border-brand-yellow p-4 shadow-sm flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] font-bold text-[#b38300] uppercase">
+                      <span className="font-mono text-2xs font-bold text-brand-yellow-deep uppercase">
                         FILTER CRITERIA
                       </span>
-                      <Shield className="w-3.5 h-3.5 text-[#FFBB00]" />
+                      <Shield className="w-3.5 h-3.5 text-brand-yellow" />
                     </div>
                     <div className="font-headline font-bold text-xs text-blue-300">
                       {activeRule.condition ? `${activeRule.condition.field} ${activeRule.condition.operator}` : "Global Cohort Policy"}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-mono bg-white/[0.03] p-1.5 rounded">
+                    <div className="text-2xs text-slate-400 font-mono bg-white/[0.03] p-1.5 rounded">
                       {activeRule.condition ? activeRule.condition.value : "All Enrolled Grades"}
                     </div>
                   </div>
@@ -334,17 +334,17 @@ export const VisualFlowBuilder: React.FC = () => {
                   </div>
 
                   {/* 3. Action Node */}
-                  <div className="relative z-10 w-full md:w-60 rounded-xl bg-slate-900/70 border-2 border-[#00C2E0] p-4 shadow-sm flex flex-col gap-1.5">
+                  <div className="relative z-10 w-full md:w-60 rounded-xl bg-slate-900/70 border-2 border-brand-cyan p-4 shadow-sm flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] font-bold text-[#00C2E0] uppercase">
+                      <span className="font-mono text-2xs font-bold text-brand-cyan uppercase">
                         CAMPUS ACTION
                       </span>
-                      <Zap className="w-3.5 h-3.5 text-[#00C2E0]" />
+                      <Zap className="w-3.5 h-3.5 text-brand-cyan" />
                     </div>
                     <div className="font-headline font-bold text-xs text-blue-300">
                       {activeRule.actions[0]?.label}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-mono bg-white/[0.03] p-1.5 rounded truncate">
+                    <div className="text-2xs text-slate-400 font-mono bg-white/[0.03] p-1.5 rounded truncate">
                       Parameters verified & encrypted
                     </div>
                   </div>
@@ -353,16 +353,16 @@ export const VisualFlowBuilder: React.FC = () => {
                 {/* Operational Details Card */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-sans">
                   <div className="p-3 rounded-lg bg-white/[0.03] border border-white/10">
-                    <span className="text-slate-400 text-[11px] block">Execution Engine</span>
+                    <span className="text-slate-400 text-2xs block">Execution Engine</span>
                     <span className="font-bold text-blue-300">Dronacharya Low-Latency Node</span>
                   </div>
                   <div className="p-3 rounded-lg bg-white/[0.03] border border-white/10">
-                    <span className="text-slate-400 text-[11px] block">Security Isolation</span>
+                    <span className="text-slate-400 text-2xs block">Security Isolation</span>
                     <span className="font-bold text-emerald-300">AES-256-GCM Hardware Encrypted</span>
                   </div>
                   <div className="p-3 rounded-lg bg-white/[0.03] border border-white/10">
-                    <span className="text-slate-400 text-[11px] block">Audit Trail</span>
-                    <span className="font-bold text-[#0082FF]">Real-Time Telemetry Stream</span>
+                    <span className="text-slate-400 text-2xs block">Audit Trail</span>
+                    <span className="font-bold text-brand-blue">Real-Time Telemetry Stream</span>
                   </div>
                 </div>
               </div>

@@ -106,7 +106,7 @@ export const DeckAndNotes: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Top Dock Subtabs */}
       <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-1">
@@ -156,7 +156,7 @@ export const DeckAndNotes: React.FC = () => {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-[11px] font-mono text-emerald-400">
+            <div className="flex items-center gap-1 text-2xs font-mono text-emerald-400">
               <Users className="w-3 h-3" />
               <span>3 Co-Editors Active</span>
             </div>
@@ -176,7 +176,7 @@ export const DeckAndNotes: React.FC = () => {
         {subTab === "deck" ? (
           <div className="h-full flex flex-col justify-between rounded-xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
             <div>
-              <div className="text-[11px] font-mono text-indigo-400 mb-1">
+              <div className="text-2xs font-mono text-indigo-400 mb-1">
                 MODULE 08 · STEM CURRICULUM
               </div>
               <h2 className="text-lg font-bold text-white mb-1">{slide.title}</h2>
@@ -204,19 +204,19 @@ export const DeckAndNotes: React.FC = () => {
             <div className="flex items-center gap-1.5 mb-1">
               <button
                 onClick={() => setNotesContent((prev) => prev + "\n$$\\int_{-\\infty}^\\infty |\\psi(x)|^2 dx = 1$$\n")}
-                className="px-2 py-0.5 rounded bg-slate-800 text-[11px] font-mono text-slate-300 hover:bg-slate-700"
+                className="px-2 py-0.5 rounded bg-slate-800 text-2xs font-mono text-slate-300 hover:bg-slate-700"
               >
                 + Formula
               </button>
               <button
                 onClick={() => setNotesContent((prev) => prev + "\n- [ ] New Action Item\n")}
-                className="px-2 py-0.5 rounded bg-slate-800 text-[11px] font-mono text-slate-300 hover:bg-slate-700"
+                className="px-2 py-0.5 rounded bg-slate-800 text-2xs font-mono text-slate-300 hover:bg-slate-700"
               >
                 + Checkbox
               </button>
               <button
                 onClick={handleDownloadNotes}
-                className="px-2 py-0.5 rounded bg-slate-800 text-[11px] font-mono text-slate-300 hover:bg-slate-700 ml-auto"
+                className="px-2 py-0.5 rounded bg-slate-800 text-2xs font-mono text-slate-300 hover:bg-slate-700 ml-auto"
               >
                 Export .md
               </button>

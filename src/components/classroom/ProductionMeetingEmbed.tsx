@@ -37,7 +37,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
     toggleLiveSubtitles,
     currentLiveCaption,
     currentRole,
-    setIsAiSummaryModalOpen,
+    setActiveView,
   } = useClassroom();
 
   const [copiedLink, setCopiedLink] = useState(false);
@@ -128,17 +128,17 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
   const BadgeIcon = badge.icon;
 
   return (
-    <div className="relative flex-1 flex flex-col bg-[#070b14] overflow-hidden select-none">
+    <div className="relative flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Top Telemetry & Control Bar */}
       <div className="h-12 bg-slate-900/90 border-b border-white/10 px-3 md:px-4 flex items-center justify-between text-xs shrink-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${badge.bg}`}>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-2xs font-bold ${badge.bg}`}>
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <BadgeIcon className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{badge.name}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-300 truncate max-w-xs md:max-w-md bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+          <div className="flex items-center gap-1.5 font-mono text-2xs text-slate-300 truncate max-w-xs md:max-w-md bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
             <span className="truncate">{meeting.normalizedUrl}</span>
             <button
               onClick={handleCopy}
@@ -152,7 +152,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-2 md:shrink-0">
           {/* Real Audio Capturing Indicator */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-mono text-[11px] text-slate-300">
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-mono text-2xs text-slate-300">
             <span className="text-slate-400">Live Mic Audio:</span>
             <div className="flex items-center gap-0.5 h-3">
               <span
@@ -174,7 +174,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
           {/* Subtitles Toggle */}
           <button
             onClick={toggleLiveSubtitles}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-2xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
               isLiveSubtitlesActive
                 ? "bg-blue-600/30 border-blue-500/50 text-blue-300"
                 : "bg-white/5 border-white/10 text-slate-400 hover:text-white"
@@ -185,8 +185,8 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
 
           {/* AI Call Audit */}
           <button
-            onClick={() => setIsAiSummaryModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-[11px] font-bold shadow-sm transition-all cursor-pointer"
+            onClick={() => setActiveView("notebook")}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-2xs font-bold shadow-sm transition-all cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-200" />
             <span>AI Real-time Audit</span>
@@ -195,7 +195,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
           {/* External Window Launcher */}
           <button
             onClick={handleLaunchExternal}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-white text-[11px] font-bold transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-white text-2xs font-bold transition-all cursor-pointer"
             title="Open in Companion Window"
           >
             <ExternalLink className="w-3.5 h-3.5 text-cyan-300" />
@@ -205,7 +205,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
           {/* Disconnect / Exit Call */}
           <button
             onClick={onExit}
-            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold transition-all cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-2xs font-bold transition-all cursor-pointer"
             title="Leave Production Meeting"
           >
             <PhoneOff className="w-3.5 h-3.5" />
@@ -275,7 +275,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Real-time Live Microphone Audio Transcription Active</span>
                 </div>
-                <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider font-bold">
+                <span className="text-2xs font-mono text-cyan-400 uppercase tracking-wider font-bold">
                   Zero Fake Data
                 </span>
               </div>
@@ -290,7 +290,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
                 )}
               </div>
 
-              <div className="flex items-center justify-between mt-3 text-[11px] text-slate-400">
+              <div className="flex items-center justify-between mt-3 text-2xs text-slate-400">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={toggleAudio}
@@ -317,7 +317,7 @@ export const ProductionMeetingEmbed: React.FC<Props> = ({ meeting, onExit }) => 
                   </button>
                 </div>
 
-                <div className="font-mono text-[10px] text-slate-400">
+                <div className="font-mono text-2xs text-slate-400">
                   Latency: 11ms · Local Edge Mesh
                 </div>
               </div>

@@ -115,19 +115,19 @@ export const SalesLoginScreen: React.FC<Props> = ({ onLoginSuccess, onOpenDocs }
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 Workstation Auto-Detected
               </span>
-              <span className="text-[10px] font-mono text-emerald-400">Zero-Prompt Scan OK</span>
+              <span className="text-2xs font-mono text-emerald-400">Zero-Prompt Scan OK</span>
             </div>
             <p className="text-xs text-white font-semibold">
               {detectedAudit?.deviceModel || "Lenovo ThinkPad X1 Carbon Gen 12"}
             </p>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-2xs text-slate-400">
               {detectedAudit?.osName || "Windows 11 / macOS"} · {detectedAudit?.audioInputsCount || 1} Mics · {detectedAudit?.videoInputsCount || 1} Cams · Headset Verified
             </p>
           </div>
 
           {/* Quick Counselor Profiles */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider block">
               Quick Select Counselor:
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -137,7 +137,7 @@ export const SalesLoginScreen: React.FC<Props> = ({ onLoginSuccess, onOpenDocs }
                 className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition-colors cursor-pointer"
               >
                 <div className="text-xs font-bold text-white">Kabir Mehta</div>
-                <div className="text-[10px] text-slate-400">Grades 9-12 · English/Hindi</div>
+                <div className="text-2xs text-slate-400">Grades 9-12 · English/Hindi</div>
               </button>
               <button
                 type="button"
@@ -145,7 +145,7 @@ export const SalesLoginScreen: React.FC<Props> = ({ onLoginSuccess, onOpenDocs }
                 className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition-colors cursor-pointer"
               >
                 <div className="text-xs font-bold text-white">Carlos Ruiz</div>
-                <div className="text-[10px] text-slate-400">Bilingual · Spanish/English</div>
+                <div className="text-2xs text-slate-400">Bilingual · Spanish/English</div>
               </button>
             </div>
           </div>

@@ -1,92 +1,118 @@
 # Business Requirements Document (BRD)
-## Dronacharya: Enterprise EdTech Operations & 1:1 High-Conversion Sales Architecture
+## Dronacharya: Live Online Classes, Admissions and Class Quality for 21K School
 
-**Document Version:** 2.4.0  
-**Target Organization:** 21K School Global / 21K Learning Floww  
-**Department:** Business Operations, Revenue Architecture & Academic Excellence  
-**Status:** Approved for Implementation
-
----
-
-### 1. Business Context & Strategic Imperatives
-
-#### 1.1 The EdTech Conversion Problem
-In online K-12 education, standard group webinar demos (1 teacher to 30–100 parents) yield abysmal conversion rates (averaging 8%–14%). Group environments create three major business bottlenecks:
-1. **The Parent Invisibility Effect**: Parents remain passive spectators with cameras and microphones muted; their personal concerns (child's specific learning challenges, curriculum pacing, affordability) are never surfaced.
-2. **Delayed Sales Follow-up**: Traditional workflows require sales representatives to follow up via phone or WhatsApp 24–72 hours later, by which time parent intent has decayed by over 70%.
-3. **High Customer Acquisition Cost (CAC)**: With digital lead costs escalating, failing to convert attendees during the live demo inflates blended CAC to unsustainable levels ($350–$600 per enrolled student).
-
-#### 1.2 The Strategic Solution: Room Bomber 1:1 Breakout
-Dronacharya's **Room Bomber** engine fundamentally transforms the demo economics by enabling a hybrid webinar:
-- **Phase 1 (20 Mins)**: Group Masterclass delivered by an elite STEM educator demonstrating curriculum superiority, 3D interactive simulations, and multi-device remote control.
-- **Phase 2 (25 Mins)**: Automated **Room Bomb 💣** trigger instantly splits the group into isolated 1:1 rooms pairing one sales representative with each prospective parent-student pair.
-- **Phase 3 (Close)**: In-room Pitch HUD equips the representative with custom tuition calculation, one-time scholarship authorization, and instant digital enrollment closure while intent is at its peak.
+**Document version:** 4.0 (class analytics release)
+**Organisation:** 21K School / 21K Learning Floww
+**Owners:** Academic Excellence, Admissions, Quality & Compliance
+**Status:** Implemented
 
 ---
 
-### 2. Business Objectives & Financial Projections
+### 1. Business context
 
-```
-+-----------------------------------------------------------------------------------+
-| Metric                              | Legacy Webinar | Dronacharya Room Bomber    |
-+-----------------------------------------------------------------------------------+
-| Demo Attendance to Enrolled Ratio   | 11.4%          | 39.2% (+244% improvement)  |
-| Average Sales Cycle Duration        | 5.8 Days       | 42 Minutes (In-Session)    |
-| Blended Customer Acquisition Cost   | $480 / Student | $145 / Student (-70% CAC)  |
-| First-Session Parent CSAT           | 68%            | 94%                        |
-| Teacher In-Class Retention Rate     | 82%            | 98%                        |
-+-----------------------------------------------------------------------------------+
-```
+#### 1.1 What the school needs
+21K School teaches K-12 learners online across countries and timezones, in one-to-one classes, small groups
+and cohorts of up to 24. The school needs:
+1. **Reliable live classes** that every learner can join on an approved device, with recordings, captions in
+   their language and notes afterwards.
+2. **Trust from families**: parents see attendance and progress, decide on recording and engagement analytics,
+   and class content can't easily be copied or shared.
+3. **An admissions pipeline that converts**: counselling, demo and admission sessions that lead families to
+   enrol, with the counsellor's time spent well.
+4. **Oversight of teaching quality**: auditors and academic leaders must see, with real data, how classes are
+   going: by teacher, room, time slot, timezone, course, cohort, grade, class size and geography. Today that
+   picture is assembled by hand from spreadsheets, or not at all.
 
-#### 2.1 Financial Model & Unit Economics
-Assuming an average annual student tuition of $2,400:
-- **Cohort Size**: 120 parent-student demo attendees per weekend.
-- **Legacy Conversions (12%)**: 14 enrollments = $33,600 Gross Revenue.
-- **Room Bomber Conversions (38%)**: 45 enrollments = $108,000 Gross Revenue.
-- **Net Incremental Revenue per Weekend**: **+$74,400** (+$3.86M annualized).
+#### 1.2 The conversion problem (admissions)
+Group demo webinars convert poorly because parents stay passive and follow-up happens days later. The
+platform supports one-to-one counselling and demo sessions inside the live classroom, and now **measures**
+them: conversation length, no-shows, and how many families enrol within 30 days.
 
----
-
-### 3. Stakeholder Requirements
-
-#### 3.1 Chief Commercial Officer & Sales Directors
-- **BR-SALES-1**: Automated 1:1 allocation matching student count exactly to available sales personnel without manual Zoom breakout management delays.
-- **BR-SALES-2**: Standardized sales script progression embedded into the counselor's HUD to ensure 100% adherence to pedagogical value framing.
-- **BR-SALES-3**: Dynamic scholarship discounting governor allowing reps to grant up to 25% spot discount to close high-intent families, logged for audit.
-
-#### 3.2 Academic Director & Facilitators
-- **BR-ACAD-1**: Uninterrupted transition between collaborative classroom and breakout rooms with zero audio/video disconnections.
-- **BR-ACAD-2**: Granular remote screen control allowing teachers to intervene on student devices across smartphones, tablets, and laptops.
-
-#### 3.3 Quality & Compliance Auditors
-- **BR-COMP-1**: Regulatory compliance with ISO 21001, NEASC, and COPPA child data protection guidelines.
-- **BR-COMP-2**: Silent auditing capabilities enabling inspectors to observe class acoustics, attention levels, and sales interactions without participant notification.
+> The earlier versions of this document projected conversion and revenue gains (for example "39% demo to
+> enrolment"). Those were **hypotheses**, never measured. Class analytics now measures the real rate (see
+> §2), and the projections should be replaced with measured baselines after the first full term.
 
 ---
 
-### 4. Operational Workflows & Governance
+### 2. Business objectives and how they're measured
+
+All measures below are live in **Class analytics** (auditors and admins), with definitions on the page ("How
+we measure").
+
+| Objective | Measure | Default target |
+| :--- | :--- | :--- |
+| Classes happen as scheduled | Delivery funnel: scheduled → held → started on time → ran full length | — |
+| Classes start on time | On-time starts (within the target delay); average start delay | Start within 5 min |
+| Seats are used | Occupancy: learners who came ÷ seats planned (pooled) | 70% |
+| Enrolled learners attend | Attendance rate: enrolled learners who came ÷ enrolled | 85% |
+| Classes are good | Average class quality (0–100), share below target | 75 |
+| Teachers are good, fairly judged | Teacher quality (hours-weighted, small-sample adjusted, ranked from 5 classes) | 75 |
+| Counselling converts | Families who enrolled within 30 days of counselling, admission or a demo | Baseline first term |
+| Counselling time is well spent | Average conversation length; no-show rate | Baseline first term |
+| Content stays in the school | Capture attempts per 100 sessions | Downward trend |
+
+Admins change targets and quality weights in the dashboard; changes apply to every score immediately.
+
+---
+
+### 3. Stakeholder requirements
+
+#### 3.1 Academic leadership and auditors
+- **BR-QA-1**: See class quality, occupancy, class duration, counselling (sales) length, punctuality and
+  attendance, broken down by room, time slot, weekday, teacher, teacher or learner timezone, course,
+  subject, cohort, grade, class size (1:1 to 1:24), session type, programme, language, learner country and device.
+- **BR-QA-2**: See average class quality and average teacher quality, with a transparent formula and plain
+  reasons for each score ("started 14 min late", "4 of 10 enrolled learners came").
+- **BR-QA-3**: Be told what needs attention: weak classes, teachers whose recent classes got worse, rooms
+  running empty, all against targets the school sets.
+- **BR-QA-4**: Observe a live class without being seen or heard, and record a structured review that counts
+  toward the class's quality.
+- **BR-QA-5**: Export any view to CSV for board reports; every export is logged.
+- **BR-QA-6**: Analytics are for auditors and admins only. Teachers do not see scores about themselves.
+
+#### 3.2 Admissions
+- **BR-ADM-1**: Book counselling, demo and admission sessions with the best-matched teacher and a signed
+  invite link for the family.
+- **BR-ADM-2**: Know how long conversations last, how often families don't show, and how many enrol.
+
+#### 3.3 Teachers
+- **BR-ACAD-1**: Start the class once for everyone; recording, transcript and notes happen automatically.
+- **BR-ACAD-2**: See who came to their classes (on time, late, left early, absent) and contact the guardian.
+
+#### 3.4 Families
+- **BR-FAM-1**: See attendance, remarks and notes per child.
+- **BR-FAM-2**: Decide on recording and engagement analytics; a withdrawal also clears past engagement data.
+
+#### 3.5 Compliance
+- **BR-COMP-1**: Child data protection (COPPA/GDPR-style): consent recorded with history, analytics only with
+  consent, small learner groups never shown, no learner names in URLs.
+- **BR-COMP-2**: Class content protected (watermark, capture deterrence, desktop app OS-level blocking) and
+  capture attempts logged for auditors.
+
+---
+
+### 4. Operating model
 
 ```
-[Lead Acquisition] --> [Group Masterclass (Main Hall)]
-                                |
-                   [1-Click "Execute Room Bomb"]
-                                |
-             +------------------+------------------+
-             |                                     |
-    [Breakout Room #1]                    [Breakout Room #2] ... [Breakout Room #N]
-  (Sales Rep 1 + Family 1)              (Sales Rep 2 + Family 2)
-             |                                     |
-   [Interactive Pitch HUD]               [Interactive Pitch HUD]
-             |                                     |
-   [Spot Scholarship Close]              [Spot Scholarship Close]
-             |                                     |
-   [Instant Enrollment Contract]         [Instant Enrollment Contract]
+Booking (admissions or scheduler, cohort assigned)
+   └─▶ Live class (teacher starts it: recording + transcript begin)
+          ├─▶ Auditor may observe hidden and draft a review
+          └─▶ Teacher ends it
+                 ├─▶ Notes (Gemini → local model → extractive)
+                 ├─▶ Attendance (from LiveKit join/leave)
+                 └─▶ Session facts (20 s after the end, refreshed after 10 min)
+                        └─▶ Class analytics: targets, needs attention, review queue
 ```
 
-### 5. Risk Assessment & Mitigation
+---
 
-| Business Risk | Likelihood | Impact | Mitigation Strategy |
-| :--- | :--- | :--- | :--- |
-| **Sales Rep Shortage**: More students than reps in demo hall. | Medium | Moderate | Dynamic ratio fallback: allocates 1:2 or 1:3 rooms automatically if rep pool is constrained. |
-| **Parent Technology Hesitancy**: Difficult device setup. | Low | High | Web-first zero-install architecture running entirely in modern web browsers without extensions. |
-| **Regulatory Privacy Concerns**: Audio/video recording compliance. | Low | Critical | Local edge processing, zero third-party data tracking, explicit consent banners. |
+### 5. Risks and mitigations
+
+| Risk | Impact | Mitigation |
+| :--- | :--- | :--- |
+| Scores used unfairly against teachers | High | Transparent formula and reasons; small samples pulled toward the school average; teachers ranked only from 5 classes, with a likely range; moderation (muting, removing) never lowers a score; human auditor review included. |
+| Engagement estimates misread as judgements | High | Engagement weight capped at 25 of 100; only consenting learners; shown as an estimate; low-consent classes adjusted so they can't score higher. |
+| Learner privacy in geographic breakdowns | High | Learner groups under 3 hidden; no individual learners in learner-level views; exports logged. |
+| Missing data read as poor performance | Medium | Unknown attendance (no join data) is unknown, not zero; classes with fewer than 3 signals and classes nobody joined aren't scored; false starts under 3 minutes left out. |
+| Demo data mistaken for real results | Medium | Demo history is development-only, marked `demo-`, bannered on the dashboard, and never shown outside analytics. |
+| Sample screens mistaken for live records | Medium | Remaining illustrative screens carry a "Sample" notice. |

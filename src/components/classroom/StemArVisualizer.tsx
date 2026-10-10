@@ -275,7 +275,7 @@ export const StemArVisualizer: React.FC = () => {
   }, [modelType, showWireframe, theta, phi]);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Visualizer Header Toolbar */}
       <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-3 flex items-center justify-between gap-2 shrink-0">
         {/* Model Tabs */}
@@ -350,7 +350,7 @@ export const StemArVisualizer: React.FC = () => {
 
         {/* AR Spatial Blueprint Overlay Details */}
         {arGridOverlay && (
-          <div className="absolute top-3 left-3 pointer-events-none flex flex-col gap-1 text-[11px] font-mono text-slate-400">
+          <div className="absolute top-3 left-3 pointer-events-none flex flex-col gap-1 text-2xs font-mono text-slate-400">
             <div className="flex items-center gap-1.5 text-cyan-400">
               <Sparkles className="w-3 h-3" />
               <span>AR WebGL 3D STEM Engine</span>
@@ -391,14 +391,14 @@ export const StemArVisualizer: React.FC = () => {
               </div>
             </div>
 
-            <div className="font-mono text-[11px] text-amber-300">
+            <div className="font-mono text-2xs text-amber-300">
               |ψ⟩ = cos(θ/2)|0⟩ + e^(iφ)sin(θ/2)|1⟩
             </div>
           </div>
         )}
 
         {modelType === "orbital" && (
-          <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/60 text-[11px] font-mono text-slate-300">
+          <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/60 text-2xs font-mono text-slate-300">
             Drag with mouse to rotate · Scroll to zoom
           </div>
         )}

@@ -81,7 +81,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
           {/* Active Room & Quick Share Box */}
           <div className="p-3.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between gap-3">
             <div className="truncate">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 font-mono tracking-wider">
+              <span className="text-2xs uppercase font-bold text-emerald-400 font-mono tracking-wider">
                 Current Active Room
               </span>
               <p className="text-xs font-mono font-semibold text-white truncate">
@@ -123,7 +123,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           {/* Quick Classroom Room Code Presets */}
           <div>
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <div className="text-2xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               Select A Standard 21K Classroom Mesh:
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -135,7 +135,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="font-bold text-cyan-400 group-hover:text-cyan-300">
                   Grade 10 · Physics Lab
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                <div className="text-2xs text-slate-400 truncate mt-0.5 font-mono">
                   gr10-physics-honors
                 </div>
               </button>
@@ -148,7 +148,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="font-bold text-blue-400 group-hover:text-blue-300">
                   Grade 11 · AP CompSci
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                <div className="text-2xs text-slate-400 truncate mt-0.5 font-mono">
                   gr11-ap-compsci
                 </div>
               </button>
@@ -161,7 +161,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="font-bold text-amber-400 group-hover:text-amber-300">
                   Grade 9 · Applied Math
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                <div className="text-2xs text-slate-400 truncate mt-0.5 font-mono">
                   gr9-applied-math
                 </div>
               </button>
@@ -174,7 +174,7 @@ export const JoinMeetingModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="font-bold text-purple-400 group-hover:text-purple-300">
                   1:1 Admissions Breakout
                 </div>
-                <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                <div className="text-2xs text-slate-400 truncate mt-0.5 font-mono">
                   sales-breakout-101
                 </div>
               </button>

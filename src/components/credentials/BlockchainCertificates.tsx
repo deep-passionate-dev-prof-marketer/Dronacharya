@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SampleNotice } from "../ui";
 import {
   Award,
   ShieldCheck,
@@ -53,8 +54,9 @@ export const BlockchainCertificates: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-y-auto select-none p-3 sm:p-4 lg:p-6">
+    <div className="flex-1 flex flex-col bg-canvas overflow-y-auto select-none p-3 sm:p-4 lg:p-6">
       <div className="max-w-6xl w-full mx-auto flex flex-col gap-4 lg:gap-6">
+        <SampleNotice>These certificates are examples. Issuing real certificates isn't connected yet.</SampleNotice>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
@@ -158,18 +160,18 @@ export const BlockchainCertificates: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="font-mono text-[11px] text-amber-400 font-semibold">
+                    <span className="font-mono text-2xs text-amber-400 font-semibold">
                       {cert.certificateId}
                     </span>
-                    <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                    <span className="text-2xs font-mono text-emerald-400 flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" /> Block #{cert.blockNumber}
                     </span>
                   </div>
 
                   <h3 className="text-xs font-semibold text-white">{cert.studentName}</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{cert.courseTitle}</p>
+                  <p className="text-2xs text-slate-400 mt-0.5 line-clamp-1">{cert.courseTitle}</p>
 
-                  <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                  <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-2xs text-slate-500 font-mono">
                     <span>{cert.grade}</span>
                     <span className="truncate max-w-[120px]">{cert.blockHash.substring(0, 14)}...</span>
                   </div>
@@ -181,7 +183,7 @@ export const BlockchainCertificates: React.FC = () => {
           {/* Certificate Credential Canvas & Hash Explorer */}
           <div className="lg:col-span-7 flex flex-col gap-4">
             {/* Diploma Certificate Preview Card */}
-            <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-[#0d1424] to-slate-950 border-2 border-amber-500/40 p-8 shadow-2xl relative overflow-hidden">
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-surface to-slate-950 border-2 border-amber-500/40 p-8 shadow-2xl relative overflow-hidden">
               {/* Decorative background watermark */}
               <div className="absolute top-0 right-0 p-8 opacity-5 text-amber-300 pointer-events-none">
                 <Award className="w-48 h-48" />
@@ -191,7 +193,7 @@ export const BlockchainCertificates: React.FC = () => {
                 {/* Certificate Header */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-[11px] font-mono tracking-widest text-amber-400 uppercase">
+                    <div className="text-2xs font-mono tracking-widest text-amber-400 uppercase">
                       NexusStem Institute of Advanced Physics
                     </div>
                     <h2 className="text-xl font-bold text-white mt-1">Certificate of Academic Mastery</h2>
@@ -221,11 +223,11 @@ export const BlockchainCertificates: React.FC = () => {
                 {/* Cryptographic Footer */}
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-xs font-mono">
                   <div className="flex flex-col gap-1">
-                    <div className="text-[10px] text-slate-400">SHA-256 Consensus Block Hash:</div>
-                    <div className="text-[10px] text-indigo-400 break-all max-w-sm">
+                    <div className="text-2xs text-slate-400">SHA-256 Consensus Block Hash:</div>
+                    <div className="text-2xs text-indigo-400 break-all max-w-sm">
                       {selectedCert.blockHash}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
+                    <div className="text-2xs text-slate-500 mt-1">
                       Digital Signature: {selectedCert.instructorSignature}
                     </div>
                   </div>
@@ -247,7 +249,7 @@ export const BlockchainCertificates: React.FC = () => {
                 <span>Block Explorer Inspection</span>
                 <span className="text-emerald-400">Status: Validated Consensus</span>
               </div>
-              <div className="text-[11px] grid grid-cols-2 gap-2 text-slate-400">
+              <div className="text-2xs grid grid-cols-2 gap-2 text-slate-400">
                 <div>Block Height: <span className="text-white">#{selectedCert.blockNumber}</span></div>
                 <div>Issued Timestamp: <span className="text-white">{selectedCert.issuedAt}</span></div>
                 <div className="col-span-2 truncate">

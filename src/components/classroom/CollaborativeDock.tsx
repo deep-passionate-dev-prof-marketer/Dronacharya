@@ -13,13 +13,15 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
-import { StemArVisualizer } from "./StemArVisualizer";
 import { DeckAndNotes } from "./DeckAndNotes";
 import { SmartPeerNoteTaker } from "./SmartPeerNoteTaker";
 import { PollsAndQuizzes } from "./PollsAndQuizzes";
 import { BreakoutManager } from "./BreakoutManager";
 import { TranscriptFeed } from "./TranscriptFeed";
 import { WaitingLobby } from "./WaitingLobby";
+
+// three.js is large: the 3D lab loads only when its tab is opened
+const StemArVisualizer = React.lazy(() => import("./StemArVisualizer").then((m) => ({ default: m.StemArVisualizer })));
 
 interface DockTab {
   id: "whiteboard" | "stem3d" | "notes" | "smartnotes" | "polls" | "breakouts" | "transcript" | "lobby";
@@ -85,14 +87,14 @@ export const CollaborativeDock: React.FC = () => {
                 }}
                 className={`p-2 rounded-lg transition-colors cursor-pointer relative ${
                   isActive
-                    ? "bg-[#003872] text-white shadow-xs"
+                    ? "bg-brand-navy text-white shadow-xs"
                     : "text-slate-300 hover:text-blue-300 hover:bg-white/10"
                 }`}
                 title={tab.label}
               >
                 <Icon className="w-4 h-4" />
                 {tab.badge && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FFBB00] text-blue-300 text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-brand-yellow text-blue-300 text-2xs font-bold flex items-center justify-center">
                     {tab.badge}
                   </span>
                 )}
@@ -119,7 +121,7 @@ export const CollaborativeDock: React.FC = () => {
                 onClick={() => setActiveDockTab(tab.id)}
                 className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors shrink-0 cursor-pointer ${
                   isActive
-                    ? "bg-[#003872] text-white shadow-xs"
+                    ? "bg-brand-navy text-white shadow-xs"
                     : tab.highlight
                     ? "bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-200"
                     : "text-slate-300 hover:text-blue-300 hover:bg-white/10"
@@ -129,7 +131,7 @@ export const CollaborativeDock: React.FC = () => {
                 <span>{tab.label}</span>
 
                 {tab.badge && (
-                  <span className="w-4 h-4 rounded-full bg-[#FFBB00] text-blue-300 text-[10px] font-bold flex items-center justify-center -ml-0.5 shadow-xs">
+                  <span className="w-4 h-4 rounded-full bg-brand-yellow text-blue-300 text-2xs font-bold flex items-center justify-center -ml-0.5 shadow-xs">
                     {tab.badge}
                   </span>
                 )}
@@ -151,7 +153,11 @@ export const CollaborativeDock: React.FC = () => {
       {/* Render Active Tool */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-900/70">
         {activeDockTab === "whiteboard" && <WhiteboardCanvas />}
-        {activeDockTab === "stem3d" && <StemArVisualizer />}
+        {activeDockTab === "stem3d" && (
+          <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-xs text-slate-400">Loading 3D lab…</div>}>
+            <StemArVisualizer />
+          </React.Suspense>
+        )}
         {activeDockTab === "notes" && <DeckAndNotes />}
         {activeDockTab === "smartnotes" && <SmartPeerNoteTaker />}
         {activeDockTab === "polls" && <PollsAndQuizzes />}

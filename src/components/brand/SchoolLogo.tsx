@@ -28,8 +28,8 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   }[badgeFrom];
   const iconSize = size === "sm" ? 28 : size === "lg" ? 44 : 34;
 
-  const textColor = theme === "dark" ? "text-white" : "text-[#003872]";
-  const subtextColor = theme === "dark" ? "text-slate-300" : "text-[#003872]";
+  const textColor = theme === "dark" ? "text-white" : "text-brand-navy";
+  const subtextColor = theme === "dark" ? "text-slate-300" : "text-brand-navy";
 
   return (
     <div className="flex items-center gap-2.5 select-none min-w-0">
@@ -83,7 +83,7 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
             21K School
           </span>
           {systemName && (
-            <span className={`${badgeVisibility} font-mono font-bold text-[10px] uppercase px-1.5 py-0.5 rounded bg-[#FFBB00] text-[#003872] shadow-xs`}>
+            <span className={`${badgeVisibility} font-mono font-bold text-2xs uppercase px-1.5 py-0.5 rounded bg-brand-yellow text-brand-navy shadow-xs`}>
               {systemName}
             </span>
           )}
@@ -93,7 +93,7 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
         <div className="h-[2.5px] w-full rounded-full bg-21k-gradient mt-1" />
 
         {showTagline && (
-          <span className={`text-[10px] font-sans font-medium mt-1 leading-tight ${subtextColor}`}>
+          <span className={`text-2xs font-sans font-medium mt-1 leading-tight ${subtextColor}`}>
             Where Every Learner Finds Their Path
           </span>
         )}

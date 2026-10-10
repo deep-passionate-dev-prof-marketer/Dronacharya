@@ -173,16 +173,16 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
       <div className="p-3.5 border-b border-white/10 bg-white/[0.03] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-300 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-[#0082FF]" />
+            <Sparkles className="w-4 h-4 text-brand-blue" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <h3 className="text-xs font-bold text-slate-100">Smart Peer Note-Taker</h3>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] font-mono font-bold">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 text-2xs font-mono font-bold">
                 AUTO-DETECT
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-2xs text-slate-400">
               Live student-to-student conversation capture with AI takeaways &amp; action items
             </p>
           </div>
@@ -200,7 +200,7 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
 
           <button
             onClick={handleSimulateNextDialogue}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-[#FFBB00] text-[#001F40] hover:bg-[#e6a800] transition-colors shadow-xs"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-brand-yellow text-brand-navy-deep hover:bg-brand-yellow-strong transition-colors shadow-xs"
             title="Simulate next peer utterance"
           >
             <Play className="w-3.5 h-3.5" />
@@ -218,18 +218,18 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
             <div className="flex items-center gap-2">
               <Users2 className="w-3.5 h-3.5 text-blue-300" />
               <span className="font-semibold text-slate-200">Paired Peers:</span>
-              <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-medium text-[11px]">
+              <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-medium text-2xs">
                 {peerA}
               </span>
               <span className="text-slate-400">&amp;</span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 font-medium text-[11px]">
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 font-medium text-2xs">
                 {peerB}
               </span>
             </div>
 
             {/* Speaking Ratio */}
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400">
-              <PieChart className="w-3 h-3 text-[#0082FF]" />
+            <div className="flex items-center gap-1.5 text-2xs font-mono text-slate-400">
+              <PieChart className="w-3 h-3 text-brand-blue" />
               <span>Split: {sessionData.peerContributionSplit[peerA] || 50}% / {sessionData.peerContributionSplit[peerB] || 50}%</span>
             </div>
           </div>
@@ -248,10 +248,10 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[11px] font-bold ${isPeerA ? "text-blue-300" : "text-amber-300"}`}>
+                    <span className={`text-2xs font-bold ${isPeerA ? "text-blue-300" : "text-amber-300"}`}>
                       {m.speakerName}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">{m.timestamp}</span>
+                    <span className="text-2xs text-slate-400 font-mono">{m.timestamp}</span>
                   </div>
                   <p className="text-xs text-slate-200 leading-relaxed">{m.text}</p>
                 </div>
@@ -276,12 +276,12 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
               placeholder="Type peer dialogue or speak..."
-              className="flex-1 text-xs border border-white/10 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0082FF]"
+              className="flex-1 text-xs border border-white/10 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-blue"
             />
 
             <button
               onClick={handleSendMessage}
-              className="px-3 py-1.5 rounded-lg bg-[#003872] text-white text-xs font-bold hover:bg-[#00264d] transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy-ink transition-colors"
             >
               Add
             </button>
@@ -292,11 +292,11 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
         <div className="w-full md:w-80 lg:w-96 flex flex-col overflow-hidden bg-slate-900/70">
           <div className="p-2.5 border-b border-white/10 bg-white/[0.03] flex items-center justify-between text-xs font-bold text-slate-100">
             <div className="flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-[#0082FF]" />
+              <FileText className="w-3.5 h-3.5 text-brand-blue" />
               <span>Real-Time Synthesized Notes</span>
             </div>
             {isSummarizing && (
-              <span className="text-[10px] text-blue-300 animate-pulse font-mono flex items-center gap-1">
+              <span className="text-2xs text-blue-300 animate-pulse font-mono flex items-center gap-1">
                 <RotateCw className="w-3 h-3 animate-spin" />
                 Synthesizing...
               </span>
@@ -306,8 +306,8 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
           <div className="flex-1 overflow-y-auto p-3.5 space-y-4">
             {/* Key Takeaways */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-[#FFBB00]" />
+              <h4 className="text-2xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-brand-yellow" />
                 <span>Key Concepts &amp; Findings</span>
               </h4>
               <div className="space-y-1.5">
@@ -316,7 +316,7 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
                     key={idx}
                     className="p-2 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-slate-200 leading-snug flex items-start gap-2"
                   >
-                    <span className="text-blue-300 font-bold text-[10px] mt-0.5">#{idx + 1}</span>
+                    <span className="text-blue-300 font-bold text-2xs mt-0.5">#{idx + 1}</span>
                     <span>{takeaway}</span>
                   </div>
                 ))}
@@ -325,7 +325,7 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
 
             {/* Collaborative Action Items */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+              <h4 className="text-2xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
                 <CheckSquare className="w-3 h-3 text-emerald-300" />
                 <span>Peer Action Items</span>
               </h4>
@@ -336,7 +336,7 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
                     className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-slate-200"
                   >
                     <div className="font-medium text-slate-100">{action.task}</div>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-mono">
+                    <div className="flex items-center justify-between mt-1 text-2xs text-slate-400 font-mono">
                       <span className="font-semibold text-emerald-300">Assignee: {action.owner}</span>
                       <span>Due: {action.deadline}</span>
                     </div>
@@ -347,7 +347,7 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
 
             {/* Shared Vocabulary */}
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+              <h4 className="text-2xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
                 <BookOpen className="w-3 h-3 text-purple-300" />
                 <span>Shared Technical Vocabulary</span>
               </h4>
@@ -355,7 +355,7 @@ ${sessionData.sharedVocabulary.map((v) => `* ${v}`).join("\n")}
                 {sessionData.sharedVocabulary.map((vocab, idx) => (
                   <span
                     key={idx}
-                    className="px-2 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/30 text-[11px] font-medium"
+                    className="px-2 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/30 text-2xs font-medium"
                   >
                     {vocab}
                   </span>

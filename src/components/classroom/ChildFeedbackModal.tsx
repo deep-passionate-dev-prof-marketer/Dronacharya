@@ -14,21 +14,31 @@ export const ChildFeedbackModal: React.FC = () => {
   const [praiseType, setPraiseType] = useState<
     "Star Performer" | "Deep Question" | "Keep Focused" | "Check Audio" | "Active Contributor"
   >("Active Contributor");
-  const [note, setNote] = useState("Outstanding participation and analytical insight during today's derivation!");
+  const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   if (!isFeedbackModalOpen || !activeFeedbackTarget) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    shareChildFeedback({
+    setSaving(true);
+    setError(null);
+    const err = await shareChildFeedback({
       studentId: activeFeedbackTarget.id,
       studentName: activeFeedbackTarget.name,
-      teacherId: "host-1",
+      teacherId: "",
       praiseType,
       stars,
-      note,
+      note: note.trim(),
     });
+    setSaving(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setNote("");
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
@@ -38,11 +48,11 @@ export const ChildFeedbackModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none">
-      <div className="w-full max-w-md bg-[#090e17] rounded-2xl border border-[#003872] shadow-2xl overflow-hidden font-sans text-white">
+      <div className="w-full max-w-md bg-canvas rounded-2xl border border-brand-navy shadow-2xl overflow-hidden font-sans text-white">
         {/* Header */}
-        <div className="p-4 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-brand-navy-deep border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-[#FFBB00]/20 text-[#FFBB00]">
+            <div className="p-2 rounded-lg bg-brand-yellow/20 text-brand-yellow">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -66,7 +76,7 @@ export const ChildFeedbackModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
           {/* Star Rating */}
           <div>
-            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider text-[11px]">
+            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider text-2xs">
               Effort & Concept Rating:
             </label>
             <div className="flex items-center gap-2">
@@ -80,13 +90,13 @@ export const ChildFeedbackModal: React.FC = () => {
                   <Star
                     className={`w-6 h-6 ${
                       num <= stars
-                        ? "fill-[#FFBB00] text-[#FFBB00]"
+                        ? "fill-brand-yellow text-brand-yellow"
                         : "text-slate-600 hover:text-slate-400"
                     }`}
                   />
                 </button>
               ))}
-              <span className="font-mono font-bold text-sm text-[#FFBB00] ml-2">
+              <span className="font-mono font-bold text-sm text-brand-yellow ml-2">
                 +{stars * 50} XP Points
               </span>
             </div>
@@ -94,7 +104,7 @@ export const ChildFeedbackModal: React.FC = () => {
 
           {/* Praise Category Tags */}
           <div>
-            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider text-[11px]">
+            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider text-2xs">
               Feedback Tag:
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -113,7 +123,7 @@ export const ChildFeedbackModal: React.FC = () => {
                   onClick={() => setPraiseType(tag)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     praiseType === tag
-                      ? "bg-[#0082FF] text-white shadow-md"
+                      ? "bg-brand-blue text-white shadow-md"
                       : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                   }`}
                 >
@@ -125,18 +135,22 @@ export const ChildFeedbackModal: React.FC = () => {
 
           {/* Formative Note */}
           <div>
-            <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-[11px]">
+            <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
               Personalized Encouragement or Note:
             </label>
             <textarea
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Add feedback visible to student and recorded in their 21K portfolio..."
-              className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2E0]"
+              placeholder="A short note for the learner and their parents"
+              maxLength={500}
+              className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-brand-cyan"
               required
             />
           </div>
+
+          {error && <p className="text-xs text-rose-300">{error}</p>}
+          <p className="text-2xs text-slate-400">The learner and their parents see this in their portal.</p>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -149,18 +163,18 @@ export const ChildFeedbackModal: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={submitted}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFBB00] hover:bg-amber-400 text-[#001F40] font-bold transition-all shadow"
+              disabled={submitted || saving || !note.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-yellow hover:bg-amber-400 text-brand-navy-deep font-bold transition-all shadow"
             >
               {submitted ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-800" />
-                  <span>Awarded!</span>
+                  <span>Saved</span>
                 </>
               ) : (
                 <>
-                  <Send className="w-3.5 h-3.5 fill-[#001F40]" />
-                  <span>Award & Send Feedback</span>
+                  <Send className="w-3.5 h-3.5 fill-brand-navy-deep" />
+                  <span>{saving ? "Saving…" : "Send to learner & parents"}</span>
                 </>
               )}
             </button>

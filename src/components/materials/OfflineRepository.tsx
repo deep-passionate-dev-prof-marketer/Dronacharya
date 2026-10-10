@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SampleNotice } from "../ui";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   Folder,
@@ -48,7 +49,8 @@ export const OfflineRepository: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-hidden select-none">
+      <SampleNotice className="m-3 mb-0">The library shows example materials. Uploading your school's own materials isn't connected yet.</SampleNotice>
       {/* Top Bar for Materials View */}
       <div className="min-h-14 py-2 border-b border-slate-800 bg-slate-900/90 px-3 sm:px-6 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -57,7 +59,7 @@ export const OfflineRepository: React.FC = () => {
           </div>
           <div className="min-w-0">
             <h1 className="text-sm font-bold text-white truncate">STEM Cloud Repository & Offline Cache</h1>
-            <p className="hidden sm:block text-[11px] text-slate-400">
+            <p className="hidden sm:block text-2xs text-slate-400">
               Synchronized course slides, laboratory notebooks, and encrypted offline study decks
             </p>
           </div>
@@ -157,7 +159,7 @@ export const OfflineRepository: React.FC = () => {
                         <h4 className="text-xs font-semibold text-white leading-tight line-clamp-1">
                           {mat.title}
                         </h4>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 font-mono">
+                        <div className="flex items-center gap-2 text-2xs text-slate-400 mt-0.5 font-mono">
                           <span>{mat.category}</span>
                           <span>·</span>
                           <span>{mat.size}</span>

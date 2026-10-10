@@ -4,6 +4,7 @@
  */
 import express from "express";
 import { eq } from "drizzle-orm";
+import { isDemoRoom } from "./analytics/demo";
 import { getDb, schema } from "./db";
 import { persist } from "./db/kv";
 import crypto from "crypto";
@@ -13,6 +14,9 @@ import { Booking, MatchRequest, findOpenSection, matchTeachers } from "../servic
 import { actorFromSession, upsertRoomPolicy } from "./deviceAccessHub";
 import { requireAuth } from "./auth/session";
 import type { SessionType } from "../services/devicePolicyEngine";
+import { toIso3 } from "../routing/appRoutes";
+import { programName } from "../services/analyticsLabels";
+import { validTimezone } from "./analytics/geo";
 
 const STAFF = ["instructor", "admin", "sales_rep"];
 
@@ -35,7 +39,8 @@ async function loadFromDb() {
   const cls = await db.select().from(schema.classes);
   const enr = await db.select().from(schema.classEnrollments);
   bookings = cls
-    .filter((c: any) => c.teacherId)
+    // Demo analytics history never blocks a teacher's time or becomes a section to join
+    .filter((c: any) => c.teacherId && !isDemoRoom(c.roomSlug))
     .map((c: any) => ({
       id: c.id,
       teacherId: c.teacherId,
@@ -49,6 +54,7 @@ async function loadFromDb() {
       classSize: c.classSize,
       studentKeys: enr.filter((e: any) => e.classId === c.id).map((e: any) => e.studentKey),
       sessionType: KIND_SESSION[c.kind as ClassKind] || "paid",
+      cohort: c.cohort || null,
       createdAt: new Date(c.createdAt).toISOString(),
     }));
 }
@@ -74,6 +80,23 @@ function parseRequest(raw: any): MatchRequest | string {
   };
 }
 
+const knownIso3 = (iso2?: string) => {
+  const c = iso2 ? toIso3(iso2) : "INT";
+  return c === "INT" ? null : c;
+};
+
+export const cleanCohort = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().replace(/\s+/g, " ").slice(0, 80) : null);
+
+/** "IGCSE G10 · Mon 16:00 · 2026": a group class's batch name until staff rename it. */
+export function defaultCohort(r: Pick<MatchRequest, "program" | "gradeLevel" | "startUtc" | "studentTimezone" | "subject">) {
+  const tz = validTimezone(r.studentTimezone) || "UTC";
+  const d = new Date(r.startUtc);
+  const when = new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(d).replace(",", "");
+  const year = new Intl.DateTimeFormat("en", { timeZone: tz, year: "numeric" }).format(d);
+  const prog = r.program ? programName(r.program) : r.subject;
+  return `${prog}${r.gradeLevel ? ` G${r.gradeLevel}` : ""} · ${when} · ${year}`;
+}
+
 function roomSlugFor(req: MatchRequest, teacherId: string): string {
   const t = findFaculty(teacherId);
   const subject = req.subject.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10) || "class";
@@ -86,7 +109,10 @@ function roomSlugFor(req: MatchRequest, teacherId: string): string {
  * Makes sure the booked learner (and their parent) can sign in: creates the accounts on first
  * booking and links the parent as guardian. Returns the learner's user id.
  */
-async function ensureLearnerAccounts(student: { key: string; name?: string; email?: string; gradeLevel?: number }, parent?: { name?: string; email?: string }) {
+async function ensureLearnerAccounts(
+  student: { key: string; name?: string; email?: string; gradeLevel?: number; country?: string | null; timezone?: string | null },
+  parent?: { name?: string; email?: string }
+) {
   const db: any = await getDb();
   const code = student.key.toUpperCase();
   const [existing] = await db.select().from(schema.users).where(eq(schema.users.studentCode, code));
@@ -103,8 +129,16 @@ async function ensureLearnerAccounts(student: { key: string; name?: string; emai
         avatarColor: "#0082FF",
         studentCode: code,
         gradeLevel: student.gradeLevel || null,
+        country: student.country || null,
+        timezone: student.timezone || null,
       })
       .onConflictDoNothing();
+  } else if ((student.country && !existing.country) || (student.timezone && !existing.timezone)) {
+    // Fill in what we didn't know; never overwrite what the learner's own devices reported
+    await db
+      .update(schema.users)
+      .set({ country: existing.country || student.country, timezone: existing.timezone || student.timezone })
+      .where(eq(schema.users.id, studentId));
   }
   if (parent?.email) {
     const email = parent.email.trim().toLowerCase();
@@ -149,7 +183,14 @@ export function setupMatchingRoutes(app: express.Express) {
     const topic = req.body?.topic ? String(req.body.topic).slice(0, 160) : null;
 
     const learnerId = await ensureLearnerAccounts(
-      { key: rawKey, name: req.body?.student?.name, email: req.body?.student?.email, gradeLevel: parsed.gradeLevel },
+      {
+        key: rawKey,
+        name: req.body?.student?.name,
+        email: req.body?.student?.email,
+        gradeLevel: parsed.gradeLevel,
+        country: knownIso3(parsed.studentCountryIso2),
+        timezone: validTimezone(parsed.studentTimezone),
+      },
       req.body?.parent
     );
     // Enrolments always reference the learner's user id
@@ -193,6 +234,7 @@ export function setupMatchingRoutes(app: express.Express) {
       classSize: parsed.classSize,
       studentKeys: [studentKey],
       sessionType,
+      cohort: cleanCohort(req.body?.cohort) || defaultCohort(parsed),
       createdAt: new Date().toISOString(),
     };
     bookings.push(booking);
@@ -213,6 +255,7 @@ export function setupMatchingRoutes(app: express.Express) {
           scheduledStart: new Date(parsed.startUtc),
           durationMin: parsed.durationMin,
           classSize: parsed.classSize,
+          cohort: booking.cohort,
           createdBy: actor.id,
         });
         await db.insert(schema.classEnrollments).values({ classId: booking.id, studentKey });

@@ -528,14 +528,14 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     });
   };
 
-  app.get("/api/device-access/events", requireAuth("admin", "auditor", "instructor"), (req, res) => {
+  app.get("/api/device-access/events", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
     const q = req.query as Record<string, string | undefined>;
     const limit = Math.min(parseInt(q.limit || "500", 10) || 500, 5000);
     const list = filterEvents(q).slice(-limit).reverse();
     res.json({ events: list, total: list.length, persisted: persistenceAvailable });
   });
 
-  app.get("/api/device-access/events.csv", requireAuth("admin", "auditor", "instructor"), (req, res) => {
+  app.get("/api/device-access/events.csv", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
     const rows = filterEvents(req.query as Record<string, string | undefined>).reverse();
     const header = [
       "timestamp", "event", "room", "actor_name", "actor_role", "actor_id", "subject_name", "request_id", "decision",
@@ -560,7 +560,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.send([header.join(","), ...lines].join("\n"));
   });
 
-  app.get("/api/device-access/analytics", requireAuth("admin", "auditor", "instructor"), (req, res) => {
+  app.get("/api/device-access/analytics", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
     const events = filterEvents(req.query as Record<string, string | undefined>);
     const joins = events.filter((e) => e.type === "join_allowed" || e.type === "join_blocked" || e.type === "join_allowed_by_approval");
     const byDevice: Record<string, { allowed: number; blocked: number; approved: number }> = {};

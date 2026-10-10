@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SampleNotice } from "../ui";
 import { useClassroom } from "../../context/ClassroomContext";
 import { buildMeetingUrl, buildShortMeetingUrl } from "../../services/domainService";
 import {
@@ -156,13 +157,14 @@ export const CrmRoomIntegrationView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 w-full h-full overflow-y-auto bg-[#070b14] text-slate-100 font-sans p-4 md:p-6">
+    <div className="flex-1 w-full h-full overflow-y-auto bg-canvas text-slate-100 font-sans p-4 md:p-6">
       <div className="max-w-6xl mx-auto flex flex-col gap-4 lg:gap-6">
+        <SampleNotice>The CRM connection here is simulated with example leads; provisioned rooms are not saved to a CRM.</SampleNotice>
         {/* Header */}
         <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#003872] flex items-center justify-center text-white shadow-xs">
-              <Database className="w-5 h-5 text-[#FFBB00]" />
+            <div className="w-10 h-10 rounded-xl bg-brand-navy flex items-center justify-center text-white shadow-xs">
+              <Database className="w-5 h-5 text-brand-yellow" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-blue-300">
@@ -187,7 +189,7 @@ export const CrmRoomIntegrationView: React.FC = () => {
           {/* SIMULATOR */}
           <div className="bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-4">
             <h2 className="text-sm font-bold text-blue-300 flex items-center gap-1.5 border-b border-white/5 pb-2">
-              <Zap className="w-4 h-4 text-[#FFBB00]" />
+              <Zap className="w-4 h-4 text-brand-yellow" />
               <span>Simulate CRM Inbound Webhook</span>
             </h2>
 
@@ -304,9 +306,9 @@ export const CrmRoomIntegrationView: React.FC = () => {
               <button
                 type="submit"
                 disabled={isProvisioning}
-                className="mt-2 w-full py-2.5 px-3 rounded-xl bg-[#003872] hover:bg-[#00264d] disabled:opacity-40 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                className="mt-2 w-full py-2.5 px-3 rounded-xl bg-brand-navy hover:bg-brand-navy-ink disabled:opacity-40 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
-                <Send className="w-3.5 h-3.5 text-[#FFBB00]" />
+                <Send className="w-3.5 h-3.5 text-brand-yellow" />
                 <span>Trigger Inbound CRM Provisioning</span>
               </button>
             </form>
@@ -316,7 +318,7 @@ export const CrmRoomIntegrationView: React.FC = () => {
           <div className="lg:col-span-2 bg-slate-900/70 rounded-2xl border border-white/10 p-5 shadow-sm flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <h2 className="text-sm font-bold text-blue-300 flex items-center gap-1.5">
-                <Building className="w-4 h-4 text-[#0082FF]" />
+                <Building className="w-4 h-4 text-brand-blue" />
                 <span>Live Provisioned CRM Rooms & Shortcuts</span>
               </h2>
               <span className="text-xs text-slate-400 font-mono">
@@ -334,7 +336,7 @@ export const CrmRoomIntegrationView: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm text-slate-100">{room.cohortName}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/10 text-sky-300 uppercase">
+                        <span className="px-2 py-0.5 rounded text-2xs font-bold bg-sky-500/10 text-sky-300 uppercase">
                           {room.crmSource.split(" ")[0]}
                         </span>
                       </div>
@@ -345,7 +347,7 @@ export const CrmRoomIntegrationView: React.FC = () => {
 
                     <button
                       onClick={() => handleEnterRoom(room)}
-                      className="px-3 py-1.5 rounded-xl bg-[#003872] hover:bg-[#00264d] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
+                      className="px-3 py-1.5 rounded-xl bg-brand-navy hover:bg-brand-navy-ink text-white text-xs font-bold transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
                     >
                       Enter Room
                     </button>
@@ -355,7 +357,7 @@ export const CrmRoomIntegrationView: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2 border-t border-white/5">
                     <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/10">
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-mono text-slate-400">Standard Slug:</span>
+                        <span className="text-2xs font-mono text-slate-400">Standard Slug:</span>
                         <span className="font-mono text-xs font-bold text-slate-200 truncate max-w-[200px]">
                           {room.roomSlug}
                         </span>
@@ -375,8 +377,8 @@ export const CrmRoomIntegrationView: React.FC = () => {
 
                     <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/10">
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-mono text-slate-400">Base62 Shortlink:</span>
-                        <span className="font-mono text-xs font-bold text-[#0082FF] truncate max-w-[200px]">
+                        <span className="text-2xs font-mono text-slate-400">Base62 Shortlink:</span>
+                        <span className="font-mono text-xs font-bold text-brand-blue truncate max-w-[200px]">
                           {room.shortUrl}
                         </span>
                       </div>

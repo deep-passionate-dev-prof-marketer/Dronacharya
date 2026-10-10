@@ -97,17 +97,17 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs select-none">
-      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-xl rounded-t-3xl sm:rounded-2xl bg-[#080d1a] border border-[#003872] shadow-2xl overflow-hidden flex flex-col font-sans text-white animate-in fade-in zoom-in-95 duration-150">
+      <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-xl rounded-t-3xl sm:rounded-2xl bg-surface-sunken border border-brand-navy shadow-2xl overflow-hidden flex flex-col font-sans text-white animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-4 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-brand-navy-deep border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#003872] text-[#00C2E0]">
+            <div className="p-2 rounded-xl bg-brand-navy text-brand-cyan">
               <Shield className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 Request Remote System Access
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00C2E0]/20 text-[#00C2E0] border border-[#00C2E0]/30">
+                <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30">
                   AES-256 Mesh
                 </span>
               </h3>
@@ -141,7 +141,7 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
                     onClick={() => setSelectedStudentId(stu.id)}
                     className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? "border-[#0082FF] bg-[#003872]/50 text-white shadow-md shadow-[#0082FF]/20"
+                        ? "border-brand-blue bg-brand-navy/50 text-white shadow-md shadow-brand-blue/20"
                         : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900"
                     }`}
                   >
@@ -153,7 +153,7 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold truncate">{stu.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">Grade {stu.gradeLevel || 10}</p>
+                      <p className="text-2xs text-slate-400 font-mono">Grade {stu.gradeLevel || 10}</p>
                     </div>
                   </button>
                 );
@@ -177,13 +177,13 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
                     onClick={() => setSelectedDevice(d.type)}
                     className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
                       isSelected
-                        ? "border-[#00C2E0] bg-[#00C2E0]/15 text-[#00C2E0] shadow-md shadow-[#00C2E0]/10"
+                        ? "border-brand-cyan bg-brand-cyan/15 text-brand-cyan shadow-md shadow-brand-cyan/10"
                         : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                     }`}
                   >
                     <Icon className="w-6 h-6 mb-1.5" />
                     <span className="text-xs font-bold text-white">{d.label}</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-full">
+                    <span className="text-2xs text-slate-400 mt-0.5 truncate max-w-full">
                       {DEVICE_METADATA_MAP[d.type].aspectRatio}
                     </span>
                   </button>
@@ -219,7 +219,7 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
                         <span className="text-xs font-bold text-white">{tier.label}</span>
                         {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                       </div>
-                      <p className="text-[11px] text-slate-300 mt-0.5">{tier.desc}</p>
+                      <p className="text-2xs text-slate-300 mt-0.5">{tier.desc}</p>
                     </div>
                   </div>
                 );
@@ -229,7 +229,7 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
 
           {/* Privacy & Guardrail Notice */}
           <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-2.5 text-xs text-slate-300">
-            <Sparkles className="w-4 h-4 text-[#FFBB00] shrink-0" />
+            <Sparkles className="w-4 h-4 text-brand-yellow shrink-0" />
             <span>
               The student will receive an encrypted authorization prompt. Student can downgrade or revoke access at any time via the floating kill switch.
             </span>
@@ -238,7 +238,7 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
 
         {/* Footer */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
-          <div className="text-[11px] text-slate-400 font-mono">
+          <div className="text-2xs text-slate-400 font-mono">
             Target: <span className="text-white font-bold">{targetStudent?.name || "Student"}</span> · {selectedDevice.toUpperCase()}
           </div>
 
@@ -251,7 +251,7 @@ export const RemoteAccessRequestModal: React.FC<RemoteAccessRequestModalProps> =
             </button>
             <button
               onClick={handleSendRequest}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#0082FF] to-[#00C2E0] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#0082FF]/30 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-brand-blue to-brand-cyan hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-brand-blue/30 transition-all cursor-pointer"
             >
               <span>Send Remote Request</span>
             </button>

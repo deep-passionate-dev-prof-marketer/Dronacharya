@@ -64,7 +64,7 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
             setSelectedAuditParticipantId(participant.id);
             setIsAuditDrawerOpen(true);
           }}
-          className={`pointer-events-auto flex items-center gap-1 px-2 py-0.5 rounded-md backdrop-blur-md text-[10px] font-mono font-bold shadow transition-all cursor-pointer ${
+          className={`pointer-events-auto flex items-center gap-1 px-2 py-0.5 rounded-md backdrop-blur-md text-2xs font-mono font-bold shadow transition-all cursor-pointer ${
             isDistracted
               ? "bg-rose-500/80 text-white animate-pulse border border-rose-300/50"
               : attnScore >= 85
@@ -84,7 +84,7 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
             setSelectedAuditParticipantId(participant.id);
             setIsAuditDrawerOpen(true);
           }}
-          className="pointer-events-auto flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-900/80 text-cyan-300 border border-cyan-500/30 backdrop-blur-md text-[10px] font-mono font-semibold shadow hover:bg-slate-800 transition-all cursor-pointer"
+          className="pointer-events-auto flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-900/80 text-cyan-300 border border-cyan-500/30 backdrop-blur-md text-2xs font-mono font-semibold shadow hover:bg-slate-800 transition-all cursor-pointer"
           title={`SNR ${snr}dB · Vocal Clarity ${audioGrade}`}
         >
           <Volume2 className="w-2.5 h-2.5 text-cyan-400" />
@@ -95,7 +95,7 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
       {/* Zero-Toggle Facilitator Action Hover Bar (Revealed on Tile Hover for Teachers) */}
       {isTeacher && isStudentTile && (
         <div className="absolute inset-x-2 bottom-10 z-20 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none flex items-center justify-center">
-          <div className="pointer-events-auto flex items-center gap-1 p-1 rounded-xl bg-[#001F40]/95 backdrop-blur-md border border-[#00C2E0]/40 shadow-2xl text-white">
+          <div className="pointer-events-auto flex items-center gap-1 p-1 rounded-xl bg-brand-navy-deep/95 backdrop-blur-md border border-brand-cyan/40 shadow-2xl text-white">
             {/* 1. Instant Mute / Unmute */}
             <button
               onClick={(e) => {
@@ -139,7 +139,7 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
                   e.stopPropagation();
                   setShowAttendanceDropdown((prev) => !prev);
                 }}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-colors cursor-pointer ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-2xs font-mono font-bold transition-colors cursor-pointer ${
                   participant.attendanceStatus === "present"
                     ? "bg-emerald-600/90 text-white"
                     : participant.attendanceStatus === "late"
@@ -156,14 +156,14 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
               {showAttendanceDropdown && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute bottom-8 left-0 w-28 bg-[#001F40] border border-slate-700 rounded-lg shadow-xl p-1 flex flex-col gap-1 z-30"
+                  className="absolute bottom-8 left-0 w-28 bg-brand-navy-deep border border-slate-700 rounded-lg shadow-xl p-1 flex flex-col gap-1 z-30"
                 >
                   <button
                     onClick={() => {
                       markAttendanceQuick(participant.id, "present");
                       setShowAttendanceDropdown(false);
                     }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] text-slate-200 hover:bg-emerald-900/50 hover:text-emerald-300 text-left cursor-pointer"
+                    className="flex items-center gap-1.5 px-2 py-1 rounded text-2xs text-slate-200 hover:bg-emerald-900/50 hover:text-emerald-300 text-left cursor-pointer"
                   >
                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                     <span>Present</span>
@@ -173,7 +173,7 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
                       markAttendanceQuick(participant.id, "late");
                       setShowAttendanceDropdown(false);
                     }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] text-slate-200 hover:bg-amber-900/50 hover:text-amber-300 text-left cursor-pointer"
+                    className="flex items-center gap-1.5 px-2 py-1 rounded text-2xs text-slate-200 hover:bg-amber-900/50 hover:text-amber-300 text-left cursor-pointer"
                   >
                     <Clock className="w-3 h-3 text-amber-400" />
                     <span>Late</span>
@@ -183,7 +183,7 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
                       markAttendanceQuick(participant.id, "absent");
                       setShowAttendanceDropdown(false);
                     }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] text-slate-200 hover:bg-rose-900/50 hover:text-rose-300 text-left cursor-pointer"
+                    className="flex items-center gap-1.5 px-2 py-1 rounded text-2xs text-slate-200 hover:bg-rose-900/50 hover:text-rose-300 text-left cursor-pointer"
                   >
                     <XCircle className="w-3 h-3 text-rose-400" />
                     <span>Absent</span>
@@ -199,10 +199,10 @@ export const ParticipantTileActions: React.FC<ParticipantTileActionsProps> = ({ 
                 setActiveFeedbackTarget(participant);
                 setIsFeedbackModalOpen(true);
               }}
-              className="p-1.5 rounded-lg bg-[#FFBB00] hover:bg-amber-400 text-[#001F40] font-bold transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg bg-brand-yellow hover:bg-amber-400 text-brand-navy-deep font-bold transition-colors cursor-pointer"
               title="Share Direct Positive / Formative Feedback for this child"
             >
-              <Star className="w-3.5 h-3.5 fill-[#001F40]" />
+              <Star className="w-3.5 h-3.5 fill-brand-navy-deep" />
             </button>
 
             {/* 5. Kick / Remove Student */}

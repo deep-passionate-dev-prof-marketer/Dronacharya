@@ -1,45 +1,58 @@
 import React from "react";
 import { ClassroomProvider, useClassroom } from "./context/ClassroomContext";
 import { TopBar } from "./components/navigation/TopBar";
-import { VideoStage } from "./components/classroom/VideoStage";
-import { CollaborativeDock } from "./components/classroom/CollaborativeDock";
-import { DronacharyaAdminHub } from "./components/admin/DronacharyaAdminHub";
-import { OfflineRepository } from "./components/materials/OfflineRepository";
-import { AnalyticsDashboard } from "./components/analytics/AnalyticsDashboard";
-import { AttendanceMonitor } from "./components/attendance/AttendanceMonitor";
-import { BlockchainCertificates } from "./components/credentials/BlockchainCertificates";
-import { SelfHostedPanel } from "./components/system/SelfHostedPanel";
-import { ScheduleMeetingModal } from "./components/modals/ScheduleMeetingModal";
-import { AnnouncementModal } from "./components/modals/AnnouncementModal";
-import { AiSummaryModal } from "./components/modals/AiSummaryModal";
-import { LlmNotebookStudio } from "./components/notebook/LlmNotebookStudio";
-import { MultiDeviceRemoteConsole } from "./components/classroom/MultiDeviceRemoteConsole";
 import { IncomingAccessNotification } from "./components/classroom/IncomingAccessNotification";
-import { RoomBomberControlCenter } from "./components/bomber/RoomBomberControlCenter";
-import { PitchBreakoutHUD } from "./components/bomber/PitchBreakoutHUD";
-import { DocumentationModal } from "./components/docs/DocumentationModal";
-import { AuthPortalView } from "./components/auth/AuthPortalView";
-import { CampusCommunityFeed } from "./components/social/CampusCommunityFeed";
-import { FacilitatorAssignmentDashboard } from "./components/admin/FacilitatorAssignmentDashboard";
-import { CrmRoomIntegrationView } from "./components/admin/CrmRoomIntegrationView";
 import { SidebarNavigation } from "./components/navigation/SidebarNavigation";
-import { SplitViewContainer } from "./components/layout/SplitViewContainer";
-import { RoomLinkManagerModal } from "./components/links/RoomLinkManagerModal";
-import { SalesHub } from "./components/sales/SalesHub";
 import { SignInScreen } from "./components/auth/SignInScreen";
 import { ForensicWatermark } from "./components/protection/ForensicWatermark";
 import { useContentGuard } from "./components/protection/useContentGuard";
-import { GamifiedWaitingLobby } from "./components/classroom/GamifiedWaitingLobby";
-import { RealtimeInterpreterModal } from "./components/translation/RealtimeInterpreterModal";
-import { DeviceAuditCenter } from "./components/audit/DeviceAuditCenter";
 import { DeviceAccessGate } from "./components/access/DeviceAccessGate";
 import { AnalyticsConsentModal } from "./components/engagement/AnalyticsConsentModal";
 import { MobileTabBar } from "./components/navigation/MobileTabBar";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import { useUrlSync } from "./hooks/useUrlSync";
-import { DedicatedStudentLogin } from "./components/classroom/DedicatedStudentLogin";
 import { AuthUser } from "./types";
 import { Megaphone, X } from "lucide-react";
+import { canOpen, homeView, isClassContent } from "./routing/viewRegistry";
+import { parsePath } from "./routing/appRoutes";
+
+
+/** Views and modals load on first use, so the sign-in screen and shell paint fast. */
+const lazyNamed = <T extends Record<string, any>, K extends keyof T>(load: () => Promise<T>, name: K) =>
+  React.lazy(() => load().then((m) => ({ default: m[name] as React.ComponentType<any> })));
+const VideoStage = lazyNamed(() => import("./components/classroom/VideoStage"), "VideoStage");
+const CollaborativeDock = lazyNamed(() => import("./components/classroom/CollaborativeDock"), "CollaborativeDock");
+const DronacharyaAdminHub = lazyNamed(() => import("./components/admin/DronacharyaAdminHub"), "DronacharyaAdminHub");
+const OfflineRepository = lazyNamed(() => import("./components/materials/OfflineRepository"), "OfflineRepository");
+const ClassAnalytics = lazyNamed(() => import("./components/analytics/ClassAnalytics"), "ClassAnalytics");
+const AttendanceView = lazyNamed(() => import("./components/attendance/AttendanceView"), "AttendanceView");
+const BlockchainCertificates = lazyNamed(() => import("./components/credentials/BlockchainCertificates"), "BlockchainCertificates");
+const SelfHostedPanel = lazyNamed(() => import("./components/system/SelfHostedPanel"), "SelfHostedPanel");
+const ScheduleMeetingModal = lazyNamed(() => import("./components/modals/ScheduleMeetingModal"), "ScheduleMeetingModal");
+const AnnouncementModal = lazyNamed(() => import("./components/modals/AnnouncementModal"), "AnnouncementModal");
+const LlmNotebookStudio = lazyNamed(() => import("./components/notebook/LlmNotebookStudio"), "LlmNotebookStudio");
+const RecordingsView = lazyNamed(() => import("./components/recordings/RecordingsView"), "RecordingsView");
+const ParentHome = lazyNamed(() => import("./components/parent/ParentHome"), "ParentHome");
+const MultiDeviceRemoteConsole = lazyNamed(() => import("./components/classroom/MultiDeviceRemoteConsole"), "MultiDeviceRemoteConsole");
+const RoomBomberControlCenter = lazyNamed(() => import("./components/bomber/RoomBomberControlCenter"), "RoomBomberControlCenter");
+const PitchBreakoutHUD = lazyNamed(() => import("./components/bomber/PitchBreakoutHUD"), "PitchBreakoutHUD");
+const DocumentationModal = lazyNamed(() => import("./components/docs/DocumentationModal"), "DocumentationModal");
+const CampusCommunityFeed = lazyNamed(() => import("./components/social/CampusCommunityFeed"), "CampusCommunityFeed");
+const FacilitatorAssignmentDashboard = lazyNamed(() => import("./components/admin/FacilitatorAssignmentDashboard"), "FacilitatorAssignmentDashboard");
+const CrmRoomIntegrationView = lazyNamed(() => import("./components/admin/CrmRoomIntegrationView"), "CrmRoomIntegrationView");
+const RoomLinkManagerModal = lazyNamed(() => import("./components/links/RoomLinkManagerModal"), "RoomLinkManagerModal");
+const SalesHub = lazyNamed(() => import("./components/sales/SalesHub"), "SalesHub");
+const GamifiedWaitingLobby = lazyNamed(() => import("./components/classroom/GamifiedWaitingLobby"), "GamifiedWaitingLobby");
+const RealtimeInterpreterModal = lazyNamed(() => import("./components/translation/RealtimeInterpreterModal"), "RealtimeInterpreterModal");
+const DeviceAuditCenter = lazyNamed(() => import("./components/audit/DeviceAuditCenter"), "DeviceAuditCenter");
+const SplitViewContainer = lazyNamed(() => import("./components/layout/SplitViewContainer"), "SplitViewContainer");
+const ObserverPanel = lazyNamed(() => import("./components/classroom/ObserverPanel"), "ObserverPanel");
+
+const ViewFallback: React.FC = () => (
+  <div className="flex-1 flex items-center justify-center" role="status" aria-label="Loading">
+    <span className="w-7 h-7 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+  </div>
+);
 
 const SIDEBAR_PREF_KEY = "21k_sidebar_collapsed";
 const gateKey = (room: string, user: AuthUser) => `21k_gate_ok:${room}:${user.studentCode || user.id}`;
@@ -63,16 +76,21 @@ const MainLayout: React.FC = () => {
     currentRole,
     roomId,
     classStatus,
-    startClass,
+    enterClassroom,
+    enteredBeforeStart,
     logoutUser,
     authLoading,
     authError,
     activeDockTab,
     setActiveDockTab,
+    isScheduleModalOpen,
+    isAnnouncementModalOpen,
   } = useClassroom();
 
+  // Copy/print protection applies to pages that show class content (not to analytics or admin pages)
+  const classContent = isClassContent(activeView);
   useContentGuard({
-    enabled: Boolean(authenticatedUser),
+    enabled: Boolean(authenticatedUser) && classContent,
     roomSlug: roomId,
     view: activeView,
     allowScreenShare: ["instructor", "admin", "sales_rep"].includes(authenticatedUser?.role || ""),
@@ -146,27 +164,25 @@ const MainLayout: React.FC = () => {
   };
 
 
-  // Strict Role-Based View Protection and Auto-redirection
+  // After sign-in, people land on their role's home page, unless they opened a class link or a page URL
+  const landed = React.useRef(false);
+  // The address as first opened (the URL sync rewrites it before sign-in finishes)
+  const openedUrl = React.useRef({ pathname: window.location.pathname, search: window.location.search });
   React.useEffect(() => {
-    const roleAllowedViews: Record<string, string[]> = {
-      student: ["classroom", "social", "notebook", "materials", "blockchain"],
-      instructor: ["classroom", "social", "notebook", "materials", "attendance", "facilitators", "remote_access", "device_audit"],
-      auditor: ["classroom", "analytics", "attendance", "device_audit", "blockchain"],
-      sales_rep: ["sales_hub", "classroom", "room_bomber", "crm", "facilitators", "device_audit", "social"],
-      admin: [
-        "classroom", "sales_hub", "device_audit", "social", "room_bomber",
-        "facilitators", "crm", "notebook", "admin", "materials",
-        "analytics", "attendance", "blockchain", "selfhosted", "remote_access"
-      ],
-    };
+    if (!authenticatedUser || landed.current) return;
+    landed.current = true;
+    const { pathname, search } = openedUrl.current;
+    const openedSomething = Boolean(parsePath(pathname)) || /^\/(room|s)\//.test(pathname) || /[?&](room|roomId|join|meet|view|invite)=/.test(search);
+    if (!openedSomething && activeView === "classroom") setActiveView(homeView(authenticatedUser.role) as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticatedUser]);
 
-    const allowed = roleAllowedViews[currentRole] || ["classroom"];
-    if (!allowed.includes(activeView)) {
-      // Auto redirect to primary role view
-      const defaultView = currentRole === "sales_rep" ? "sales_hub" : "classroom";
-      setActiveView(defaultView as any);
-    }
-  }, [currentRole, activeView, setActiveView]);
+  // Pages a role can't open send them to their home page (one list for every role: viewRegistry)
+  // Uses the signed-in user's role: `currentRole` catches up one render later and starts as "student"
+  const signedInRole = authenticatedUser?.role;
+  React.useEffect(() => {
+    if (signedInRole && !canOpen(signedInRole, activeView)) setActiveView(homeView(signedInRole) as any);
+  }, [signedInRole, activeView, setActiveView]);
 
   // Keyboard shortcut Cmd/Ctrl + B to toggle sidebar
   React.useEffect(() => {
@@ -198,27 +214,14 @@ const MainLayout: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#060a14]" role="status" aria-label="Loading">
+      <div className="fixed inset-0 flex items-center justify-center bg-canvas" role="status" aria-label="Loading">
         <span className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
       </div>
     );
   }
 
   if (!authenticatedUser) {
-    const isStudentLink = typeof window !== "undefined" && (() => {
-      const p = new URLSearchParams(window.location.search);
-      return p.get("role") === "student" || Boolean(p.get("sid")) || Boolean(p.get("studentId"));
-    })();
-
-    if (isStudentLink) {
-      return (
-        <DedicatedStudentLogin
-          initialRoomId={roomId}
-          onJoinSuccess={(user, targetRoom) => handleJoin(user, targetRoom)}
-        />
-      );
-    }
-
+    // Everyone signs in on the server (class links carry a signed invite); there is no client-side login
     return <SignInScreen error={authError} onSignedIn={(user) => handleJoin(user, roomId)} />;
   }
 
@@ -243,7 +246,7 @@ const MainLayout: React.FC = () => {
   const showMobileTabBar = isMobile && activeView !== "classroom";
 
   return (
-    <div className="w-full max-w-full h-[100dvh] min-h-[100dvh] flex flex-col bg-[#070b14] text-slate-100 overflow-hidden font-sans pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
+    <div className="w-full max-w-full h-[100dvh] min-h-[100dvh] flex flex-col bg-canvas text-slate-100 overflow-hidden font-sans pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
       {/* Top Bar Navigation (Deep Frosted Glassmorphism Theme) */}
       <TopBar onOpenMobileNav={isMobile ? () => setIsMobileNavOpen(true) : undefined} />
 
@@ -252,16 +255,16 @@ const MainLayout: React.FC = () => {
         <div
           className={`min-h-9 py-1.5 px-3 sm:px-4 flex items-center justify-between gap-2 text-xs z-20 transition-all font-sans ${
             activeBannerAnnouncement.priority === "urgent"
-              ? "bg-[#FF7176] text-white border-b border-[#e65c61]"
+              ? "bg-brand-coral text-white border-b border-brand-coral-strong"
               : activeBannerAnnouncement.priority === "info"
-              ? "bg-[#003872] text-white border-b border-[#00264d]"
+              ? "bg-brand-navy text-white border-b border-brand-navy-ink"
               : "bg-slate-800 text-white border-b border-slate-700"
           }`}
         >
           <div className="flex items-center gap-2 font-medium min-w-0">
-            <Megaphone className="w-3.5 h-3.5 shrink-0 text-[#FFBB00]" />
+            <Megaphone className="w-3.5 h-3.5 shrink-0 text-brand-yellow" />
             <span className="min-w-0 line-clamp-2 sm:line-clamp-1">
-              <span className="font-bold uppercase tracking-wider text-[11px] mr-1.5">{activeBannerAnnouncement.title}:</span>
+              <span className="font-bold uppercase tracking-wider text-2xs mr-1.5">{activeBannerAnnouncement.title}:</span>
               {activeBannerAnnouncement.message}
             </span>
           </div>
@@ -279,10 +282,9 @@ const MainLayout: React.FC = () => {
 
       {/* Room Bomber 1:1 Breakout Pitch HUD Overlay */}
       {isRoomBomberActive && showPitchHud && (
-        <PitchBreakoutHUD
-          pitchRoom={activePitchRoom}
-          onClose={() => setShowPitchHud(false)}
-        />
+        <React.Suspense fallback={null}>
+          <PitchBreakoutHUD pitchRoom={activePitchRoom} onClose={() => setShowPitchHud(false)} />
+        </React.Suspense>
       )}
 
       {/* Workspace Shell Container: Sidebar + Active Canvas Split */}
@@ -298,16 +300,18 @@ const MainLayout: React.FC = () => {
         />
 
         {/* Main Content Area */}
-        <main className="content-guarded flex-1 min-w-0 flex flex-col overflow-hidden relative bg-[#070b14]">
+        <main className={`${classContent ? "content-guarded " : ""}flex-1 min-w-0 flex flex-col overflow-hidden relative bg-canvas`}>
           {authenticatedUser.watermarkId && <ForensicWatermark id={authenticatedUser.watermarkId} />}
+          <React.Suspense fallback={<ViewFallback />}>
           {activeView === "classroom" && (
-            authenticatedUser?.role === "student" && classStatus === "waiting" ? (
-              <GamifiedWaitingLobby onEnterClassroom={() => startClass()} />
+            authenticatedUser?.role === "student" && classStatus === "waiting" && !enteredBeforeStart ? (
+              <GamifiedWaitingLobby onEnterClassroom={enterClassroom} />
             ) : (
               <SplitViewContainer
-                initialSplitRatio={65}
+                initialSplitRatio={authenticatedUser.role === "auditor" ? 60 : 65}
                 leftContent={<VideoStage />}
-                rightContent={<CollaborativeDock />}
+                // Auditors observe: live numbers, engagement, transcript and their review instead of the teaching dock
+                rightContent={authenticatedUser.role === "auditor" ? <ObserverPanel /> : <CollaborativeDock />}
               />
             )
           )}
@@ -319,48 +323,54 @@ const MainLayout: React.FC = () => {
           {activeView === "facilitators" && <FacilitatorAssignmentDashboard />}
           {activeView === "crm" && <CrmRoomIntegrationView />}
           {activeView === "notebook" && <LlmNotebookStudio />}
+          {activeView === "recordings" && <RecordingsView />}
+          {activeView === "parent_home" && <ParentHome />}
           {activeView === "admin" && <DronacharyaAdminHub />}
           {activeView === "materials" && <OfflineRepository />}
-          {activeView === "analytics" && <AnalyticsDashboard />}
-          {activeView === "attendance" && <AttendanceMonitor />}
+          {activeView === "analytics" && <ClassAnalytics />}
+          {activeView === "attendance" && <AttendanceView />}
           {activeView === "blockchain" && <BlockchainCertificates />}
           {activeView === "selfhosted" && <SelfHostedPanel />}
           {activeView === "remote_access" && <MultiDeviceRemoteConsole />}
+          </React.Suspense>
         </main>
       </div>
 
       {showMobileTabBar && <MobileTabBar onOpenMore={() => setIsMobileNavOpen(true)} />}
 
-      {/* Global Room Link Manager Modal */}
-      <RoomLinkManagerModal
-        isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
-      />
-
-      {/* Global Modals & Real-time Prompts */}
-      <ScheduleMeetingModal />
-      <AnnouncementModal />
-      <AiSummaryModal />
       <IncomingAccessNotification />
       <AnalyticsConsentModal />
 
-      {/* Standalone System Documentation Modal */}
-      <DocumentationModal
-        isOpen={isDocsModalOpen}
-        onClose={() => setIsDocsModalOpen(false)}
-      />
-
-      {/* Real-Time AI Live Interpreter & Translation Studio Modal */}
-      <RealtimeInterpreterModal
-        isOpen={isInterpreterModalOpen}
-        onClose={() => setIsInterpreterModalOpen(false)}
-      />
+      {/* Modals load when first opened */}
+      <React.Suspense fallback={null}>
+        {isLinkModalOpen && <RoomLinkManagerModal isOpen onClose={() => setIsLinkModalOpen(false)} />}
+        {isScheduleModalOpen && <ScheduleMeetingModal />}
+        {isAnnouncementModalOpen && <AnnouncementModal />}
+        {isDocsModalOpen && <DocumentationModal isOpen onClose={() => setIsDocsModalOpen(false)} />}
+        {isInterpreterModalOpen && <RealtimeInterpreterModal isOpen onClose={() => setIsInterpreterModalOpen(false)} />}
+      </React.Suspense>
 
     </div>
   );
 };
 
+const DownloadPage = lazyNamed(() => import("./components/access/DownloadPage"), "DownloadPage");
+
 export default function App() {
+  // Public page (no sign-in, no camera): the desktop app download
+  if (typeof window !== "undefined" && window.location.pathname === "/download") {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="fixed inset-0 flex items-center justify-center bg-canvas" role="status" aria-label="Loading">
+            <span className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+          </div>
+        }
+      >
+        <DownloadPage />
+      </React.Suspense>
+    );
+  }
   return (
     <ClassroomProvider>
       <MainLayout />

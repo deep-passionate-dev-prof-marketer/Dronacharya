@@ -124,10 +124,10 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
   return (
     <div className="bg-slate-900/70 border-b border-white/15 shadow-md font-sans text-slate-100 z-30">
       {/* Top Banner Bar */}
-      <div className="h-10 px-4 bg-linear-to-r from-[#991B1B] via-[#DC2626] to-[#EF4444] text-white flex items-center justify-between text-xs">
+      <div className="h-10 px-4 bg-linear-to-r from-red-800 via-red-600 to-red-500 text-white flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
-          <span className="font-bold uppercase tracking-wider text-[11px] bg-white/20 px-2 py-0.5 rounded">
+          <span className="font-bold uppercase tracking-wider text-2xs bg-white/20 px-2 py-0.5 rounded">
             1:1 Private Pitch Breakout
           </span>
           <span className="font-bold">{activeRoom.roomName}</span>
@@ -136,7 +136,7 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+          <div className="flex items-center gap-1.5 font-mono text-2xs">
             <span className="text-rose-200">Parent Engagement:</span>
             <span className="font-bold text-emerald-300">
               {activeRoom.parentEngagementScore}% High Focus
@@ -159,25 +159,25 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
         {/* Left: Prospect Quick Dossier (3 Cols) */}
         <div className="lg:col-span-3 bg-white/[0.03] rounded-xl p-3 border border-white/10 text-xs space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-blue-300 uppercase tracking-wider text-[10px] flex items-center gap-1">
+            <span className="font-bold text-blue-300 uppercase tracking-wider text-2xs flex items-center gap-1">
               <User className="w-3 h-3" />
               <span>Prospect File</span>
             </span>
-            <span className="text-[10px] font-mono font-bold text-slate-400">
+            <span className="text-2xs font-mono font-bold text-slate-400">
               Grade {activeRoom.gradeLevel}
             </span>
           </div>
 
           <div className="text-slate-200">
             <div className="font-bold text-slate-100">{activeRoom.studentName}</div>
-            <div className="text-[11px] text-slate-400">Parent: {activeRoom.parentName}</div>
-            <div className="text-[10px] font-mono text-slate-300 flex items-center gap-1 mt-0.5">
+            <div className="text-2xs text-slate-400">Parent: {activeRoom.parentName}</div>
+            <div className="text-2xs font-mono text-slate-300 flex items-center gap-1 mt-0.5">
               <Phone className="w-2.5 h-2.5 text-slate-400" />
               <span>{activeRoom.parentPhone}</span>
             </div>
           </div>
 
-          <div className="pt-1.5 border-t border-white/10 text-[10px] text-slate-300 truncate">
+          <div className="pt-1.5 border-t border-white/10 text-2xs text-slate-300 truncate">
             Target: <span className="font-medium text-slate-100">{activeRoom.academicGoals}</span>
           </div>
         </div>
@@ -221,9 +221,9 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
             {steps[currentStep - 1].actionAction ? (
               <button
                 onClick={steps[currentStep - 1].actionAction}
-                className="py-1.5 px-3 rounded-lg bg-[#003872] hover:bg-[#002852] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="py-1.5 px-3 rounded-lg bg-brand-navy hover:bg-brand-navy-ink text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#FFBB00]" />
+                <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
                 <span>{steps[currentStep - 1].actionLabel}</span>
               </button>
             ) : null}
@@ -244,10 +244,10 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
         <div className="lg:col-span-3 bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/30 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs mb-1">
-              <span className="font-bold text-emerald-300 uppercase tracking-wider text-[10px]">
+              <span className="font-bold text-emerald-300 uppercase tracking-wider text-2xs">
                 Tuition & Scholarship
               </span>
-              <span className="font-mono font-bold text-emerald-300 text-[11px]">
+              <span className="font-mono font-bold text-emerald-300 text-2xs">
                 {scholarshipPercent > 0 ? `-${scholarshipPercent}% Spot Grant` : "Full Rate"}
               </span>
             </div>
@@ -256,9 +256,9 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
               <span className="font-mono text-xl font-black text-emerald-300">
                 ${discountedTuition}
               </span>
-              <span className="text-[11px] text-slate-400">/academic year</span>
+              <span className="text-2xs text-slate-400">/academic year</span>
               {scholarshipPercent > 0 && (
-                <span className="text-[10px] text-slate-400 line-through">
+                <span className="text-2xs text-slate-400 line-through">
                   ${activeRoom.tuitionTotal}
                 </span>
               )}
@@ -270,7 +270,7 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleApplyDiscount(25)}
-                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-colors ${
+                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-2xs border transition-colors ${
                     scholarshipPercent === 25
                       ? "bg-emerald-600 text-white border-emerald-600"
                       : "bg-slate-900/70 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10"
@@ -281,7 +281,7 @@ export const PitchBreakoutHUD: React.FC<Props> = ({ pitchRoom, onClose }) => {
                 </button>
                 <button
                   onClick={handleSignContract}
-                  className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] shadow-xs transition-colors"
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-2xs shadow-xs transition-colors"
                 >
                   Sign & Close
                 </button>

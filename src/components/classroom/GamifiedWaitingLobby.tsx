@@ -304,7 +304,7 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-[#070b14] overflow-hidden select-none">
+    <div className="relative w-full h-full flex flex-col bg-canvas overflow-hidden select-none">
       {/* Top Lobby Metaverse HUD Bar */}
       <div className="px-4 py-3 bg-slate-900/90 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0 backdrop-blur-xl z-20">
         <div className="flex items-center gap-3">
@@ -321,8 +321,8 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
             <div className="mt-1 max-w-[70vw]">
               <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} />
             </div>
-            <p className="hidden sm:block text-[11px] text-slate-400">
-              Interactive Minecraft Voxel Campus · Explore with <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">W</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">A</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">S</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">D</kbd> or Click to Walk
+            <p className="hidden sm:block text-2xs text-slate-400">
+              Interactive Minecraft Voxel Campus · Explore with <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-2xs">W</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-2xs">A</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-2xs">S</kbd><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-2xs">D</kbd> or Click to Walk
             </p>
           </div>
         </div>
@@ -332,7 +332,7 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-950/60 border border-amber-500/30 text-amber-300">
             <Clock className="w-4 h-4 animate-spin text-amber-400" />
             <div className="text-right">
-              <span className="text-[9px] uppercase font-bold text-amber-400/80 block leading-none">
+              <span className="text-2xs uppercase font-bold text-amber-400/80 block leading-none">
                 {startsInLabel}
               </span>
               <span className="text-xs font-mono font-black text-amber-300">
@@ -353,7 +353,7 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
       </div>
 
       {/* Main Minecraft Interactive Voxel Canvas Area */}
-      <div className="flex-1 relative flex items-center justify-center p-2 sm:p-4 bg-[#050811] overflow-hidden">
+      <div className="flex-1 relative flex items-center justify-center p-2 sm:p-4 bg-surface-sunken overflow-hidden">
         <canvas
           ref={canvasRef}
           width={720}
@@ -369,12 +369,12 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
             <span>Player: <strong className="text-cyan-300">{currentUser?.name || "Sophia Chen"}</strong></span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 text-slate-400 text-[11px] border-l border-white/10 pl-3">
+          <div className="hidden sm:flex items-center gap-1.5 text-slate-400 text-2xs border-l border-white/10 pl-3">
             <Compass className="w-3.5 h-3.5 text-blue-400" />
             <span>4 Scholars Waiting in Lobby</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-1.5 text-slate-400 text-[11px] border-l border-white/10 pl-3">
+          <div className="hidden md:flex items-center gap-1.5 text-slate-400 text-2xs border-l border-white/10 pl-3">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
             <span>AI Real-Time Dual Translation Ready</span>
           </div>

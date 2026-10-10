@@ -75,8 +75,9 @@ export const whiteboardStore = {
     if (wired) return;
     wired = true;
     classroomTransport.onData("wb_stroke", (s: WbStroke) => s?.id && upsert(s));
-    classroomTransport.onData("wb_clear", (p: { ids?: string[] }) => {
-      strokes = p?.ids ? strokes.filter((s) => !p.ids!.includes(s.id)) : [];
+    classroomTransport.onData("wb_clear", (p: { ids?: string[] }, from, fromHost) => {
+      // Undo removes only the sender's own strokes; a full clear comes from a host
+      strokes = p?.ids ? strokes.filter((s) => !(p.ids!.includes(s.id) && (fromHost || s.by === from))) : [];
       emit();
     });
     classroomTransport.onData("wb_sync_request", (_p, from) => {

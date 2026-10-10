@@ -77,6 +77,8 @@ export const ScheduleMeetingModal: React.FC = () => {
   const [allowInterpreter, setAllowInterpreter] = useState(false);
   const [classKind, setClassKind] = useState<ClassKind>("demo");
   const [classTopic, setClassTopic] = useState("");
+  /** Named batch for class analytics; left empty, the server names it from programme, grade and slot */
+  const [classCohort, setClassCohort] = useState("");
   const [matchedTeacher, setMatchedTeacher] = useState<PickedTeacher | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
@@ -110,6 +112,7 @@ export const ScheduleMeetingModal: React.FC = () => {
           parent: manualParentEmail ? { name: manualParentName, email: manualParentEmail } : undefined,
           kind: classKind,
           topic: classTopic.trim() || undefined,
+          cohort: classCohort.trim() || undefined,
           course: manualCourse,
         }),
       });
@@ -289,7 +292,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
       <div className="animate-sheetUp sm:animate-fadeIn w-full max-w-2xl rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 md:p-6 flex flex-col gap-4 shadow-2xl font-sans text-slate-200 max-h-[94dvh] sm:max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-[#FFBB00]" />
+            <Calendar className="w-5 h-5 text-brand-yellow" />
             <h2 className="text-sm font-bold text-white">21K School Meeting & Demo Room Manager</h2>
           </div>
           <button
@@ -310,7 +313,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            <Zap className="w-3.5 h-3.5 text-[#FFBB00]" />
+            <Zap className="w-3.5 h-3.5 text-brand-yellow" />
             <span>Manual Link & Room Builder</span>
           </button>
           <button
@@ -346,13 +349,13 @@ Security: Hardware-Accelerated AES-256-GCM`;
               <p className="text-xs text-rose-200/80 max-w-md leading-relaxed">
                 Manual room creation and student credential provisioning is strictly restricted to certified Instructors, Admissions Officers, and Platform Administrators.
               </p>
-              <div className="text-[11px] font-mono text-slate-400 bg-black/40 px-3 py-1 rounded-full border border-white/10 mt-1">
+              <div className="text-2xs font-mono text-slate-400 bg-black/40 px-3 py-1 rounded-full border border-white/10 mt-1">
                 Active Role: <span className="text-amber-400 font-bold uppercase">{currentRole}</span> (Unauthorized)
               </div>
             </div>
           ) : (
             <div className="flex flex-col gap-3.5">
-              <div className="text-[11px] text-slate-300 leading-relaxed bg-blue-950/50 p-3 rounded-xl border border-blue-500/30 flex items-start gap-2.5">
+              <div className="text-2xs text-slate-300 leading-relaxed bg-blue-950/50 p-3 rounded-xl border border-blue-500/30 flex items-start gap-2.5">
                 <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-cyan-300">CRM is Optional:</strong> You have full authorization to manually generate custom meeting links and provision classroom rooms on-demand. Unique Student IDs (<code className="text-emerald-300 font-mono">2-Digit Numeric + 8-Char Alpha</code>) and auto-filled passwords will be provisioned instantly.
@@ -363,7 +366,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 {/* Student Name */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Student Full Name</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Student Full Name</label>
                   <input
                     type="text"
                     value={manualStudentName}
@@ -375,7 +378,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Grade Level */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Grade Level</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Grade Level</label>
                   <select
                     value={manualGrade}
                     onChange={(e) => {
@@ -398,11 +401,11 @@ Security: Hardware-Accelerated AES-256-GCM`;
                 {/* Student ID (Auto-generated with Regenerate button) */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] text-slate-400 font-semibold">Student ID (2-Digit + 8-Alpha)</label>
+                    <label className="text-2xs text-slate-400 font-semibold">Student ID (2-Digit + 8-Alpha)</label>
                     <button
                       type="button"
                       onClick={handleRegenerateStudentId}
-                      className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-mono"
+                      className="text-2xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-mono"
                     >
                       <RefreshCw className="w-2.5 h-2.5" />
                       <span>Regenerate</span>
@@ -419,9 +422,9 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Password (Auto-extracted last 4 chars) */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold flex items-center justify-between">
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold flex items-center justify-between">
                     <span>Auto-filled Password</span>
-                    <span className="text-[10px] text-emerald-400 font-mono">Last 4 chars of ID</span>
+                    <span className="text-2xs text-emerald-400 font-mono">Last 4 chars of ID</span>
                   </label>
                   <div className="relative">
                     <input
@@ -436,7 +439,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Course / Subject */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Course / Subject</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Course / Subject</label>
                   <select
                     value={manualCourse}
                     onChange={(e) => setManualCourse(e.target.value)}
@@ -454,7 +457,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Country */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Student Country</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Student Country</label>
                   <select
                     value={manualCountry}
                     onChange={(e) => setManualCountry(e.target.value)}
@@ -472,7 +475,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Preferred Spoken Language */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Preferred Spoken Language (AI Interpreter)</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Preferred Spoken Language (AI Interpreter)</label>
                   <select
                     value={manualLanguage}
                     onChange={(e) => setManualLanguage(e.target.value)}
@@ -491,7 +494,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Meeting Ratio */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Room Capacity Ratio</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Room Capacity Ratio</label>
                   <select
                     value={manualRatio}
                     onChange={(e) => setManualRatio(e.target.value as any)}
@@ -508,7 +511,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* What kind of session this is: shown to everyone on screen */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Session type</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Session type</label>
                   <select
                     value={classKind}
                     onChange={(e) => setClassKind(e.target.value as ClassKind)}
@@ -522,7 +525,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Topic</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Topic</label>
                   <input
                     type="text"
                     value={classTopic}
@@ -531,17 +534,32 @@ Security: Hardware-Accelerated AES-256-GCM`;
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
+                <div>
+                  <label htmlFor="schedule-cohort" className="text-2xs text-slate-400 block mb-1 font-semibold">
+                    Batch <span className="font-normal text-slate-500">(optional)</span>
+                  </label>
+                  <input
+                    id="schedule-cohort"
+                    type="text"
+                    value={classCohort}
+                    maxLength={80}
+                    onChange={(e) => setClassCohort(e.target.value)}
+                    placeholder="e.g. G10 IGCSE · Batch A · 2026"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="mt-1 text-2xs text-slate-500">Learners joining an existing group class keep that class's batch.</p>
+                </div>
 
                 {/* Class time (your local time) */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Class time (your local time)</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Class time (your local time)</label>
                   <input
                     type="datetime-local"
                     value={manualStartLocal}
                     onChange={(e) => setManualStartLocal(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]"
                   />
-                  <label className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
+                  <label className="mt-1.5 flex items-center gap-2 text-2xs text-slate-400">
                     <input type="checkbox" checked={allowInterpreter} onChange={(e) => setAllowInterpreter(e.target.checked)} className="accent-blue-500" />
                     Allow AI interpreter if no teacher speaks this language
                   </label>
@@ -561,7 +579,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
                 {/* Room Code */}
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Room Code / Slug</label>
+                  <label className="text-2xs text-slate-400 block mb-1 font-semibold">Room Code / Slug</label>
                   <input
                     type="text"
                     value={manualRoomCode}
@@ -573,16 +591,16 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
               {/* Dynamic URL Preview Box */}
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-2xs">
                   <span className="font-bold text-slate-400 flex items-center gap-1.5">
                     <Link2 className="w-3.5 h-3.5 text-blue-400" />
                     <span>Live Generated Meeting Link:</span>
                   </span>
-                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  <span className="text-2xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                     Ready to Share
                   </span>
                 </div>
-                <div className="p-2 rounded bg-slate-900 border border-white/5 font-mono text-[11px] text-cyan-300 truncate select-all">
+                <div className="p-2 rounded bg-slate-900 border border-white/5 font-mono text-2xs text-cyan-300 truncate select-all">
                   {liveGeneratedUrl}
                 </div>
               </div>
@@ -625,8 +643,8 @@ Security: Hardware-Accelerated AES-256-GCM`;
         ) : activeTab === "crm_leads" ? (
           /* CRM Demo Bookings Tab */
           <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">
-            <div className="text-[11px] text-slate-400 leading-relaxed bg-blue-950/40 p-2.5 rounded-xl border border-blue-500/20 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-[#FFBB00] shrink-0" />
+            <div className="text-2xs text-slate-400 leading-relaxed bg-blue-950/40 p-2.5 rounded-xl border border-blue-500/20 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
               <span><strong>CRM Demo Queue Connected:</strong> Student leads booked via website are automatically assigned to your teacher schedule. Unique Student IDs (<code className="text-cyan-300 font-mono">2-digit numeric + 8-char alphabet</code>) and auto-filled passwords have been provisioned.</span>
             </div>
 
@@ -639,27 +657,27 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-white">{lead.studentName}</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">{lead.country}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                      <span className="text-2xs font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">{lead.country}</span>
+                      <span className="text-2xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
                         {lead.studentId}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
+                    <div className="text-2xs text-slate-400 mt-0.5">
                       Grade {lead.gradeLevel} · {lead.course} · Ratio {lead.meetingRatio}
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 shrink-0">
+                  <span className="text-2xs font-mono px-2 py-1 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 shrink-0">
                     {lead.crmSource}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-white/5">
+                <div className="flex items-center justify-between text-2xs text-slate-400 bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-white/5">
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3 h-3 text-amber-400" />
                     <span>{lead.scheduledTime}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 font-mono text-[10px] text-slate-300">
+                  <div className="flex items-center gap-1.5 font-mono text-2xs text-slate-300">
                     <span>Auto-pass:</span>
                     <strong className="text-cyan-300 font-bold">{lead.password}</strong>
                   </div>
@@ -698,7 +716,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
           <>
             <div className="flex flex-col gap-3 text-xs">
               <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Session Topic</label>
+                <label className="text-2xs text-slate-400 block mb-1">Session Topic</label>
                 <input
                   type="text"
                   value={sessionName}
@@ -709,7 +727,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Category</label>
+                  <label className="text-2xs text-slate-400 block mb-1">Category</label>
                   <select
                     value={roomCategory}
                     onChange={(e) => setRoomCategory(e.target.value as any)}
@@ -721,7 +739,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Class Type (Subcategory Code)</label>
+                  <label className="text-2xs text-slate-400 block mb-1">Class Type (Subcategory Code)</label>
                   <select
                     value={subCategoryCode}
                     onChange={(e) => setSubCategoryCode(e.target.value as any)}
@@ -738,7 +756,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Capacity Ratio (1:1 to 1:24)</label>
+                  <label className="text-2xs text-slate-400 block mb-1">Capacity Ratio (1:1 to 1:24)</label>
                   <select
                     value={capacityRatio}
                     onChange={(e) => setCapacityRatio(e.target.value)}
@@ -759,7 +777,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Duration</label>
+                  <label className="text-2xs text-slate-400 block mb-1">Duration</label>
                   <select
                     value={durationMins}
                     onChange={(e) => setDurationMins(parseInt(e.target.value, 10))}
@@ -774,7 +792,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Date</label>
+                  <label className="text-2xs text-slate-400 block mb-1">Date</label>
                   <input
                     type="date"
                     value={sessionDate}
@@ -783,7 +801,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Start Time (UTC)</label>
+                  <label className="text-2xs text-slate-400 block mb-1">Start Time (UTC)</label>
                   <input
                     type="time"
                     value={sessionTime}
@@ -799,9 +817,9 @@ Security: Hardware-Accelerated AES-256-GCM`;
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleOpenGoogleCalendar}
-                  className="flex-1 py-2 rounded-lg bg-[#003872] hover:bg-[#00264d] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                  className="flex-1 py-2 rounded-lg bg-brand-navy hover:bg-brand-navy-ink text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
                 >
-                  <ExternalLink className="w-3.5 h-3.5 text-[#FFBB00]" />
+                  <ExternalLink className="w-3.5 h-3.5 text-brand-yellow" />
                   <span>Add to Google Calendar</span>
                 </button>
                 <button

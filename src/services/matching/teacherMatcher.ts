@@ -40,6 +40,8 @@ export interface Booking {
   classSize: number;
   studentKeys: string[];
   sessionType?: string;
+  /** Named batch the class belongs to (learners joining an open section inherit it) */
+  cohort?: string | null;
   createdAt: string;
 }
 

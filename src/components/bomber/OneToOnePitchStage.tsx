@@ -356,7 +356,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#070b14] font-sans text-slate-100 overflow-hidden relative">
+    <div className="w-full h-full flex flex-col bg-canvas font-sans text-slate-100 overflow-hidden relative">
       {/* Top 1:1 Executive Status Strip */}
       <div className="h-12 bg-slate-900/90 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
@@ -375,7 +375,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
           </div>
 
           {/* E2EE Lock Badge */}
-          <div className="hidden lg:flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
+          <div className="hidden lg:flex items-center gap-1 text-2xs font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
             <ShieldCheck className="w-3 h-3" />
             <span>E2EE 256-bit Encrypted</span>
           </div>
@@ -389,7 +389,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
           </div>
 
           {/* Talk-to-Listen Live Monitor */}
-          <div className="hidden md:flex items-center gap-2 text-[11px] font-mono bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-lg">
+          <div className="hidden md:flex items-center gap-2 text-2xs font-mono bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-lg">
             <span className="text-slate-400">Talk Ratio:</span>
             <span className={`font-bold ${dynamics.isMonopolizing ? "text-rose-400" : "text-emerald-400"}`}>
               Rep {dynamics.repPercent}% : {dynamics.leadPercent}% Parent
@@ -401,7 +401,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
             <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
               <button
                 onClick={() => setMobilePitchView("video")}
-                className={`px-2 py-1 text-[11px] font-bold rounded transition-all cursor-pointer ${
+                className={`px-2 py-1 text-2xs font-bold rounded transition-all cursor-pointer ${
                   mobilePitchView === "video"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-slate-400 hover:text-white"
@@ -411,7 +411,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
               </button>
               <button
                 onClick={() => setMobilePitchView("cockpit")}
-                className={`px-2 py-1 text-[11px] font-bold rounded transition-all cursor-pointer ${
+                className={`px-2 py-1 text-2xs font-bold rounded transition-all cursor-pointer ${
                   mobilePitchView === "cockpit"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-slate-400 hover:text-white"
@@ -438,7 +438,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Side: 1:1 Video Conference Grid */}
         <div
-          className={`flex-1 flex flex-col bg-[#060911] overflow-hidden p-2 sm:p-4 relative ${
+          className={`flex-1 flex flex-col bg-surface-sunken overflow-hidden p-2 sm:p-4 relative ${
             isMobileScreen && mobilePitchView !== "video" ? "hidden" : "flex"
           }`}
         >
@@ -465,7 +465,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                   <p className="text-xs text-amber-400 font-mono mt-0.5">
                     Authorized Admissions Counselor (You)
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-1">21K School Global Admissions</p>
+                  <p className="text-2xs text-slate-400 mt-1">21K School Global Admissions</p>
 
                   {/* Equalizer */}
                   <div className="flex items-center gap-1 mt-4">
@@ -479,7 +479,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
 
               {/* Bottom Badge */}
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs pointer-events-none">
-                <div className="px-2.5 py-1 rounded bg-black/70 backdrop-blur border border-white/10 font-mono text-[11px] text-slate-200">
+                <div className="px-2.5 py-1 rounded bg-black/70 backdrop-blur border border-white/10 font-mono text-2xs text-slate-200">
                   <span>{pitchRoom.salesRepName} (Host)</span>
                 </div>
                 <div className="flex items-center gap-1.5 pointer-events-auto">
@@ -516,7 +516,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                 <p className="text-xs text-indigo-300 font-medium mt-0.5">
                   Parent: {pitchRoom.parentName}
                 </p>
-                <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-400">
+                <div className="flex items-center gap-2 mt-2 text-2xs text-slate-400">
                   <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">
                     Grade {pitchRoom.gradeLevel}
                   </span>
@@ -536,11 +536,11 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
 
               {/* Bottom Badge */}
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs pointer-events-none">
-                <div className="px-2.5 py-1 rounded bg-black/70 backdrop-blur border border-white/10 font-mono text-[11px] text-slate-200 flex items-center gap-2">
+                <div className="px-2.5 py-1 rounded bg-black/70 backdrop-blur border border-white/10 font-mono text-2xs text-slate-200 flex items-center gap-2">
                   <span>{pitchRoom.parentName} & {pitchRoom.studentName}</span>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 </div>
-                <div className="px-2 py-1 rounded bg-black/70 backdrop-blur border border-white/10 text-[10px] font-mono text-cyan-300">
+                <div className="px-2 py-1 rounded bg-black/70 backdrop-blur border border-white/10 text-2xs font-mono text-cyan-300">
                   Madrid (CET) · Laptop
                 </div>
               </div>
@@ -551,10 +551,10 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
           <div className="mt-3 bg-slate-900/90 border border-slate-800 rounded-xl p-3 max-w-5xl mx-auto w-full backdrop-blur-md">
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-bold text-white uppercase text-[10px] tracking-wider">
+              <span className="font-bold text-white uppercase text-2xs tracking-wider">
                 Live Speech Subtitles:
               </span>
-              <span className="font-mono text-[11px] text-cyan-300">
+              <span className="font-mono text-2xs text-cyan-300">
                 {transcript[transcript.length - 1]?.speaker || pitchRoom.parentName}
               </span>
             </div>
@@ -624,7 +624,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
               {/* Quality Score & Probability Cards */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
-                  <span className="text-[10px] text-slate-400 uppercase font-mono">
+                  <span className="text-2xs text-slate-400 uppercase font-mono">
                     Lead Quality Score
                   </span>
                   <div className="flex items-baseline gap-1 mt-1">
@@ -633,13 +633,13 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                     </span>
                     <span className="text-slate-500 font-mono">/100</span>
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-bold mt-1">
+                  <span className="text-2xs text-emerald-400 font-bold mt-1">
                     Tier-1 High Intent
                   </span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
-                  <span className="text-[10px] text-slate-400 uppercase font-mono">
+                  <span className="text-2xs text-slate-400 uppercase font-mono">
                     Close Likelihood
                   </span>
                   <div className="flex items-baseline gap-1 mt-1">
@@ -647,7 +647,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                       {leadIntelligence.conversionProbability}%
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono mt-1">
+                  <span className="text-2xs text-slate-400 font-mono mt-1">
                     Decision Maker On Call
                   </span>
                 </div>
@@ -655,14 +655,14 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
 
               {/* Pre-Call AI Background Brief */}
               <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/60 space-y-2">
-                <div className="flex items-center gap-1.5 text-blue-300 font-bold uppercase text-[10px] tracking-wider">
+                <div className="flex items-center gap-1.5 text-blue-300 font-bold uppercase text-2xs tracking-wider">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>Pre-Call AI Briefing (CRM Ingestion)</span>
                 </div>
                 <p className="text-slate-200 leading-relaxed text-xs">
                   {leadIntelligence.preCallSummary}
                 </p>
-                <div className="pt-2 border-t border-blue-900/60 text-[11px] text-slate-400 space-y-1">
+                <div className="pt-2 border-t border-blue-900/60 text-2xs text-slate-400 space-y-1">
                   <div>
                     Current School: <span className="text-white font-medium">{leadIntelligence.currentSchool}</span>
                   </div>
@@ -709,10 +709,10 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                       onClick={() => setSelectedObjectionIndex(idx)}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 uppercase">
+                        <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-amber-500/20 text-amber-300 uppercase">
                           {obj.category}
                         </span>
-                        <span className="text-[10px] text-slate-400">Click to view counter</span>
+                        <span className="text-2xs text-slate-400">Click to view counter</span>
                       </div>
                       <p className="font-bold text-slate-200 mb-2">"{obj.objection}"</p>
 
@@ -737,7 +737,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
               {/* Talk-to-Listen Meter & Over-Monologue Warning */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-white uppercase text-[10px] tracking-wider">
+                  <span className="font-bold text-white uppercase text-2xs tracking-wider">
                     Talk-to-Listen Cadence
                   </span>
                   <span
@@ -770,7 +770,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                     </span>
                   </div>
                 ) : (
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-2xs text-slate-400">
                     Optimal consultative pace. Discovery conversation is balanced.
                   </div>
                 )}
@@ -783,7 +783,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                     <Zap className="w-3.5 h-3.5 text-amber-400" />
                     <span>Live AI Teleprompter Cue Cards</span>
                   </h4>
-                  <span className="text-[10px] font-mono text-cyan-400">
+                  <span className="text-2xs font-mono text-cyan-400">
                     {liveCueCards.length} Active Cues
                   </span>
                 </div>
@@ -795,10 +795,10 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                       className="p-3 rounded-xl bg-blue-950/40 border border-blue-700/60 space-y-1.5 animate-fadeIn"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-600 text-white uppercase">
+                        <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-blue-600 text-white uppercase">
                           {cue.triggerKeyword}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">{cue.timestamp}</span>
+                        <span className="text-2xs text-slate-400 font-mono">{cue.timestamp}</span>
                       </div>
                       <p className="text-slate-200 leading-relaxed font-sans">{cue.advice}</p>
                     </div>
@@ -854,10 +854,10 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
           {activeTab === "transcript" && (
             <div className="flex-1 flex flex-col overflow-hidden p-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-3 text-xs">
-                <span className="font-bold text-white uppercase text-[10px] tracking-wider">
+                <span className="font-bold text-white uppercase text-2xs tracking-wider">
                   Live Dual-Speaker Stream
                 </span>
-                <span className="font-mono text-slate-400 text-[10px]">
+                <span className="font-mono text-slate-400 text-2xs">
                   {transcript.length} Utterances
                 </span>
               </div>
@@ -875,7 +875,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                           : "bg-blue-950/30 border-blue-900/60 mr-4"
                       }`}
                     >
-                      <div className="flex items-center justify-between text-[10px]">
+                      <div className="flex items-center justify-between text-2xs">
                         <span
                           className={`font-bold uppercase tracking-wider ${
                             isRep ? "text-amber-400" : "text-cyan-300"
@@ -915,7 +915,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/70 to-slate-950 border border-emerald-600/40 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-emerald-400 uppercase text-[10px] tracking-wider">
+                  <span className="font-bold text-emerald-400 uppercase text-2xs tracking-wider">
                     Instant Tuition & Scholarship Closer
                   </span>
                   <span className="font-mono font-bold text-amber-400">
@@ -937,7 +937,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
 
                 {/* Spot Scholarship Discount Levers */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-400 uppercase tracking-wider block">
+                  <label className="text-2xs text-slate-400 uppercase tracking-wider block">
                     Authorize Founder's Spot Grant:
                   </label>
                   <div className="grid grid-cols-3 gap-2">
@@ -960,7 +960,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                 {/* Agreement Presentation & Sign Button */}
                 {!contractSigned ? (
                   <div className="pt-2 space-y-2">
-                    <p className="text-[11px] text-slate-300 leading-normal">
+                    <p className="text-2xs text-slate-300 leading-normal">
                       Push digital agreement directly to {pitchRoom.parentName}'s screen to reserve {pitchRoom.studentName}'s seat right now.
                     </p>
                     <button
@@ -977,7 +977,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                     <h4 className="font-black text-emerald-300 text-sm">
                       Enrollment Agreement Signed!
                     </h4>
-                    <p className="text-[11px] text-emerald-200">
+                    <p className="text-2xs text-emerald-200">
                       Deposit verified. Seat officially reserved for {pitchRoom.studentName}.
                     </p>
                   </div>
@@ -1030,7 +1030,7 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                     {auditReport.overallScore}
                   </div>
                   <div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider border border-amber-500/30">
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-2xs font-bold uppercase tracking-wider border border-amber-500/30">
                       Overall Sales Call Score
                     </span>
                     <h4 className="text-xl font-bold text-white mt-1">
@@ -1045,19 +1045,19 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                 {/* Score Rubric Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">Discovery</span>
+                    <span className="text-2xs text-slate-400 block">Discovery</span>
                     <span className="text-lg font-black text-blue-400">{auditReport.discoveryScore}%</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">Value Pitch</span>
+                    <span className="text-2xs text-slate-400 block">Value Pitch</span>
                     <span className="text-lg font-black text-indigo-400">{auditReport.valueArticulationScore}%</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">Objections</span>
+                    <span className="text-2xs text-slate-400 block">Objections</span>
                     <span className="text-lg font-black text-amber-400">{auditReport.objectionHandlingScore}%</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block">Closing</span>
+                    <span className="text-2xs text-slate-400 block">Closing</span>
                     <span className="text-lg font-black text-emerald-400">{auditReport.closingDecisivenessScore}%</span>
                   </div>
                 </div>
@@ -1083,12 +1083,12 @@ export const OneToOnePitchStage: React.FC<Props> = ({ pitchRoom, onExit }) => {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-600 text-white uppercase">
+                            <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-rose-600 text-white uppercase">
                               [{flaw.timestamp}] {flaw.severity}
                             </span>
                             <span className="font-bold text-white text-xs">{flaw.flaw}</span>
                           </div>
-                          <span className="text-slate-400 font-mono text-[10px] capitalize">
+                          <span className="text-slate-400 font-mono text-2xs capitalize">
                             Category: {flaw.flawCategory}
                           </span>
                         </div>

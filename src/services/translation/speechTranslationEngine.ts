@@ -8,6 +8,7 @@
  * - Dual Audio ducking/volume balance
  */
 
+import { ServerStt, serverSttAvailable, serverSttStatus } from "./serverStt";
 import { getLanguageBcp47 } from "./languageConfig";
 
 export interface SpeechUtteranceEvent {
@@ -24,13 +25,13 @@ export type UtteranceCallback = (event: SpeechUtteranceEvent) => void;
 /** What the caption engine is doing right now, shown on the CC button. */
 export type CaptionHealth =
   | { state: "off" }
-  | { state: "listening" }
+  | { state: "listening"; via?: "browser" | "server" }
   | { state: "recovering"; reason: string }
   | { state: "unsupported"; reason: string }
   | { state: "blocked"; reason: string };
 
 /** Best guess at the speaker's language from the browser, instead of assuming Hindi. */
-function defaultSpokenLanguage(): string {
+export function defaultSpokenLanguage(): string {
   if (typeof navigator === "undefined") return "en";
   return (navigator.language || "en").split("-")[0].toLowerCase();
 }
@@ -51,6 +52,11 @@ class RealtimeSpeechAndTtsEngine {
   private listeners: Set<UtteranceCallback> = new Set();
   private restartTimer: any = null;
   private isSupported: boolean = false;
+  /** Server transcription (Firefox/Safari, or when browser captions keep failing) */
+  private serverStt: ServerStt | null = null;
+  private usingServer = false;
+  private recoveringSince: number | null = null;
+  private static readonly SERVER_FALLBACK_AFTER_MS = 20_000;
 
   // Voice Activity Detection (VAD)
   private audioContext: AudioContext | null = null;
@@ -206,6 +212,7 @@ class RealtimeSpeechAndTtsEngine {
       };
 
       rec.onresult = ((orig) => (event: any) => {
+        if (this.usingServer) return;
         this.lastResultAt = Date.now();
         if (this.health.state !== "listening") this.setHealth({ state: "listening" });
         orig(event);
@@ -213,7 +220,7 @@ class RealtimeSpeechAndTtsEngine {
 
       // Chrome ends continuous recognition every ~60s and after errors: restart transparently
       rec.onend = () => {
-        if (this.isListening) {
+        if (this.isListening && !this.usingServer) {
           this.scheduleRestart();
         }
       };
@@ -227,6 +234,8 @@ class RealtimeSpeechAndTtsEngine {
   }
 
   private setHealth(h: CaptionHealth) {
+    if (h.state === "recovering") this.recoveringSince = this.recoveringSince ?? Date.now();
+    else this.recoveringSince = null;
     this.health = h;
     this.healthListeners.forEach((l) => l(h));
   }
@@ -246,10 +255,16 @@ class RealtimeSpeechAndTtsEngine {
   /** Reuse the classroom mic for voice-activity detection instead of opening another capture. */
   public setSharedMicStream(stream: MediaStream | null) {
     if (stream && stream.getAudioTracks().length) {
+      const changed = this.sharedMic !== stream;
       this.sharedMic = stream;
       if (this.isListening) {
         this.stopVad();
         this.startVad();
+        // Server captions follow the class mic (it may arrive after captions were turned on)
+        if (changed && (this.usingServer || !this.isSupported)) {
+          this.stopServerStt();
+          this.startServerStt();
+        }
       }
     }
   }
@@ -258,7 +273,7 @@ class RealtimeSpeechAndTtsEngine {
     clearTimeout(this.restartTimer);
     const delay = this.retryDelayMs;
     this.restartTimer = setTimeout(() => {
-      if (this.isListening && this.recognition) {
+      if (this.isListening && this.recognition && !this.usingServer) {
         try {
           this.recognition.lang = getLanguageBcp47(this.currentSpokenLanguage);
           this.recognition.start();
@@ -283,6 +298,10 @@ class RealtimeSpeechAndTtsEngine {
 
   public setSpokenLanguage(langCode: string) {
     this.currentSpokenLanguage = langCode.toLowerCase();
+    if (this.usingServer && this.isListening) {
+      this.stopServerStt();
+      this.startServerStt();
+    }
     if (this.recognition) {
       this.recognition.lang = getLanguageBcp47(this.currentSpokenLanguage);
       if (this.isListening) {
@@ -297,12 +316,20 @@ class RealtimeSpeechAndTtsEngine {
   public startListening(speaker: string = "Teacher") {
     this.currentSpeaker = speaker;
     if (!this.isSupported) {
-      this.setHealth(this.health);
+      // No speech engine in this browser: transcribe on the server instead (when it's set up)
+      if (this.isListening) return;
+      this.isListening = true;
+      this.startVad();
+      this.startServerStt();
       return;
     }
     // Idempotent: several UI paths ask to start; only one recognizer may run at a time
     if (this.isListening) return;
     this.isListening = true;
+    // The school may require all speech to be transcribed on its own servers
+    serverSttStatus().then((st) => {
+      if (st.preferServer && this.isListening && !this.usingServer) this.startServerStt();
+    });
     this.retryDelayMs = 300;
     this.setHealth({ state: "recovering", reason: "Starting captions…" });
     this.startVad();
@@ -325,6 +352,7 @@ class RealtimeSpeechAndTtsEngine {
     clearTimeout(this.restartTimer);
     clearInterval(this.watchdog);
     this.stopVad();
+    this.stopServerStt();
     this.setHealth({ state: "off" });
 
     if (this.recognition) {
@@ -334,11 +362,71 @@ class RealtimeSpeechAndTtsEngine {
     }
   }
 
+  private async startServerStt() {
+    if (this.serverStt || !this.isListening) return;
+    const available = await serverSttAvailable();
+    if (!this.isListening || this.serverStt) return;
+    if (!available) {
+      if (!this.isSupported) {
+        this.setHealth({ state: "unsupported", reason: "This browser can't make captions, and server captions aren't set up. You'll still see captions from other speakers." });
+      }
+      return; // browser captions keep retrying on their own
+    }
+    if (!this.sharedMic) {
+      this.setHealth({ state: "recovering", reason: "Waiting for your microphone…" });
+      return; // setSharedMicStream starts it when the mic arrives
+    }
+    this.usingServer = true;
+    try {
+      this.recognition?.abort();
+    } catch {}
+    this.setHealth({ state: "recovering", reason: "Starting server captions…" });
+    const lang = getLanguageBcp47(this.currentSpokenLanguage);
+    const stt = new ServerStt(this.sharedMic, lang, {
+      onReady: () => this.setHealth({ state: "listening", via: "server" }),
+      onInterim: (text) => this.emitServer(text, false),
+      onFinal: (text) => this.emitServer(text, true),
+      onError: (message) => this.setHealth({ state: "recovering", reason: message }),
+    });
+    this.serverStt = stt;
+    try {
+      await stt.start();
+    } catch (err) {
+      console.warn("[STT Engine] server captions failed to start:", err);
+      this.stopServerStt();
+      this.setHealth({ state: "unsupported", reason: "Captions couldn't start on this device." });
+    }
+  }
+
+  private stopServerStt() {
+    this.serverStt?.stop();
+    this.serverStt = null;
+    this.usingServer = false;
+  }
+
+  private emitServer(text: string, isFinal: boolean) {
+    if (!this.usingServer || !text.trim()) return;
+    if (this.health.state !== "listening") this.setHealth({ state: "listening", via: "server" });
+    this.emit({
+      text: text.trim(),
+      isFinal,
+      speaker: this.currentSpeaker,
+      detectedLanguage: this.currentSpokenLanguage,
+      audioLevel: Math.max(this.currentAudioLevel, isFinal ? 80 : 50),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+    });
+  }
+
   /** Someone is talking but recognition has produced nothing for 8s: it silently stalled, restart it. */
   private startWatchdog() {
     clearInterval(this.watchdog);
     this.watchdog = setInterval(() => {
-      if (!this.isListening || !this.recognition) return;
+      if (!this.isListening || !this.recognition || this.usingServer) return;
+      // Browser captions have been failing for a while: move to server transcription
+      if (this.recoveringSince && Date.now() - this.recoveringSince > RealtimeSpeechAndTtsEngine.SERVER_FALLBACK_AFTER_MS && this.sharedMic) {
+        this.startServerStt();
+        return;
+      }
       const quietFor = Date.now() - this.lastResultAt;
       if (this.currentAudioLevel > this.vadThreshold && quietFor > 8000) {
         this.lastResultAt = Date.now();

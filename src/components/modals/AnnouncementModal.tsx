@@ -61,14 +61,14 @@ export const AnnouncementModal: React.FC = () => {
           <form onSubmit={handleSubmit} className="flex flex-col gap-3 text-xs">
             {/* Quick Presets */}
             <div>
-              <span className="text-[11px] text-slate-400 block mb-1">Quick Presets</span>
+              <span className="text-2xs text-slate-400 block mb-1">Quick Presets</span>
               <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() =>
                     handleQuickPreset("Breakout Session Wrap-Up", "All breakout rooms will auto-close in 3 minutes. Return to main stage.", "urgent")
                   }
-                  className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-300 hover:text-white"
+                  className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-2xs text-slate-300 hover:text-white"
                 >
                   Wrap-Up in 3m
                 </button>
@@ -77,7 +77,7 @@ export const AnnouncementModal: React.FC = () => {
                   onClick={() =>
                     handleQuickPreset("3D STEM Lab Synchronized", "Please open the 3D AR Lab tab to view the electron probability density lobes.", "info")
                   }
-                  className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-300 hover:text-white"
+                  className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-2xs text-slate-300 hover:text-white"
                 >
                   Open 3D Lab
                 </button>
@@ -86,7 +86,7 @@ export const AnnouncementModal: React.FC = () => {
                   onClick={() =>
                     handleQuickPreset("Live Poll Challenge Activated", "A new quiz on quantum logic gates is now active in your workspace.", "normal")
                   }
-                  className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-300 hover:text-white"
+                  className="px-2 py-1 rounded bg-slate-950 border border-slate-800 text-2xs text-slate-300 hover:text-white"
                 >
                   Poll Active
                 </button>
@@ -94,7 +94,7 @@ export const AnnouncementModal: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Title</label>
+              <label className="text-2xs text-slate-400 block mb-1">Title</label>
               <input
                 type="text"
                 placeholder="e.g. Lab Exercise Commencing"
@@ -106,7 +106,7 @@ export const AnnouncementModal: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Message</label>
+              <label className="text-2xs text-slate-400 block mb-1">Message</label>
               <textarea
                 rows={3}
                 placeholder="Type real-time announcement to broadcast to all students..."
@@ -118,7 +118,7 @@ export const AnnouncementModal: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Priority</label>
+              <label className="text-2xs text-slate-400 block mb-1">Priority</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "urgent", label: "Urgent Flash", color: "text-rose-400" },
@@ -162,17 +162,17 @@ export const AnnouncementModal: React.FC = () => {
 
         {/* Recent Announcements Feed */}
         <div className="border-t border-slate-800 pt-3 flex flex-col gap-2 max-h-48 overflow-y-auto">
-          <span className="text-[11px] font-semibold text-slate-400">Past Broadcast History</span>
+          <span className="text-2xs font-semibold text-slate-400">Past Broadcast History</span>
           {announcements.map((a) => (
             <div
               key={a.id}
               className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 flex flex-col gap-1 text-xs"
             >
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-2xs">
                 <span className="font-semibold text-white">{a.title}</span>
                 <span className="font-mono text-slate-400">{a.timestamp}</span>
               </div>
-              <p className="text-slate-300 text-[11px]">{a.message}</p>
+              <p className="text-slate-300 text-2xs">{a.message}</p>
             </div>
           ))}
         </div>

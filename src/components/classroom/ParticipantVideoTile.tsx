@@ -91,7 +91,7 @@ export const ParticipantVideoTile: React.FC<Props> = ({
           <h4 className="text-xs sm:text-sm font-bold text-white mt-3 truncate max-w-[85%] text-center">
             {participant.name}
           </h4>
-          <span className="text-[10px] text-slate-400 font-mono mt-0.5 capitalize">
+          <span className="text-2xs text-slate-400 font-mono mt-0.5 capitalize">
             {participant.role === "instructor" ? "Teacher / Faculty" : participant.role === "student" ? "Student / Scholar" : participant.role}
           </span>
         </div>
@@ -160,7 +160,7 @@ export const ParticipantVideoTile: React.FC<Props> = ({
       )}
 
       {/* Bottom Identity & Telemetry Bar */}
-      <div className="absolute bottom-2 left-2 right-2 z-20 flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-white/10 text-white text-[11px]">
+      <div className="absolute bottom-2 left-2 right-2 z-20 flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-white/10 text-white text-2xs">
         <div className="flex items-center gap-1.5 truncate max-w-[70%]">
           <span
             className={`w-2 h-2 rounded-full shrink-0 ${
@@ -168,9 +168,9 @@ export const ParticipantVideoTile: React.FC<Props> = ({
             }`}
           />
           <span className="font-semibold truncate">
-            {participant.name} {isLocal && <span className="text-slate-400 text-[10px]">(You)</span>}
+            {participant.name} {isLocal && <span className="text-slate-400 text-2xs">(You)</span>}
           </span>
-          <span className="text-[9px] px-1 py-0.2 rounded bg-white/10 text-slate-300 font-mono hidden sm:inline">
+          <span className="text-2xs px-1 py-0.2 rounded bg-white/10 text-slate-300 font-mono hidden sm:inline">
             {participant.role === "instructor" ? "Teacher" : participant.role === "student" ? "Student" : participant.role}
           </span>
         </div>

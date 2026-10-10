@@ -73,23 +73,14 @@ export function useContentGuard(opts: { enabled: boolean; roomSlug: string; view
     };
     const onBeforePrint = () => flash("print_attempt", "print dialog");
 
-    // Devtools heuristic: docked devtools shrink the viewport a lot without the window changing
-    let devtoolsReported = false;
-    const devtoolsTimer = setInterval(() => {
-      const open = window.outerWidth - window.innerWidth > 200 || window.outerHeight - window.innerHeight > 260;
-      if (open && !devtoolsReported) {
-        devtoolsReported = true;
-        log("devtools_open");
-      } else if (!open) devtoolsReported = false;
-    }, 3000);
-
     // In-page screen capture (another tab of ours, or an extension calling the API from this page)
     const md = navigator.mediaDevices as any;
     const originalGdm = md?.getDisplayMedia?.bind(md);
     if (md && originalGdm) {
       md.getDisplayMedia = (...args: any[]) => {
-        if (!allowScreenShare) flash("screen_capture_api", "getDisplayMedia");
-        else log("screen_capture_api", "teacher screen share");
+        // Our own Share button announces itself; anything else on this page is a capture attempt
+        if (protectionBus.consumeOwnScreenShare()) log("screen_capture_api", allowScreenShare ? "host screen share" : "learner screen share");
+        else flash("screen_capture_api", "getDisplayMedia");
         return originalGdm(...args);
       };
     }
@@ -109,7 +100,6 @@ export function useContentGuard(opts: { enabled: boolean; roomSlug: string; view
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("beforeprint", onBeforePrint);
-      clearInterval(devtoolsTimer);
       if (md && originalGdm) md.getDisplayMedia = originalGdm;
     };
   }, [enabled, roomSlug, view, allowScreenShare]);

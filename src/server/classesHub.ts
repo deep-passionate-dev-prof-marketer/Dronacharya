@@ -4,13 +4,14 @@
  * children's classes.
  */
 import express from "express";
-import { and, eq, gte, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, notLike } from "drizzle-orm";
+import { DEMO_PREFIX } from "./analytics/demo";
 import { getDb, schema } from "./db";
 import { requireAuth } from "./auth/session";
 
-const STAFF = ["admin", "instructor", "sales_rep", "auditor"];
+export const STAFF = ["admin", "instructor", "sales_rep", "auditor"];
 
-async function learnerKeys(userId: string, role: string): Promise<string[]> {
+export async function learnerKeys(userId: string, role: string): Promise<string[]> {
   const db: any = await getDb();
   if (role === "student") {
     const [u] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
@@ -59,9 +60,9 @@ export function setupClassRoutes(app: express.Express) {
     const since = new Date(Date.now() - 14 * 864e5);
     let rows: any[];
     if (user.role === "instructor") {
-      rows = await db.select().from(schema.classes).where(and(eq(schema.classes.teacherId, user.id), gte(schema.classes.scheduledStart, since)));
+      rows = await db.select().from(schema.classes).where(and(eq(schema.classes.teacherId, user.id), gte(schema.classes.scheduledStart, since), notLike(schema.classes.roomSlug, `${DEMO_PREFIX}%`)));
     } else if (STAFF.includes(user.role)) {
-      rows = await db.select().from(schema.classes).where(gte(schema.classes.scheduledStart, since));
+      rows = await db.select().from(schema.classes).where(and(gte(schema.classes.scheduledStart, since), notLike(schema.classes.roomSlug, `${DEMO_PREFIX}%`)));
     } else {
       const keys = await learnerKeys(user.id, user.role);
       if (!keys.length) return res.json({ classes: [] });

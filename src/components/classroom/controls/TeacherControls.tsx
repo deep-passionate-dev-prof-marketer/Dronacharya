@@ -111,7 +111,7 @@ export const QuickPollSheet: React.FC<{ onClose: () => void }> = ({ onClose }) =
               className={`rounded-xl border px-3 py-2 text-left text-sm ${template === i ? "bg-blue-600/25 border-blue-500/50 text-white" : "bg-white/5 border-white/10 text-slate-300"}`}
             >
               <div className="font-semibold">{t.label}</div>
-              <div className="text-[11px] text-slate-400 truncate">{t.options.join(" · ")}</div>
+              <div className="text-2xs text-slate-400 truncate">{t.options.join(" · ")}</div>
             </button>
           ))}
         </div>
@@ -136,7 +136,7 @@ export const LivePollCard: React.FC<{ isHost: boolean }> = ({ isHost }) => {
     <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-40 w-[calc(100%-1rem)] max-w-sm rounded-2xl border border-blue-500/30 bg-slate-900/95 shadow-2xl p-3 space-y-2 animate-fadeIn">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[11px] uppercase tracking-wider text-blue-300 font-semibold">{activePoll.closed ? "Poll closed" : "Quick poll"}</div>
+          <div className="text-2xs uppercase tracking-wider text-blue-300 font-semibold">{activePoll.closed ? "Poll closed" : "Quick poll"}</div>
           <div className="text-sm font-semibold text-white">{activePoll.question}</div>
         </div>
         <button onClick={dismissPoll} className="p-1 rounded-lg hover:bg-white/10 text-slate-400 shrink-0" aria-label="Hide poll">
@@ -163,7 +163,7 @@ export const LivePollCard: React.FC<{ isHost: boolean }> = ({ isHost }) => {
         })}
       </div>
       {error && <p className="text-xs text-rose-300">{error}</p>}
-      <div className="flex items-center justify-between text-[11px] text-slate-400">
+      <div className="flex items-center justify-between text-2xs text-slate-400">
         <span>{activePoll.total} vote{activePoll.total === 1 ? "" : "s"}</span>
         {isHost && !activePoll.closed && (
           <button onClick={closePoll} className="h-7 px-2.5 rounded-lg bg-white/10 text-white text-xs font-semibold">

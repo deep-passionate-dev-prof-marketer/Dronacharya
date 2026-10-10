@@ -97,7 +97,7 @@ export const PollsAndQuizzes: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080c14] overflow-hidden select-none">
+    <div className="flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Top Header */}
       <div className="h-12 border-b border-slate-800 bg-slate-900/90 px-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-1">
@@ -154,7 +154,7 @@ export const PollsAndQuizzes: React.FC = () => {
                 />
 
                 <div className="flex flex-col gap-1.5">
-                  <div className="text-[11px] text-slate-400">Options:</div>
+                  <div className="text-2xs text-slate-400">Options:</div>
                   {newOptions.map((opt, i) => (
                     <input
                       key={i}
@@ -174,7 +174,7 @@ export const PollsAndQuizzes: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleAddOption}
-                      className="text-left text-[11px] text-indigo-400 hover:underline pt-1"
+                      className="text-left text-2xs text-indigo-400 hover:underline pt-1"
                     >
                       + Add another option
                     </button>
@@ -209,7 +209,7 @@ export const PollsAndQuizzes: React.FC = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-xs font-semibold text-white leading-snug">{poll.question}</h3>
-                    <span className="text-[10px] font-mono text-indigo-400 shrink-0">
+                    <span className="text-2xs font-mono text-indigo-400 shrink-0">
                       {poll.totalVotes} votes
                     </span>
                   </div>
@@ -251,7 +251,7 @@ export const PollsAndQuizzes: React.FC = () => {
                   </div>
 
                   {userVoted && (
-                    <div className="text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
+                    <div className="text-2xs text-emerald-400 flex items-center gap-1 font-mono">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>Your vote recorded (+50 XP)</span>
                     </div>
@@ -269,7 +269,7 @@ export const PollsAndQuizzes: React.FC = () => {
                   <Award className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-semibold text-white">Live STEM Lab Mastery</span>
                 </div>
-                <div className="text-[11px] font-mono text-indigo-300">Reward: +100 XP / Q</div>
+                <div className="text-2xs font-mono text-indigo-300">Reward: +100 XP / Q</div>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Test your conceptual grasp of the lecture principles. Instant grading with verified ledger credential points.
@@ -315,7 +315,7 @@ export const PollsAndQuizzes: React.FC = () => {
                 </div>
 
                 {quizSubmitted && (
-                  <div className="text-[11px] text-slate-400 font-mono pt-1">
+                  <div className="text-2xs text-slate-400 font-mono pt-1">
                     Explanation: {q.explanation}
                   </div>
                 )}

@@ -12,7 +12,7 @@ import {
   LatencyBreakdown,
   EducationalSubject,
 } from "./translationTypes";
-import { speechTranslationEngine, SpeechUtteranceEvent } from "./speechTranslationEngine";
+import { speechTranslationEngine, SpeechUtteranceEvent, defaultSpokenLanguage } from "./speechTranslationEngine";
 import { TranslationRouter, ParticipantLanguageMap } from "./translationRouter";
 import { TranslationEngine } from "./translationEngine";
 import { realtimeSocket } from "../realtimeSocket";
@@ -23,7 +23,7 @@ export type MetricsListener = (metrics: TranslationMetrics) => void;
 class RealtimeInterpreterService {
   private userPreferences: UserLanguagePreferences = {
     userId: "local-user",
-    mySpokenLanguage: "hi", // Default Hindi as per requirements
+    mySpokenLanguage: defaultSpokenLanguage(), // the speaker's own language (browser/account), never assumed
     autoDetectSpokenLanguage: true,
     targetTranslationLanguage: "es", // Default Spanish as per requirements
     isAudioTranslationEnabled: true,
@@ -37,7 +37,7 @@ class RealtimeInterpreterService {
   private roomSettings: RoomTranslationSettings = {
     roomId: "default-room",
     isEnabled: true,
-    defaultSourceLanguage: "hi",
+    defaultSourceLanguage: defaultSpokenLanguage(),
     defaultTargetLanguage: "es",
     translationMode: "two_way",
     allowStudentTranslation: true,
@@ -67,6 +67,8 @@ class RealtimeInterpreterService {
       const stored = localStorage.getItem("dronacharya_translation_preferences");
       if (stored) {
         const parsed = JSON.parse(stored);
+        // v1 stored a hard-coded Hindi default as the spoken language; only keep a language the user picked
+        if (!parsed.spokenLanguageChosen) delete parsed.mySpokenLanguage;
         this.userPreferences = { ...this.userPreferences, ...parsed };
       }
     } catch {}
@@ -275,6 +277,7 @@ class RealtimeInterpreterService {
       ...partial,
       lastUpdated: Date.now(),
     };
+    if (partial.mySpokenLanguage) (this.userPreferences as any).spokenLanguageChosen = true;
     this.savePreferencesToStorage();
 
     if (partial.mySpokenLanguage) {
@@ -300,6 +303,14 @@ class RealtimeInterpreterService {
 
   public setParticipants(participants: ParticipantLanguageMap[]) {
     this.participants = participants;
+  }
+
+  /** Use the signed-in account's language unless the user picked one themselves. */
+  public setAccountLanguage(langTag: string | undefined) {
+    if (!langTag || (this.userPreferences as any).spokenLanguageChosen) return;
+    const lang = langTag.split("-")[0].toLowerCase();
+    this.userPreferences = { ...this.userPreferences, mySpokenLanguage: lang };
+    speechTranslationEngine.setSpokenLanguage(lang);
   }
 
   public startListening(speakerName: string = "Teacher") {

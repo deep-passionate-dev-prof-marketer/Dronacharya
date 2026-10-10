@@ -2,7 +2,19 @@
 type Listener = (reason: string) => void;
 const listeners = new Set<Listener>();
 
+let ownShareAt = 0;
+
 export const protectionBus = {
+  /** Our own "Share screen" button is about to call getDisplayMedia (not a capture attempt). */
+  expectOwnScreenShare() {
+    ownShareAt = Date.now();
+  },
+  /** True once, right after expectOwnScreenShare() */
+  consumeOwnScreenShare() {
+    const ours = Date.now() - ownShareAt < 3000;
+    ownShareAt = 0;
+    return ours;
+  },
   flash(reason: string) {
     listeners.forEach((l) => l(reason));
   },

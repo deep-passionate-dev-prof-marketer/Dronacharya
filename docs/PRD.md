@@ -1,95 +1,131 @@
 # Product Requirements Document (PRD)
-## Dronacharya: Real-Time EdTech Operations & 1:1 Room Bomber Sales Platform
+## Dronacharya: Live Classes, Admissions and Class Analytics for 21K School
 
-**Document Version:** 2.4.0  
-**Status:** Approved & Implemented  
-**Target Release:** Production Q2 2026  
-**System Name:** Dronacharya (21K School & 21K Learning Floww)
-
----
-
-### 1. Executive Summary & Vision
-Traditional EdTech video platforms (Zoom, Google Meet, Teams) are passive broadcasting tools disconnected from pedagogical realities and sales conversion pipelines. **Dronacharya** is a purpose-built, real-time educational operating system combining:
-1. **Interactive Pedagogical Orchestration**: Bidirectional multi-device remote control across tablets, smartphones, laptops, and desktop PCs with stylus annotation, interactive code execution, and zero-latency worksheets.
-2. **Room Bomber 1:1 Sales Conversion Engine**: An automated sales breakout system that partitions an aggregate demo webinar into isolated, 1:1 breakout rooms pairing exactly one sales counselor with one student-parent pair, equipped with a live Pitch Heads-Up Display (HUD).
-3. **Dedicated Multi-Role Portals**: Distinct, role-tailored authentication flightdecks for Teachers/Facilitators, Students & Parents, Compliance Auditors, and Executive Admins.
-4. **Server-Authoritative Real-Time Infrastructure**: Full-stack Express with native WebSockets, eliminating simulated mock timeouts in favor of live bidirectional network synchronization.
-5. **Continuous Quality & Attention Telemetry**: Real-time gaze tracking, SNR audio acoustic telemetry, and four-pillar pedagogical rubric audits.
+**Document version:** 4.0 (class analytics and design-system release)
+**Status:** Implemented
+**System:** Dronacharya (21K School and 21K Learning Floww)
 
 ---
 
-### 2. User Personas & Roles
+### 1. Summary
+Dronacharya is 21K School's live classroom. A class is booked with the best-matched teacher, learners join on
+approved devices, the teacher starts it once for everyone, and it is recorded, transcribed, captioned and
+summarised into notes. Parents follow their children in a portal. Auditors and admins see how every class
+went in **Class analytics** and can observe live classes and review them.
 
-| Persona / Role | Core Objectives | Pain Points Addressed |
+---
+
+### 2. Personas
+
+| Persona | Goals | What the product gives them |
 | :--- | :--- | :--- |
-| **Teacher / Facilitator** | Drive interactive learning, inspect student screens, provide real-time remote corrections. | Eliminates passive screen sharing; enables direct multi-device remote control with zero client installation. |
-| **Student (Kid)** | Engage in collaborative STEM exercises, receive real-time teacher annotations on their device. | Eliminates confusion during complex exercises; allows bidirectional screen offer and help requests. |
-| **Parent / Guardian** | Evaluate curriculum rigor, interact with academic counselors during live demo sessions. | Provides transparent visibility into student progress and dedicated 1:1 counselor interaction. |
-| **Sales Counselor (Rep)** | Pitch parents and students 1:1, identify academic pain points, present personalized pricing and close enrollments. | Replaces generic webinars with high-converting, tailored 1:1 pitch breakout rooms with real-time HUD. |
-| **Auditor / Inspector** | Monitor class compliance, verify teacher acoustic clarity and student engagement without class disruption. | Enables silent room hopping, automated SNR telemetry, and standardized rubric evaluations. |
-| **Administrator / Director** | Oversee global room topology, execute 1-click Room Bomber partitions, monitor system health. | Provides bird's-eye control over all active classes, automated rules, and real-time revenue analytics. |
+| **Learner** | Join class easily, follow along in their language, revise | Device check and waiting room, captions and translation, whiteboard, polls, class notes |
+| **Teacher** | Teach, not operate software | One "Start class" for everyone, admit/mute/remove, polls, automatic recording and notes, attendance |
+| **Parent** | Know how their child is doing; control their data | Attendance, remarks, notes, recording and analytics consent |
+| **Counsellor (admissions)** | Run counselling and demo sessions that lead to enrolment | Booking with matching, invite links, pitch rooms (sample), their session recordings |
+| **Auditor** | Know where teaching is strong or weak, fairly | Class analytics, hidden observation with a saved review, attendance, recordings, capture log |
+| **Admin** | Run the school | Everything, plus analytics targets and weights |
 
 ---
 
-### 3. Core Functional Requirements
+### 3. Functional requirements
 
-#### 3.1 Dedicated Multi-Role Authentication Portals
-- **FR-AUTH-1**: The system must provide 4 distinct, visually branded login screens:
-  - `/login/teacher`: Academic Facilitator Command Center with faculty credentials and department routing.
-  - `/login/student`: Student & Parent Flightdeck capturing student name, parent contact, grade level (Grades 6–12), and primary device type.
-  - `/login/auditor`: Compliance Inspector Portal requiring inspector license and compliance cohort clearance.
-  - `/login/admin`: Executive Operations Hub requiring administrative key and sales cluster privileges.
-- **FR-AUTH-2**: Persistent session management using `localStorage` with active user profile, role token, and auto-reconnection.
-- **FR-AUTH-3**: User role switcher and logout capability accessible at all times with zero session corruption.
+#### 3.1 Sign-in and access
+- **FR-AUTH-1**: Server-side sessions (signed cookie). Google Workspace SSO for staff, email one-time codes,
+  signed class invite links for learners. Dummy accounts only when `AUTH_DEV_LOGIN=1` (never in production).
+- **FR-AUTH-2**: One view registry decides each role's pages, names, navigation and phone tabs. A role can't
+  open, or be offered, a page it isn't allowed. Each role lands on its own home page (auditors: Class analytics).
+- **FR-AUTH-3**: Role URLs name the role, country, language and page; learners' and parents' names never
+  appear in URLs.
 
-#### 3.2 Real-Time Full-Stack WebSockets & Server Synchronization
-- **FR-NET-1**: Express server running on port 3000 hosting an integrated `ws` WebSocket server on the same HTTP server instance.
-- **FR-NET-2**: The server must maintain authoritative state for:
-  - Active participants across all rooms.
-  - Multi-device remote control sessions, cursor positions, clicks, keystrokes, and canvas annotations.
-  - Real-time chat messages and live polls with vote aggregation.
-  - Attention and audio quality metrics.
-- **FR-NET-3**: Bidirectional event propagation with sub-20ms target latency within local edge clusters.
-- **FR-NET-4**: Reconnection logic with state synchronization upon client network recovery.
+#### 3.2 Live class
+- **FR-LIVE-1**: LiveKit media; the server issues tokens after the device-access check. Auditors join hidden,
+  without publishing.
+- **FR-LIVE-2**: Only the host can start or end the class; concurrent starts make one session and one recording.
+- **FR-LIVE-3**: Waiting room and admit; mute, stop video, remove; polls run by the server; whiteboard; breaks;
+  low-bandwidth mode.
+- **FR-LIVE-4**: Captions from browser speech recognition or the server (Gemini Live, then local Whisper),
+  translated into each viewer's language.
 
-#### 3.3 Multi-Device In-Meeting Remote System Access
-- **FR-REMOTE-1**: Support 4 distinct hardware form factors: Smartphone (9:16), Tablet (4:3 stylus), Laptop (16:10), Desktop PC (16:9).
-- **FR-REMOTE-2**: 3 tiers of remote access permissions:
-  - *View Only*: High-framerate screen mirroring with telemetry.
-  - *Annotate*: Collaborative pointer, pen, and highlighter overlay.
-  - *Full Remote Control*: Bidirectional input event streaming (mouse clicks, touch events, keyboard input, terminal commands).
-- **FR-REMOTE-3**: In-meeting quick actions: Mute remote input, emergency revoke, clear canvas, switch active application (Worksheet, IDE, Terminal, Browser, Scientific Calculator).
-- **FR-REMOTE-4**: Both teachers and students must be able to initiate or offer remote access requests.
+#### 3.3 Recording and notes
+- **FR-REC-1**: Every class records automatically (video with Egress, otherwise transcript). Learners without
+  recording consent are excluded from the video layout.
+- **FR-REC-2**: After class, AI notes (summary, key points, homework) and "ask about this class", grounded in
+  the transcript; providers Gemini → Ollama → extractive.
 
-#### 3.4 Room Bomber 1:1 Sales Breakout Engine
-- **FR-BOMB-1**: Automatic detection of available students (student + parent pairs) and sales representatives in the main demo hall.
-- **FR-BOMB-2**: One-click "Execute Room Bomb" action that calculates the required number of breakout rooms (exact 1 Sales Rep : 1 Student-Parent pair ratio).
-- **FR-BOMB-3**: Automatic generation of isolated 1:1 pitch rooms (e.g., `Pitch Room #1 - Alpha`) and dispatch of WebSocket assignment payloads to automatically route participants.
-- **FR-BOMB-4**: Interactive Sales Pitch HUD for the counselor featuring:
-  - Prospect dossier: Student grade, academic interests, parent contact.
-  - Guided 5-stage pitch flow: Diagnostic -> Curriculum Showcase -> Accreditation & Pedagogy -> Pricing Calculator -> Enrollment Close.
-  - Live Parent Engagement Meter derived from attention and vocal telemetry.
-  - One-click Spot Scholarship trigger (e.g., 25% Founder's Grant) with instant discount calculation.
-  - Instant digital contract generation and seat reservation.
-- **FR-BOMB-5**: Master Admin / Sales Director monitoring grid with live pitch status and "Recall All to Main Hall" emergency trigger.
+#### 3.4 Parent portal
+- **FR-PAR-1**: Per child: classes, attendance, remarks, notes; recording and engagement consent with history.
+- **FR-PAR-2**: Withdrawing engagement consent clears that learner's past attention values and recomputes
+  the affected classes.
 
-#### 3.5 AI Academic Digest & LLM NotebookLM Integration
-- **FR-AI-1**: Server-side Google Gemini 2.5/3.0 integration for real-time lecture transcript summarization, formula extraction, and action item generation.
-- **FR-AI-2**: NotebookLM visual knowledge graph with concept nodes, hierarchical phases, flashcards, and formula derivations.
-- **FR-AI-3**: Multilingual live subtitle translation across 8 languages (Spanish, Hindi, French, German, Mandarin, Arabic, Japanese, English).
+#### 3.5 Device access and content protection
+- **FR-DEV-1**: Per-room device rules, learner requests to join on another device, staff approval, access log
+  and an access report (joins by device, rooms turning devices away, decision times).
+- **FR-SEC-1**: Watermark and copy/print blocking on class-content pages only (analytics and admin pages print
+  normally); capture attempts logged and shown to auditors and admins.
+
+#### 3.6 Class analytics (auditors and admins only)
+- **FR-AN-1 Dimensions**: room; 30-minute time slot; weekday; week; teacher; teacher timezone; teacher
+  country; course; subject; cohort (named batch, else programme and grade); grade; class size by the most
+  learners in class at once (1:1 … 1:24, 1:25+, "No learners", "Unknown"); session type; programme;
+  language; learner country, timezone, grade and device (learner-level). Time-based groups use a timezone
+  the viewer picks.
+- **FR-AN-2 Measures**: sessions, hours, average/median class duration, average/median counselling
+  conversation length, counselling no-shows, classes nobody joined, start delay and on-time starts, occupancy
+  (pooled), attendance rate, time present, class size, learners reached, engagement (consenting learners),
+  questions and polls per class, capture attempts and removals per 100 sessions, notes coverage, reviewed
+  sessions, class quality, teacher quality, delivery funnel, counselling-to-enrolment rate.
+- **FR-AN-3 Class quality**: weighted mean (0–100) of attendance, on-time start, engagement, interaction, ran
+  to schedule and auditor review; separate weights for classes and counselling; signals a class doesn't have
+  are left out; fewer than 3 signals, nobody joined, or a false start (under 3 min) means not scored.
+- **FR-AN-4 Teacher quality**: hours-weighted class quality pulled toward the school mean (k = 5), ranked
+  from 5 classes, with spread and an 80% range.
+- **FR-AN-5 Targets and needs attention**: admin-set targets (quality, occupancy, attendance, start delay);
+  KPI tiles show on/below target and change against the previous period; a list of weak classes, teachers
+  trending down and rooms running empty.
+- **FR-AN-6 Pages**: Overview, Breakdown (group by any dimension, any measure, all measures in a sortable
+  table, compare two groups), Teachers, Schedule (weekday × hour heatmap, start delay, actual vs scheduled
+  length, occupancy by slot), Learners & geography, Counselling, Sessions (search, sort, paging, session drawer
+  with score breakdown and reasons), Live engagement.
+- **FR-AN-7 Reviews**: anchored 1–4 rubrics (teaching, counselling), drafts and final submission, one per
+  auditor per session, counted in the class's quality; a review queue of lowest-scored and random sessions.
+- **FR-AN-8 Usability**: filters as chips, all state in the address bar, saved views (this browser), CSV
+  export (logged), "How we measure", freshness line, demo-data banner and toggle.
+- **FR-AN-9 Privacy**: learner groups under 3 hidden; teachers can't open analytics; demo data isolated.
+
+#### 3.7 Attendance
+- **FR-ATT-1**: Live roster for the class in progress; per-session history (on time, late, left early, absent,
+  minutes) for the last 7/14/30 days; guardian email for follow-up; CSV export. Teachers see their own classes.
+
+#### 3.8 Observe live class (auditors)
+- **FR-OBS-1**: Real class video (hidden observer), live numbers (status, start delay, learners here, waiting,
+  late joiners, learner questions, teacher talk time, cameras on, hands raised), live engagement, transcript,
+  and a review form saved to the session; link to the class's history in analytics.
+
+#### 3.9 Booking
+- **FR-BOOK-1**: The scheduler books through the matcher (teacher eligibility, availability, language,
+  grade), saves the learner's country and timezone, and assigns a cohort (typed, inherited from an open
+  section, or generated as "Programme G10 · Mon 16:00 · 2026").
 
 ---
 
-### 4. Non-Functional Requirements
-- **Performance**: Sub-20ms WebSocket message round-trip within regional edge nodes; 60 FPS remote cursor synchronization.
-- **Reliability**: 99.99% uptime with graceful fallback to local cache during temporary server disconnects.
-- **Security**: AES-256-GCM encrypted payload structures, role-based access control (RBAC), zero third-party telemetry leakage.
-- **Responsiveness**: Fluid layout across mobile (360px), tablet (768px), laptop (1024px), and desktop 4K displays.
+### 4. Non-functional requirements
+- **Accessibility**: AA text contrast, nothing under 11px, visible keyboard focus, 44px touch targets, ARIA
+  tabs/menus/dialogs, "View as table" on every chart, reduced motion respected.
+- **Responsiveness**: no horizontal page scroll at 375, 768 and 1366 px on every page (checked automatically).
+- **Performance**: analytics aggregation in memory over the range with a 60 s cache cleared when new facts
+  arrive; analytics and charts load on demand.
+- **Reliability**: facts computed 20 s and 10 min after each class, plus a background backfill; webhook
+  retries deduplicated by event id.
+- **Security**: role checks on every endpoint; CSV cells neutralised against spreadsheet formulas; exports
+  and settings changes logged.
 
 ---
 
-### 5. Success Metrics & KPIs
-1. **Sales Conversion Rate**: Increase demo-to-enrollment conversion from 12% to >38% via 1:1 Room Bomber breakouts.
-2. **Session Engagement**: Maintain average student attention score >85% through active remote device interaction.
-3. **Sales Pitch Velocity**: Reduce average parent sales closing cycle from 4.2 days to under 45 minutes inside the 1:1 breakout room.
-4. **Latency Compliance**: 95th percentile WebSocket latency under 20ms across primary edge PoPs.
+### 5. Success metrics
+Tracked in Class analytics, against admin-set targets: class quality, teacher quality, occupancy, attendance,
+on-time starts, delivery rate, counselling-to-enrolment rate, counselling no-shows, capture attempts.
+
+### 6. Out of scope (this release)
+Persisting room-bomber pitch rooms; a real CRM connection; certificate issuing; uploading library materials;
+email alerts for "needs attention" (shown in-app only).

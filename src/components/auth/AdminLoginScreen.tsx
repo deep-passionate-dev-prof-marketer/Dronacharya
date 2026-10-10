@@ -85,10 +85,10 @@ export const AdminLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPort
   return (
     <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col md:flex-row">
       {/* Left Hero Column */}
-      <div className="w-full md:w-5/12 bg-linear-to-br from-[#7F1D1D] via-[#991B1B] to-[#DC2626] p-8 text-white flex flex-col justify-between relative overflow-hidden">
+      <div className="w-full md:w-5/12 bg-linear-to-br from-red-900 via-red-800 to-red-600 p-8 text-white flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-[#FFBB00] text-xs font-bold uppercase tracking-wider mb-6 border border-white/10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-brand-yellow text-xs font-bold uppercase tracking-wider mb-6 border border-white/10">
             <Flame className="w-4 h-4 text-amber-300" />
             <span>Executive Operations & Sales Director</span>
           </div>
@@ -102,13 +102,13 @@ export const AdminLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPort
 
           <div className="mt-8 space-y-3 font-sans">
             <div className="flex items-center gap-3 text-xs text-rose-100">
-              <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0 text-[#FFBB00]">
+              <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0 text-brand-yellow">
                 <Zap className="w-4 h-4" />
               </div>
               <span>1-Click Room Bomber: Auto-partition students into 1:1 pitch rooms</span>
             </div>
             <div className="flex items-center gap-3 text-xs text-rose-100">
-              <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0 text-[#00C2E0]">
+              <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0 text-brand-cyan">
                 <Network className="w-4 h-4" />
               </div>
               <span>Sub-20ms edge peering topology & cluster load balancing</span>
@@ -142,14 +142,14 @@ export const AdminLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPort
               <span className="text-slate-500">Other Portals:</span>
               <button
                 onClick={() => onSwitchPortal("instructor")}
-                className="text-[#003872] hover:underline font-bold"
+                className="text-brand-navy hover:underline font-bold"
               >
                 Teacher
               </button>
               <span className="text-slate-300">·</span>
               <button
                 onClick={() => onSwitchPortal("student")}
-                className="text-[#0082FF] hover:underline font-bold"
+                className="text-brand-blue hover:underline font-bold"
               >
                 Student
               </button>
@@ -176,7 +176,7 @@ export const AdminLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPort
 
           {/* Quick-Fill Profiles */}
           <div className="mb-6 p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+            <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
               Executive Demo Profiles:
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -186,7 +186,7 @@ export const AdminLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPort
                 className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-rose-600 text-xs transition-colors shadow-2xs"
               >
                 <div className="font-bold text-slate-800">Dir. Vikram Malhotra</div>
-                <div className="text-[10px] text-slate-500 truncate">Admissions & Room Bomber Lead</div>
+                <div className="text-2xs text-slate-500 truncate">Admissions & Room Bomber Lead</div>
               </button>
               <button
                 type="button"
@@ -194,7 +194,7 @@ export const AdminLoginScreen: React.FC<Props> = ({ onLoginSuccess, onSwitchPort
                 className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-rose-600 text-xs transition-colors shadow-2xs"
               >
                 <div className="font-bold text-slate-800">Dr. Robert Chen</div>
-                <div className="text-[10px] text-slate-500 truncate">Chief Academic Operations Officer</div>
+                <div className="text-2xs text-slate-500 truncate">Chief Academic Operations Officer</div>
               </button>
             </div>
           </div>

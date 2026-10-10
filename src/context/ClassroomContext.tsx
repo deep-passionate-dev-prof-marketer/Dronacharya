@@ -53,6 +53,7 @@ import { INITIAL_REMOTE_SESSIONS, DEVICE_METADATA_MAP } from "../services/remote
 import { realtimeSocket } from "../services/realtimeSocket";
 import { realtimeSpeechEngine, SpeechCaptionEvent } from "../services/speechRecognitionService";
 import { realtimeInterpreterService } from "../services/translation/realtimeInterpreterService";
+import { protectionBus } from "../components/protection/protectionBus";
 import { speechTranslationEngine, CaptionHealth } from "../services/translation/speechTranslationEngine";
 import { TranslationEngine } from "../services/translation/translationEngine";
 import { detectClientDeviceEnvironment, createDeviceAuditRecord } from "../services/deviceDetector";
@@ -95,7 +96,16 @@ export type ClassroomView =
   | "selfhosted"
   | "remote_access"
   | "device_audit"
+  | "recordings"
+  | "parent_home"
   | "docs";
+
+export interface ClassRecordingState {
+  id: string;
+  mode: "video" | "transcript_only";
+  status: "recording" | "processing" | "ready" | "failed";
+  error?: string | null;
+}
 
 export interface ClassroomContextType {
   // Role & Identity
@@ -130,7 +140,17 @@ export interface ClassroomContextType {
   classDurationSeconds: number;
   startClass: () => void;
   endClass: () => void;
-  connectDemoStudent: () => void;
+  /** Audio + slides only (remote cameras off, own camera off, screen share at its low layer) */
+  setLowBandwidth: (on: boolean) => void;
+  dismissLowBandwidthSuggestion: () => void;
+  /** Learner: leave the lobby for the class before it starts (they wait to be admitted) */
+  enterClassroom: () => void;
+  enteredBeforeStart: boolean;
+  classStartedAt: string | null;
+  classRecording: ClassRecordingState | null;
+  /** This learner is kept out of the recording (no recording consent) */
+  recordingExcludedMe: boolean;
+  classSessionError: string | null;
 
   // Media & Devices
   localStream: MediaStream | null;
@@ -292,7 +312,8 @@ export interface ClassroomContextType {
   reAdmitParticipant: (id: string) => void;
   kickedParticipants: Array<{ id: string; name: string; reason: string; kickedAt: string }>;
   markAttendanceQuick: (id: string, status: "present" | "late" | "absent") => void;
-  shareChildFeedback: (feedback: Omit<DirectChildFeedback, "id" | "timestamp">) => void;
+  /** Resolves to an error message, or null when saved */
+  shareChildFeedback: (feedback: Omit<DirectChildFeedback, "id" | "timestamp">) => Promise<string | null>;
   childFeedbackLogs: DirectChildFeedback[];
   isFeedbackModalOpen: boolean;
   setIsFeedbackModalOpen: (open: boolean) => void;
@@ -818,7 +839,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     return "dronacharya-gr10-phy";
   });
-  const [roomTitle, setRoomTitle] = useState("Grade 10-A · Advanced Quantum Mechanics & Physics (Dronacharya)");
+  const [roomTitle, setRoomTitle] = useState("Live class");
   const [roomLink, setRoomLink] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -836,107 +857,121 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [streamingQuality, setStreamingQuality] = useState<"1080p 60fps" | "720p 30fps" | "Low Bandwidth">("1080p 60fps");
   const [roomRatio, setRoomRatioState] = useState<RoomRatio>("1:4");
 
-  // Live Class Session Lifecycle (Zoom & Google Meet style)
+  // Live class session. The server decides: only the host starts/ends a class, everyone else
+  // follows (server data message in the room, plus polling for people still in the lobby).
   const [classStatus, setClassStatus] = useState<LiveClassStatus>("waiting");
+  const [classStartedAt, setClassStartedAt] = useState<string | null>(null);
+  const [classEndedAt, setClassEndedAt] = useState<string | null>(null);
   const [classDurationSeconds, setClassDurationSeconds] = useState<number>(0);
+  const [classRecording, setClassRecording] = useState<ClassRecordingState | null>(null);
+  const [recordingExcludedMe, setRecordingExcludedMe] = useState(false);
+  const [enteredBeforeStart, setEnteredBeforeStart] = useState(false);
+  const [classSessionError, setClassSessionError] = useState<string | null>(null);
+  const classStatusRef = useRef<LiveClassStatus>("waiting");
+  classStatusRef.current = classStatus;
+  const authUserIdRef = useRef<string | null>(null);
+  authUserIdRef.current = authenticatedUser?.id || null;
 
-  // Dynamic Class Timer
+  const applySession = (s: any) => {
+    if (!s || !["waiting", "in_progress", "ended"].includes(s.status)) return;
+    setClassStatus(s.status);
+    setClassStartedAt(s.startedAt || null);
+    setClassEndedAt(s.endedAt || null);
+    setClassRecording(s.recording || null);
+  };
+
+  // Class timer from the server's start time (late joiners and refreshes stay in sync)
   useEffect(() => {
+    if (!classStartedAt) {
+      setClassDurationSeconds(0);
+      return;
+    }
+    const tick = () => {
+      const end = classStatus === "ended" && classEndedAt ? new Date(classEndedAt).getTime() : Date.now();
+      setClassDurationSeconds(Math.max(0, Math.floor((end - new Date(classStartedAt).getTime()) / 1000)));
+    };
+    tick();
     if (classStatus !== "in_progress") return;
-    const interval = setInterval(() => {
-      setClassDurationSeconds((prev) => prev + 1);
-    }, 1000);
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [classStatus]);
+  }, [classStatus, classStartedAt, classEndedAt]);
 
-  // Synchronize Live Class Status via WebRTC mesh & Serverless Room State
+  // The room's title comes from its scheduled class ("Physics: Wave optics"), not a placeholder
   useEffect(() => {
-    const unbindMesh = webRtcMeshService.onClassStatusChanged((status) => setClassStatus(status));
-    const unbindData = classroomTransport.onData("class_status", (payload) => {
-      if (payload?.status) setClassStatus(payload.status);
-    });
-
-    // Also poll serverless /api/realtime/room-state so students waiting in lobby auto-transition
+    if (!authenticatedUser || !roomId || authenticatedUser.role === "parent") return;
     let cancelled = false;
-    const pollRoomState = async () => {
-      if (!roomId) return;
+    fetch(`/api/classes/by-room/${encodeURIComponent(roomId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => {
+        if (cancelled || !b?.class) return;
+        const c = b.class;
+        setRoomTitle(c.topic ? `${c.subject}: ${c.topic}` : c.subject);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId, authenticatedUser?.id]);
+
+  // New room: forget the previous room's session
+  useEffect(() => {
+    setClassStatus("waiting");
+    setClassStartedAt(null);
+    setClassEndedAt(null);
+    setClassRecording(null);
+    setEnteredBeforeStart(false);
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!authenticatedUser || !roomId) return;
+    let cancelled = false;
+    const load = async () => {
       try {
-        const res = await fetch(`/api/realtime/room-state?roomId=${encodeURIComponent(roomId)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          if (data?.state?.classStatus && data.state.classStatus !== classStatus) {
-            setClassStatus(data.state.classStatus);
-          }
-        }
+        const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/session`);
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+        if (cancelled) return;
+        applySession(body.session);
+        setRecordingExcludedMe(Boolean(body.me?.recordingExcluded));
       } catch {}
     };
-
-    pollRoomState();
-    const interval = setInterval(pollRoomState, 1500);
-
+    load();
+    // Lobby: check often so learners move in as soon as the class starts; in class: a slow safety net
+    const interval = setInterval(load, classStatus === "in_progress" ? 20000 : 4000);
+    const unbindData = classroomTransport.onData("class_status", (payload) => applySession(payload));
     return () => {
       cancelled = true;
       clearInterval(interval);
-      unbindMesh();
       unbindData();
     };
-  }, [roomId, classStatus]);
+  }, [roomId, authenticatedUser?.id, classStatus]);
 
-  const connectDemoStudent = () => {
-    setParticipants((prev) => {
-      if (prev.some((p) => p.role === "student" && !p.isLocal)) return prev;
-      const demoStudent: Participant = {
-        id: "stu-sophia-1",
-        name: "Sophia Chen",
-        role: "student",
-        avatarColor: "#0082FF",
-        isLocal: false,
-        audioEnabled: true,
-        videoEnabled: true,
-        screenSharing: false,
-        handRaised: false,
-        breakoutRoomId: null,
-        audioLevel: 65,
-        attendanceStatus: "present",
-        joinedAt: "Just now",
-        xpPoints: 340,
-        gradeLevel: 10,
-        section: "A",
-      };
-      return [...prev, demoStudent];
-    });
+  const sessionAction = async (action: "start" | "end") => {
+    setClassSessionError(null);
+    try {
+      const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/session/${action}`, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Couldn't ${action} the class`);
+      applySession(body.session);
+    } catch (err: any) {
+      setClassSessionError(err.message);
+    }
   };
 
+  const isHostAccount = ["instructor", "admin", "sales_rep"].includes(authenticatedUser?.role || "");
+
+  /** Host only: starts the class for everyone (and its recording). */
   const startClass = () => {
-    setClassStatus("in_progress");
-    classroomTransport.sendData("class_status", { status: "in_progress" });
-    webRtcMeshService.broadcastClassStatus("in_progress");
-    fetch("/api/realtime/room-state", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        roomId,
-        classStatus: "in_progress",
-        hostId: authenticatedUser?.id,
-        hostName: authenticatedUser?.name,
-      }),
-    }).catch(() => {});
+    if (isHostAccount) sessionAction("start");
   };
 
+  /** Host only: ends the class for everyone (recording stops, notes are prepared). */
   const endClass = () => {
-    setClassStatus("ended");
-    classroomTransport.sendData("class_status", { status: "ended" });
-    webRtcMeshService.broadcastClassStatus("ended");
-    fetch("/api/realtime/room-state", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        roomId,
-        classStatus: "ended",
-        hostId: authenticatedUser?.id,
-      }),
-    }).catch(() => {});
+    if (isHostAccount) sessionAction("end");
   };
+
+  /** Learner: go from the lobby into the class before it starts (they wait to be admitted). */
+  const enterClassroom = () => setEnteredBeforeStart(true);
 
   // Media
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -977,15 +1012,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLiveSubtitlesActive, setIsLiveSubtitlesActive] = useState(true);
   const [subtitleLanguage, setSubtitleLanguage] = useState<LanguageCode>("es");
   const [subtitleMode, setSubtitleMode] = useState<"dual" | "target_only" | "english_only">("dual");
-  const [currentLiveCaption, setCurrentLiveCaption] = useState<LiveCaption | null>({
-    speakerName: "Prof. Vance (Teacher)",
-    englishText: "आज हम fractions के बारे में सीखेंगे।",
-    translatedText: "Hoy aprenderemos sobre las fracciones.",
-    targetLanguage: "es",
-    timestamp: "Live",
-  });
-  const [isSpeechRecognitionActive, setIsSpeechRecognitionActive] = useState(true);
-  const [isLiveSpeechStreaming, setIsLiveSpeechStreaming] = useState(true);
+  const [currentLiveCaption, setCurrentLiveCaption] = useState<LiveCaption | null>(null);
+  const [isSpeechRecognitionActive, setIsSpeechRecognitionActive] = useState(false);
+  const [isLiveSpeechStreaming, setIsLiveSpeechStreaming] = useState(false);
   const speechRecognitionInstanceRef = useRef<any>(null);
 
   // Manual Grid & Stage Layout Customization State
@@ -1040,10 +1069,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return record;
   };
 
-  // Auto-detect and record device audit on role/user check-in with ZERO questionnaire
-  useEffect(() => {
-    logDeviceAudit(currentRole, `Background flightdeck check-in telemetry audit for ${currentRole}`);
-  }, [currentRole, authenticatedUser]);
+  // Device checks happen at the door (device-access policy on join); no background device logging
 
   // Polls
   const [polls, setPolls] = useState<Poll[]>(INITIAL_POLLS);
@@ -1275,8 +1301,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   };
 
-  // Local Camera / Mic Setup
+  // Local camera/mic: only once signed in, and only for people who speak in class
+  // (never on the sign-in screen; parents and silent auditors don't need it)
+  const needsLocalMedia = Boolean(authenticatedUser) && !["parent", "auditor"].includes(authenticatedUser?.role || "");
   useEffect(() => {
+    if (!needsLocalMedia) return;
     let activeStream: MediaStream | null = null;
     async function initMedia() {
       try {
@@ -1298,8 +1327,9 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (activeStream) {
         activeStream.getTracks().forEach((track) => track.stop());
       }
+      setLocalStream(null);
     };
-  }, []);
+  }, [needsLocalMedia]);
 
   // -------------------------------------------------------------
   // Real Full-Stack WebSocket & Room Bomber Synchronization
@@ -1337,7 +1367,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsRoomBomberActive(false);
       setActivePitchRoom(null);
       setRoomId("dronacharya-gr10-phy");
-      setRoomTitle("Grade 10-A · Advanced Quantum Mechanics & Physics (Dronacharya)");
+      setRoomTitle("Live class");
     });
 
     const unbindStageSync = realtimeSocket.on("PITCH_STAGE_SYNC", (data: any) => {
@@ -1626,9 +1656,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const unbindPeers = classroomTransport.onPeers((peers) => {
       setParticipants((prev) => {
         const locals = prev.filter((p) => p.isLocal);
-        // The scripted demo student only fills an otherwise empty room
-        const demo = peers.length === 0 ? prev.filter((p) => p.id === "stu-sophia-1") : [];
-        return [...locals, ...peers, ...demo];
+        return [...locals, ...peers];
       });
     });
     const unbindState = classroomTransport.onState(setTransportState);
@@ -1676,7 +1704,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Join the class media room whenever the signed-in user or room changes
   useEffect(() => {
-    if (!authenticatedUser || !roomId || hasLeftClass) return;
+    if (!authenticatedUser || !roomId || hasLeftClass || authenticatedUser.role === "parent") return;
     let cancelled = false;
     (async () => {
       const device = await captureDeviceSnapshot().catch(() => undefined);
@@ -1732,13 +1760,12 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, []);
 
-  // Late joiners learn the class status and stage state from the host
+  // Late joiners learn the stage state from the host (class status comes from the server)
   const remoteCount = participants.filter((p) => !p.isLocal).length;
   useEffect(() => {
     if (!isHostRole || remoteCount === 0) return;
-    if (classStatus !== "waiting") classroomTransport.sendData("class_status", { status: classStatus });
     if (isWhiteboardPresenting) classroomTransport.sendData("stage", { whiteboard: true });
-  }, [remoteCount, classStatus, isHostRole, isWhiteboardPresenting]);
+  }, [remoteCount, isHostRole, isWhiteboardPresenting]);
 
   // Keep the screen awake during class on phones/tablets
   useEffect(() => {
@@ -1828,17 +1855,18 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setAnalyticsConsent("not_applicable");
       return;
     }
-    // Auto-grant consent in demo/classroom environment for seamless telemetry
-    setAnalyticsConsent("granted");
     let cancelled = false;
     fetch(`/api/engagement/consent/${encodeURIComponent(authenticatedUser.id)}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((b) => {
         if (cancelled) return;
-        if (b?.consent) setAnalyticsConsent(b.consent.granted ? "granted" : "declined");
-        else setAnalyticsConsent("granted");
+        if (b.consent) setAnalyticsConsent(b.consent.granted ? "granted" : "declined");
+        else {
+          setAnalyticsConsent("unknown");
+          setIsAnalyticsConsentOpen(true);
+        }
       })
-      .catch(() => !cancelled && setAnalyticsConsent("granted"));
+      .catch(() => !cancelled && setAnalyticsConsent("not_applicable")); // service unreachable: never analyse without a recorded decision
     return () => {
       cancelled = true;
     };
@@ -1864,6 +1892,22 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsAnalyticsConsentOpen(false);
     return null;
   };
+
+  // Run the analyzer only with consent, while connected to a class, on the user's own camera
+  useEffect(() => {
+    if (analyticsConsent !== "granted" || !analyzedRole || !authenticatedUser || !localStream || hasLeftClass || transportState.status !== "connected") {
+      engagementRunner.stop();
+      return;
+    }
+    engagementRunner.start({
+      stream: localStream,
+      roomSlug: roomId,
+      participant: { id: authenticatedUser.id, name: authenticatedUser.name, role: authenticatedUser.role },
+      role: analyzedRole,
+      isSpeaking: () => Boolean(classroomTransport.localStatus().isSpeaking),
+    });
+    return () => engagementRunner.stop();
+  }, [analyticsConsent, analyzedRole, authenticatedUser?.id, localStream, hasLeftClass, transportState.status, roomId]);
 
   const leaveClass = async () => {
     await classroomTransport.leave();
@@ -1929,6 +1973,21 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActiveBannerAnnouncement(ann);
   }, [transportState.localMuted]);
 
+  // Low-bandwidth mode (audio + slides): our own camera goes off too, and comes back afterwards
+  const cameraBeforeLowBw = useRef<boolean | null>(null);
+  const setLowBandwidth = (on: boolean) => {
+    if (on === Boolean(transportState.lowBandwidth)) return;
+    if (on) {
+      cameraBeforeLowBw.current = !isVideoOff;
+      if (!isVideoOff) toggleVideo();
+    } else {
+      if (cameraBeforeLowBw.current && isVideoOff) toggleVideo();
+      cameraBeforeLowBw.current = null;
+    }
+    classroomTransport.setLowBandwidth(on);
+  };
+  const dismissLowBandwidthSuggestion = () => classroomTransport.dismissLowBandwidthSuggestion();
+
   const toggleScreenShare = async () => {
     if (isScreenSharing) {
       if (screenStream) {
@@ -1946,6 +2005,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
     try {
+      protectionBus.expectOwnScreenShare();
       const display = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: { ideal: 15, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
@@ -2129,7 +2189,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (event.isFinal) {
         const newLine: TranscriptLine = {
           id: event.id || `t-${Date.now()}`,
-          speakerId: event.speaker.includes("Vance") ? "host-1" : "stu-user",
+          speakerId: authUserIdRef.current || "me",
           speakerName: event.speaker,
           timestamp: event.timestamp,
           text: event.text,
@@ -2150,6 +2210,16 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         try {
           realtimeSocket.sendSpeechCaption(event, roomId);
         } catch {}
+
+        // My own speech (not simulated lines) goes into the class transcript while the class runs:
+        // it feeds the recording's transcript and the lecture notes
+        if (event.id.startsWith("speech-") && classStatusRef.current === "in_progress") {
+          fetch(`/api/rooms/${encodeURIComponent(roomId)}/transcript`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: event.text, translated: event.translatedText, lang: speechTranslationEngine.getSpokenLanguage() }),
+          }).catch(() => {});
+        }
       }
     });
 
@@ -2188,9 +2258,25 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [roomId, subtitleLanguage]);
 
-  // Synchronize subtitle engine listening state
+  // Captions recognise speech in the signed-in person's own language (from their account)
   useEffect(() => {
-    if (isLiveSubtitlesActive) {
+    realtimeInterpreterService.setAccountLanguage(authenticatedUser?.languageTag);
+  }, [authenticatedUser?.languageTag]);
+
+  // Synchronize subtitle engine listening state. During class the host is always transcribed
+  // (for the recording transcript and lecture notes), even with captions hidden.
+  // My voice is only ever captioned while I'm in the class, admitted, and unmuted (never on the
+  // sign-in screen, in the waiting room, or while muted)
+  const mayCaptionMe =
+    Boolean(authenticatedUser) &&
+    !["parent", "auditor"].includes(authenticatedUser?.role || "") &&
+    !hasLeftClass &&
+    !isAudioMuted &&
+    transportState.status === "connected" &&
+    !transportState.waiting;
+  const autoTranscribe = isHostAccount && classStatus === "in_progress";
+  useEffect(() => {
+    if (mayCaptionMe && (isLiveSubtitlesActive || autoTranscribe)) {
       const activeSpeaker = authenticatedUser ? authenticatedUser.name : "Participant";
       realtimeSpeechEngine.startListening(activeSpeaker);
       realtimeInterpreterService.startListening(activeSpeaker);
@@ -2202,7 +2288,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsSpeechRecognitionActive(false);
       setIsLiveSpeechStreaming(false);
     }
-  }, [isLiveSubtitlesActive, currentRole]);
+  }, [isLiveSubtitlesActive, autoTranscribe, mayCaptionMe, authenticatedUser?.name]);
 
   const addTranscriptLine = (speaker: string, text: string) => {
     realtimeSpeechEngine.injectSpeech(speaker, text);
@@ -2308,6 +2394,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsSpeechRecognitionActive(false);
       setIsLiveSpeechStreaming(false);
     } else {
+      if (!mayCaptionMe) return; // muted, waiting to be admitted, or not in class
       const activeSpeaker = authenticatedUser ? authenticatedUser.name : "Active Participant";
       realtimeSpeechEngine.startListening(activeSpeaker);
       setIsSpeechRecognitionActive(true);
@@ -2403,138 +2490,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
   const [selectedAuditParticipantId, setSelectedAuditParticipantId] = useState("host-1");
 
-  // Real on-device engagement & face tracking with live AttentionAudits updates
-  useEffect(() => {
-    if (analyticsConsent !== "granted" || !analyzedRole || !authenticatedUser || !localStream || hasLeftClass) {
-      engagementRunner.stop();
-      return;
-    }
-
-    engagementRunner.start({
-      stream: localStream,
-      roomSlug: roomId,
-      participant: { id: authenticatedUser.id, name: authenticatedUser.name, role: authenticatedUser.role },
-      role: analyzedRole,
-      isSpeaking: () => !isAudioMuted,
-      onFeatures: (features) => {
-        const eyesOnScreen = features.facePresent && Math.abs(features.yaw) < 25 && Math.abs(features.pitch) < 25;
-        const gaze: any = !features.facePresent
-          ? "Away"
-          : features.yaw > 15
-          ? "Looking Right"
-          : features.yaw < -15
-          ? "Looking Left"
-          : features.pitch < -12
-          ? "Looking Down"
-          : features.pitch > 15
-          ? "Looking Up"
-          : "Center";
-
-        const attScore = !features.facePresent ? 25 : eyesOnScreen ? 94 : 68;
-        const engLevel = attScore >= 80 ? "High Focus" : attScore >= 60 ? "Attentive" : attScore >= 40 ? "Mild Distraction" : "Off-Task";
-
-        setAttentionAudits((prev) => {
-          const existing = prev[authenticatedUser.id];
-          return {
-            ...prev,
-            [authenticatedUser.id]: {
-              participantId: authenticatedUser.id,
-              name: authenticatedUser.name,
-              role: authenticatedUser.role as any,
-              gaze,
-              headPose: { pitch: Math.round(features.pitch), yaw: Math.round(features.yaw), roll: 0 },
-              blinkRate: features.eyeBlink > 0.5 ? 18 : 14,
-              eyesOnScreen,
-              attentionScore: attScore,
-              engagementLevel: engLevel,
-              distractionAlert: attScore < 45,
-              landmarks: existing?.landmarks || {
-                leftEye: [150, 120],
-                rightEye: [170, 120],
-                nose: [160, 140],
-                mouth: [160, 160],
-                chin: [160, 180],
-              },
-            },
-          };
-        });
-      },
-      onSummary: (summary) => {
-        realtimeSocket.send("ENGAGEMENT_SAMPLE", {
-          roomSlug: roomId,
-          participant: { id: authenticatedUser.id, name: authenticatedUser.name, role: authenticatedUser.role },
-          summary,
-        });
-      },
-    });
-
-    return () => engagementRunner.stop();
-  }, [analyticsConsent, analyzedRole, authenticatedUser, localStream, hasLeftClass, roomId, isAudioMuted]);
-
-  // Sync engagement samples from peers / other students
-  useEffect(() => {
-    const unsub = realtimeSocket.on("ENGAGEMENT_SAMPLE", (data: any) => {
-      if (!data?.participant?.id || !data?.summary) return;
-      const pid = data.participant.id;
-      const sum = data.summary;
-      const attScore = Math.round((sum.eyeContact ?? 0.85) * 100);
-      const engLevel = attScore >= 80 ? "High Focus" : attScore >= 60 ? "Attentive" : attScore >= 40 ? "Mild Distraction" : "Off-Task";
-      const gaze: any = (sum.eyeContact ?? 0.85) > 0.6 ? "Center" : "Away";
-
-      setAttentionAudits((prev) => {
-        const existing = prev[pid];
-        return {
-          ...prev,
-          [pid]: {
-            participantId: pid,
-            name: data.participant.name || existing?.name || "Participant",
-            role: (data.participant.role || existing?.role || "student") as any,
-            gaze,
-            headPose: existing?.headPose || { pitch: 0, yaw: 0, roll: 0 },
-            blinkRate: sum.blinkPerMin || 14,
-            eyesOnScreen: (sum.eyeContact ?? 0.85) > 0.5,
-            attentionScore: attScore,
-            engagementLevel: engLevel,
-            distractionAlert: attScore < 45,
-            landmarks: existing?.landmarks || {
-              leftEye: [150, 120],
-              rightEye: [170, 120],
-              nose: [160, 140],
-              mouth: [160, 160],
-              chin: [160, 180],
-            },
-          },
-        };
-      });
-    });
-    return () => unsub();
-  }, []);
-
-  // Subtle telemetry pulse for other classroom participants so HUD is always alive
-  useEffect(() => {
-    const pulseTimer = setInterval(() => {
-      setAttentionAudits((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        Object.keys(next).forEach((pid) => {
-          if (authenticatedUser && pid === authenticatedUser.id) return;
-          const p = next[pid];
-          if (!p) return;
-          changed = true;
-          const jitter = (Math.random() - 0.5) * 4;
-          const newScore = Math.min(99, Math.max(50, Math.round(p.attentionScore + jitter)));
-          next[pid] = {
-            ...p,
-            attentionScore: newScore,
-            blinkRate: 14 + Math.round(Math.random() * 3),
-            engagementLevel: newScore >= 80 ? "High Focus" : newScore >= 60 ? "Attentive" : "Mild Distraction",
-          };
-        });
-        return changed ? next : prev;
-      });
-    }, 4000);
-    return () => clearInterval(pulseTimer);
-  }, [authenticatedUser?.id]);
+  // Attention/engagement numbers come from real on-device analysis (engagementRunner),
+  // visible to auditors/analysts only.
 
   const updateManualRubricScore = (
     participantId: string,
@@ -2632,18 +2589,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [kickedParticipants, setKickedParticipants] = useState<
     Array<{ id: string; name: string; reason: string; kickedAt: string }>
   >([]);
-  const [childFeedbackLogs, setChildFeedbackLogs] = useState<DirectChildFeedback[]>([
-    {
-      id: "fb-1",
-      studentId: "stu-1",
-      studentName: "Sophia Chen",
-      teacherId: "host-1",
-      praiseType: "Active Contributor",
-      stars: 5,
-      note: "Brilliant explanation of phase damping in quantum states!",
-      timestamp: "09:08 AM",
-    },
-  ]);
+  const [childFeedbackLogs, setChildFeedbackLogs] = useState<DirectChildFeedback[]>([]);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [activeFeedbackTarget, setActiveFeedbackTarget] = useState<Participant | null>(null);
 
@@ -2701,18 +2647,24 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   };
 
-  const shareChildFeedback = (feedback: Omit<DirectChildFeedback, "id" | "timestamp">) => {
-    const newFb: DirectChildFeedback = {
-      ...feedback,
-      id: `fb-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setChildFeedbackLogs((prev) => [newFb, ...prev]);
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.id === feedback.studentId ? { ...p, xpPoints: p.xpPoints + feedback.stars * 50 } : p
-      )
-    );
+  /** Teacher remark/praise for a learner: saved on the server, visible to the learner's parents. */
+  const shareChildFeedback = async (feedback: Omit<DirectChildFeedback, "id" | "timestamp">): Promise<string | null> => {
+    try {
+      const res = await fetch("/api/remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId: feedback.studentId, kind: feedback.praiseType, stars: feedback.stars, note: feedback.note, roomSlug: roomId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return body.error || "Couldn't save the remark";
+      setChildFeedbackLogs((prev) => [
+        { ...feedback, teacherId: authenticatedUser?.id || feedback.teacherId, id: body.remark?.id || `fb-${Date.now()}`, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+        ...prev,
+      ]);
+      return null;
+    } catch {
+      return "Couldn't reach the school server";
+    }
   };
 
   // -------------------------------------------------------------
@@ -3121,7 +3073,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActiveProductionMeeting(null);
     setActivePitchRoom(null);
     setRoomId("dronacharya-gr10-phy");
-    setRoomTitle("Grade 10-A · Advanced Quantum Mechanics & Physics (Dronacharya)");
+    setRoomTitle("Live class");
     setRoomLink(buildMeetingUrl("dronacharya-gr10-phy"));
   };
 
@@ -3349,7 +3301,14 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         classDurationSeconds,
         startClass,
         endClass,
-        connectDemoStudent,
+        setLowBandwidth,
+        dismissLowBandwidthSuggestion,
+        enterClassroom,
+        enteredBeforeStart,
+        classStartedAt,
+        classRecording,
+        recordingExcludedMe,
+        classSessionError,
         localStream,
         screenStream,
         isAudioMuted,

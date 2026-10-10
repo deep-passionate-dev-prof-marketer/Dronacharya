@@ -8,19 +8,8 @@
  * The rest of the app only sees TransportPeer objects and typed data messages, so the layout code
  * does not care which path is active.
  */
-import {
-  ConnectionQuality,
-  DisconnectReason,
-  LocalTrackPublication,
-  Participant as LkParticipant,
-  RemoteParticipant,
-  RemoteTrack,
-  Room,
-  RoomEvent,
-  ScreenSharePresets,
-  Track,
-  VideoPresets,
-} from "livekit-client";
+import type * as LK from "livekit-client";
+import type { LocalTrackPublication, Participant as LkParticipant, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room } from "livekit-client";
 import { webRtcMeshService, RemotePeerInfo } from "../webRtcMeshService";
 import { realtimeSocket } from "../realtimeSocket";
 import type { Participant, UserRole } from "../../types";
@@ -38,6 +27,10 @@ export interface TransportState {
   waiting?: boolean;
   /** Last time one of our own tracks was muted from outside (e.g. by the teacher) */
   localMuted?: { kind: "audio" | "video"; at: number };
+  /** Audio + slides only: remote cameras off, screen share at its low layer */
+  lowBandwidth?: boolean;
+  /** Our connection has been poor for a while: offer low-bandwidth mode */
+  suggestLowBandwidth?: boolean;
 }
 
 export type DataTopic =
@@ -70,17 +63,43 @@ export class DeviceBlockedError extends Error {
 
 type PeersListener = (peers: Participant[]) => void;
 type StateListener = (s: TransportState) => void;
-type DataListener = (payload: any, fromId: string) => void;
+type DataListener = (payload: any, fromId: string, fromHost: boolean) => void;
+
+const HOST_ROLES = ["instructor", "admin", "sales_rep"];
+/** Only the server may change these (class state, polls); clients can't spoof them. */
+const SERVER_ONLY: DataTopic[] = ["class_status", "poll", "poll_results"];
+/** Only hosts may send these (room-wide stage changes, whiteboard snapshots). */
+const HOST_ONLY: DataTopic[] = ["stage", "wb_sync"];
+
+function roleOf(metadata?: string): string {
+  try {
+    return String(JSON.parse(metadata || "{}").role || "");
+  } catch {
+    return "";
+  }
+}
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+// LiveKit's ConnectionQuality values (string enum)
 const QUALITY: Record<string, Participant["connectionQuality"]> = {
-  [ConnectionQuality.Excellent]: "excellent",
-  [ConnectionQuality.Good]: "good",
-  [ConnectionQuality.Poor]: "poor",
-  [ConnectionQuality.Lost]: "lost",
+  excellent: "excellent",
+  good: "good",
+  poor: "poor",
+  lost: "lost",
 };
+
+/**
+ * livekit-client is large; it loads only when someone joins a class (not on the sign-in screen).
+ * Every runtime use below goes through `lk`, which is set before any room exists.
+ */
+let lk: typeof LK;
+let lkLoading: Promise<typeof LK> | null = null;
+export function loadLivekit(): Promise<typeof LK> {
+  if (!lkLoading) lkLoading = import("livekit-client").then((m) => (lk = m));
+  return lkLoading;
+}
 
 class ClassroomTransport {
   private room: Room | null = null;
@@ -98,6 +117,8 @@ class ClassroomTransport {
   private roomSlug = "";
   private selfId = "";
   private lastParams: JoinParams | null = null;
+  /** The newest camera/mic stream from the app (kept while waiting, published once admitted) */
+  private latestLocalStream: MediaStream | null = null;
   private rejoinAttempts = 0;
   private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -141,6 +162,11 @@ class ClassroomTransport {
     this.selfId = params.user.id;
     this.setState({ mode: "none", status: "connecting", audioBlocked: false, error: undefined });
 
+    // Fetch the media library while the token request is in flight
+    const lkReady = loadLivekit().then(
+      () => true,
+      () => false
+    );
     let tokenResponse: { token: string; url: string } | null = null;
     try {
       const res = await fetch("/api/livekit/token", {
@@ -159,7 +185,7 @@ class ClassroomTransport {
       // Network error / no server: fall back to mesh below
     }
 
-    if (tokenResponse) {
+    if (tokenResponse && (await lkReady)) {
       try {
         await this.joinLivekit(tokenResponse, params);
         return "livekit";
@@ -223,28 +249,89 @@ class ClassroomTransport {
     }
   }
 
-  /** Re-publish when the context swaps its local stream (e.g. device change). */
-  async replaceLocalStream(stream: MediaStream | null) {
+  private publishQueue: Promise<void> = Promise.resolve();
+  private lowBandwidth = false;
+  private poorSince: number | null = null;
+  private poorTimer: ReturnType<typeof setTimeout> | null = null;
+  private suggestionDismissed = false;
+
+  /** Audio + slides only. Remote cameras are unsubscribed (nothing downloaded), screen share drops to 720p/5fps. */
+  setLowBandwidth(on: boolean) {
+    this.lowBandwidth = on;
+    this.setState({ ...this.state, lowBandwidth: on, suggestLowBandwidth: false });
+    if (this.room) {
+      for (const p of this.room.remoteParticipants.values()) for (const pub of p.trackPublications.values()) this.applyBandwidthPolicy(pub as RemoteTrackPublication);
+    }
+    this.emitPeers();
+  }
+
+  dismissLowBandwidthSuggestion() {
+    this.suggestionDismissed = true;
+    this.setState({ ...this.state, suggestLowBandwidth: false });
+  }
+
+  private applyBandwidthPolicy(pub: RemoteTrackPublication) {
+    if (pub.source === lk.Track.Source.Camera) {
+      if (pub.isSubscribed === this.lowBandwidth || pub.isDesired === this.lowBandwidth) pub.setSubscribed(!this.lowBandwidth);
+    } else if (pub.source === lk.Track.Source.ScreenShare) {
+      pub.setVideoQuality(this.lowBandwidth ? lk.VideoQuality.LOW : lk.VideoQuality.HIGH);
+    }
+  }
+
+  /** Poor connection for 10s in a row → suggest low-bandwidth mode (once, unless dismissed). */
+  private watchLocalQuality(quality: LK.ConnectionQuality) {
+    const poor = quality === lk.ConnectionQuality.Poor || quality === lk.ConnectionQuality.Lost;
+    if (!poor) {
+      this.poorSince = null;
+      if (this.poorTimer) clearTimeout(this.poorTimer);
+      this.poorTimer = null;
+      return;
+    }
+    if (this.lowBandwidth || this.suggestionDismissed || this.poorSince) return;
+    this.poorSince = Date.now();
+    this.poorTimer = setTimeout(() => {
+      if (this.poorSince && !this.lowBandwidth && !this.suggestionDismissed) this.setState({ ...this.state, suggestLowBandwidth: true });
+    }, 10_000);
+  }
+
+  /**
+   * Re-publish when the context swaps its local stream (e.g. device change) or when we're admitted.
+   * Calls are queued: two overlapping calls used to publish the microphone twice.
+   */
+  replaceLocalStream(stream: MediaStream | null): Promise<void> {
+    if (stream) this.latestLocalStream = stream;
+    const run = this.publishQueue.then(() => this.doReplaceLocalStream(stream));
+    this.publishQueue = run.catch(() => {});
+    return run;
+  }
+
+  private async doReplaceLocalStream(stream: MediaStream | null) {
     if (this.state.mode === "mesh") {
       if (stream) webRtcMeshService.setLocalStream(stream);
       return;
     }
     if (!this.room || !stream) return;
     const lp = this.room.localParticipant;
+    // In the waiting room nothing may be published yet; we publish when admitted
+    if (this.state.waiting || lp.permissions?.canPublish === false) return;
     const audio = stream.getAudioTracks()[0];
     const video = stream.getVideoTracks()[0];
+    // Already published (e.g. by an earlier queued call): adopt it instead of publishing again
+    const published = (src: LK.Track.Source) => lp.getTrackPublication(src) as LocalTrackPublication | undefined;
+    if (audio && published(lk.Track.Source.Microphone)?.track?.mediaStreamTrack === audio) this.micPub = published(lk.Track.Source.Microphone)!;
+    if (video && published(lk.Track.Source.Camera)?.track?.mediaStreamTrack === video) this.cameraPub = published(lk.Track.Source.Camera)!;
     if (audio && this.micPub?.track?.mediaStreamTrack !== audio) {
       if (this.micPub?.track) await lp.unpublishTrack(this.micPub.track, false).catch(() => {});
-      this.micPub = await lp.publishTrack(audio, { source: Track.Source.Microphone, dtx: true, red: true }).catch(() => null);
+      this.micPub = await lp.publishTrack(audio, { source: lk.Track.Source.Microphone, dtx: true, red: true }).catch(() => null);
     }
     if (video && this.cameraPub?.track?.mediaStreamTrack !== video) {
       if (this.cameraPub?.track) await lp.unpublishTrack(this.cameraPub.track, false).catch(() => {});
       this.cameraPub = await lp
         .publishTrack(video, {
-          source: Track.Source.Camera,
+          source: lk.Track.Source.Camera,
           simulcast: true,
-          videoEncoding: VideoPresets.h720.encoding,
-          videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
+          videoEncoding: lk.VideoPresets.h720.encoding,
+          videoSimulcastLayers: [lk.VideoPresets.h180, lk.VideoPresets.h360],
         })
         .catch(() => null);
     }
@@ -264,9 +351,11 @@ class ClassroomTransport {
       } catch {}
       await lp
         .publishTrack(track, {
-          source: Track.Source.ScreenShare,
-          simulcast: false,
-          videoEncoding: ScreenSharePresets.h1080fps15.encoding,
+          source: lk.Track.Source.ScreenShare,
+          // A 720p/5fps layer lets low-bandwidth viewers keep readable slides
+          simulcast: true,
+          screenShareSimulcastLayers: [lk.ScreenSharePresets.h720fps5],
+          videoEncoding: lk.ScreenSharePresets.h1080fps15.encoding,
           degradationPreference: "maintain-resolution",
         })
         .catch((err) => console.warn("[Transport] screen publish failed", err));
@@ -294,15 +383,15 @@ class ClassroomTransport {
 
   // ---------------------------------------------------------------- LiveKit
   private async joinLivekit(cfg: { token: string; url: string }, params: JoinParams) {
-    const room = new Room({
+    const room = new lk.Room({
       adaptiveStream: true,
       dynacast: true,
       disconnectOnPageLeave: true,
       publishDefaults: {
         simulcast: true,
-        videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
-        videoEncoding: VideoPresets.h720.encoding,
-        screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
+        videoSimulcastLayers: [lk.VideoPresets.h180, lk.VideoPresets.h360],
+        videoEncoding: lk.VideoPresets.h720.encoding,
+        screenShareEncoding: lk.ScreenSharePresets.h1080fps15.encoding,
         dtx: true,
         red: true,
         degradationPreference: "maintain-framerate",
@@ -317,7 +406,7 @@ class ClassroomTransport {
     this.syncLocalWaiting(room);
 
     if (params.user.role !== "auditor" && !this.state.waiting) {
-      await this.replaceLocalStream(params.localStream || null);
+      await this.replaceLocalStream(this.latestLocalStream || params.localStream || null);
       if (!params.audioEnabled) await this.setMicEnabled(false);
       if (!params.videoEnabled) await this.setCameraEnabled(false);
     }
@@ -327,55 +416,62 @@ class ClassroomTransport {
   private wireRoomEvents(room: Room) {
     const refresh = () => this.emitPeers();
     room
-      .on(RoomEvent.ParticipantConnected, refresh)
-      .on(RoomEvent.ParticipantDisconnected, (p) => {
+      .on(lk.RoomEvent.ParticipantConnected, refresh)
+      .on(lk.RoomEvent.ParticipantDisconnected, (p) => {
         this.handRaised.delete(p.identity);
         refresh();
       })
-      .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant: RemoteParticipant) => {
-        if (track.kind === Track.Kind.Audio) this.attachAudio(track, participant.identity);
+      .on(lk.RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
+        if (track.kind === lk.Track.Kind.Audio) this.attachAudio(track, participant.identity);
+        else this.applyBandwidthPolicy(pub);
         refresh();
       })
-      .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+      .on(lk.RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
         track.detach().forEach((el) => el.remove());
         refresh();
       })
-      .on(RoomEvent.TrackMuted, (pub, participant) => {
+      .on(lk.RoomEvent.TrackMuted, (pub, participant) => {
         // Server-side mute of our own track (host action): let the UI catch up
-        if (participant === room.localParticipant) this.setState({ ...this.state, localMuted: { kind: pub.kind === Track.Kind.Audio ? "audio" : "video", at: Date.now() } });
+        if (participant === room.localParticipant) this.setState({ ...this.state, localMuted: { kind: pub.kind === lk.Track.Kind.Audio ? "audio" : "video", at: Date.now() } });
         refresh();
       })
-      .on(RoomEvent.TrackUnmuted, refresh)
-      .on(RoomEvent.TrackPublished, refresh)
-      .on(RoomEvent.TrackUnpublished, refresh)
-      .on(RoomEvent.LocalTrackPublished, refresh)
-      .on(RoomEvent.LocalTrackUnpublished, refresh)
-      .on(RoomEvent.ActiveSpeakersChanged, refresh)
-      .on(RoomEvent.ConnectionQualityChanged, refresh)
-      .on(RoomEvent.ParticipantMetadataChanged, (_old, participant) => {
+      .on(lk.RoomEvent.TrackUnmuted, refresh)
+      .on(lk.RoomEvent.TrackPublished, (pub: RemoteTrackPublication) => {
+        this.applyBandwidthPolicy(pub);
+        refresh();
+      })
+      .on(lk.RoomEvent.TrackUnpublished, refresh)
+      .on(lk.RoomEvent.LocalTrackPublished, refresh)
+      .on(lk.RoomEvent.LocalTrackUnpublished, refresh)
+      .on(lk.RoomEvent.ActiveSpeakersChanged, refresh)
+      .on(lk.RoomEvent.ConnectionQualityChanged, (quality: LK.ConnectionQuality, participant) => {
+        if (participant === room.localParticipant) this.watchLocalQuality(quality);
+        refresh();
+      })
+      .on(lk.RoomEvent.ParticipantMetadataChanged, (_old, participant) => {
         if (participant && participant.identity === room.localParticipant.identity) this.syncLocalWaiting(room);
         refresh();
       })
-      .on(RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
+      .on(lk.RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
         if (participant && participant.identity === room.localParticipant.identity) {
           this.syncLocalWaiting(room);
           // Admitted: start sending camera and mic now that publishing is allowed
-          if (room.localParticipant.permissions?.canPublish && this.lastParams) this.replaceLocalStream(this.lastParams.localStream || null);
+          if (room.localParticipant.permissions?.canPublish) this.replaceLocalStream(this.latestLocalStream || this.lastParams?.localStream || null);
         }
         refresh();
       })
-      .on(RoomEvent.AudioPlaybackStatusChanged, () => this.setState({ ...this.state, audioBlocked: !room.canPlaybackAudio }))
-      .on(RoomEvent.Reconnecting, () => this.setState({ ...this.state, status: "reconnecting" }))
-      .on(RoomEvent.SignalReconnecting, () => this.setState({ ...this.state, status: "reconnecting" }))
-      .on(RoomEvent.Reconnected, () => this.setState({ ...this.state, status: "connected" }))
-      .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+      .on(lk.RoomEvent.AudioPlaybackStatusChanged, () => this.setState({ ...this.state, audioBlocked: !room.canPlaybackAudio }))
+      .on(lk.RoomEvent.Reconnecting, () => this.setState({ ...this.state, status: "reconnecting" }))
+      .on(lk.RoomEvent.SignalReconnecting, () => this.setState({ ...this.state, status: "reconnecting" }))
+      .on(lk.RoomEvent.Reconnected, () => this.setState({ ...this.state, status: "connected" }))
+      .on(lk.RoomEvent.Disconnected, (reason?: LK.DisconnectReason) => {
         if (this.room !== room) return; // we left on purpose
-        if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+        if (reason === lk.DisconnectReason.DUPLICATE_IDENTITY) {
           // Same account joined from another tab/device; let the user choose where to continue
           this.setState({ ...this.state, status: "disconnected", error: "duplicate_identity" });
           return;
         }
-        if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        if (reason === lk.DisconnectReason.PARTICIPANT_REMOVED) {
           // A host removed us (or declined us from the waiting room): don't sneak back in
           this.setState({ ...this.state, status: "disconnected", error: this.state.waiting ? "denied" : "removed", waiting: false });
           return;
@@ -390,10 +486,12 @@ class ClassroomTransport {
           }
         }, delay);
       })
-      .on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
+      .on(lk.RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
         try {
           const msg = JSON.parse(decoder.decode(payload));
-          this.dispatchData(msg, participant?.identity || msg.from);
+          // No participant means the message came from the server (RoomService.sendData)
+          if (participant) this.dispatchData(msg, participant.identity, roleOf(participant.metadata));
+          else this.dispatchData(msg, "server", "server");
         } catch {}
       });
   }
@@ -425,9 +523,9 @@ class ClassroomTransport {
     try {
       meta = p.metadata ? JSON.parse(p.metadata) : {};
     } catch {}
-    const cam = p.getTrackPublication(Track.Source.Camera);
-    const mic = p.getTrackPublication(Track.Source.Microphone);
-    const screen = p.getTrackPublication(Track.Source.ScreenShare);
+    const cam = p.getTrackPublication(lk.Track.Source.Camera);
+    const mic = p.getTrackPublication(lk.Track.Source.Microphone);
+    const screen = p.getTrackPublication(lk.Track.Source.ScreenShare);
     const camTrack = cam?.track;
     const screenTrack = screen?.track;
     const attach = (t: typeof camTrack) =>
@@ -495,7 +593,8 @@ class ClassroomTransport {
         this.emitPeers();
       }),
       realtimeSocket.on("ROOM_DATA", (data: any) => {
-        if (data?.roomId === this.roomSlug && data.message?.from !== this.selfId) this.dispatchData(data.message, data.message.from);
+        // The realtime server stamps the verified sender on relayed messages
+        if (data?.roomId === this.roomSlug && data.message?.from !== this.selfId) this.dispatchData(data.message, data.message.from, data.message.fromRole || "");
       })
     );
     webRtcMeshService.joinRoom(params.roomSlug, local, params.localStream || undefined);
@@ -503,15 +602,21 @@ class ClassroomTransport {
   }
 
   // ---------------------------------------------------------------- helpers
-  private dispatchData(msg: { topic: DataTopic; payload: any; from: string }, fromId: string) {
+  private dispatchData(msg: { topic: DataTopic; payload: any; from: string }, fromId: string, fromRole: string) {
     if (!msg?.topic) return;
+    const fromHost = fromRole === "server" || HOST_ROLES.includes(fromRole);
+    if (SERVER_ONLY.includes(msg.topic) && fromRole !== "server") return;
+    if (HOST_ONLY.includes(msg.topic) && !fromHost) return;
+    // Whiteboard: people change only their own strokes; only hosts wipe the board
+    if (msg.topic === "wb_stroke" && !fromHost && msg.payload?.by !== fromId) return;
+    if (msg.topic === "wb_clear" && !fromHost && !Array.isArray(msg.payload?.ids)) return;
     if (msg.topic === "hand") {
       this.handRaised.set(fromId, Boolean(msg.payload?.raised));
       this.emitPeers();
     }
     this.dataListeners.get(msg.topic)?.forEach((cb) => {
       try {
-        cb(msg.payload, fromId);
+        cb(msg.payload, fromId, fromHost);
       } catch (err) {
         console.warn("[Transport] data listener error", err);
       }
@@ -590,8 +695,10 @@ class ClassroomTransport {
   }
 
   private setState(next: TransportState) {
-    this.state = next;
-    this.stateListeners.forEach((cb) => cb(next));
+    // The bandwidth choice outlives reconnects (join() replaces the rest of the state)
+    this.state = { ...next, lowBandwidth: this.lowBandwidth };
+    const state = this.state;
+    this.stateListeners.forEach((cb) => cb(state));
   }
 }
 

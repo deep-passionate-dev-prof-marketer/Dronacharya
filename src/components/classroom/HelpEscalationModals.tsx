@@ -49,7 +49,7 @@ export const HelpEscalationModals: React.FC = () => {
     <>
       {/* Floating Active Escalation Toast */}
       {activeEscalationToast && (
-        <div className="fixed top-20 right-6 z-50 max-w-sm w-full bg-[#001F40] border border-[#00C2E0] shadow-2xl rounded-2xl p-4 text-white select-none animate-slideIn">
+        <div className="fixed top-20 right-6 z-50 max-w-sm w-full bg-brand-navy-deep border border-brand-cyan shadow-2xl rounded-2xl p-4 text-white select-none animate-slideIn">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2.5">
               <div className={`p-2 rounded-xl ${activeEscalationToast.type === "parent_help" ? "bg-cyan-950 text-cyan-300 border border-cyan-800" : "bg-rose-950 text-rose-300 border border-rose-800"}`}>
@@ -59,7 +59,7 @@ export const HelpEscalationModals: React.FC = () => {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-white">
                   {activeEscalationToast.type === "parent_help" ? "Parent Escalation Dispatched" : "21K CX Priority Intervention"}
                 </h4>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-2xs text-slate-300">
                   Status: <span className="text-emerald-400 font-mono font-bold capitalize">{activeEscalationToast.status}</span>
                 </p>
               </div>
@@ -78,7 +78,7 @@ export const HelpEscalationModals: React.FC = () => {
           </p>
 
           {activeEscalationToast.responseNote && (
-            <div className="mt-2 text-[11px] text-cyan-300 font-medium flex items-center gap-1.5">
+            <div className="mt-2 text-2xs text-cyan-300 font-medium flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>{activeEscalationToast.responseNote}</span>
             </div>
@@ -89,10 +89,10 @@ export const HelpEscalationModals: React.FC = () => {
       {/* 1. Modal: Ask for Parent Help */}
       {isParentHelpModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-[#090e17] rounded-t-3xl sm:rounded-2xl border border-[#003872] shadow-2xl overflow-hidden font-sans text-white">
-            <div className="p-4 bg-[#001F40] border-b border-slate-800 flex items-center justify-between">
+          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-canvas rounded-t-3xl sm:rounded-2xl border border-brand-navy shadow-2xl overflow-hidden font-sans text-white">
+            <div className="p-4 bg-brand-navy-deep border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-[#003872] text-[#00C2E0]">
+                <div className="p-2 rounded-lg bg-brand-navy text-brand-cyan">
                   <HelpCircle className="w-5 h-5" />
                 </div>
                 <div>
@@ -113,13 +113,13 @@ export const HelpEscalationModals: React.FC = () => {
             <form onSubmit={handleDispatchParent} className="p-5 space-y-4 text-xs">
               {/* Target Student */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-[11px]">
+                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
                   Select Learner Requiring Assistance:
                 </label>
                 <select
                   value={selectedStudentId}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-[#00C2E0]"
+                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-brand-cyan"
                 >
                   {students.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -131,7 +131,7 @@ export const HelpEscalationModals: React.FC = () => {
 
               {/* Context Reason */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-[11px]">
+                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
                   Classroom Context & Assistance Reason:
                 </label>
                 <textarea
@@ -139,13 +139,13 @@ export const HelpEscalationModals: React.FC = () => {
                   value={parentReason}
                   onChange={(e) => setParentReason(e.target.value)}
                   placeholder="Explain why parent presence or support is requested..."
-                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2E0]"
+                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-brand-cyan"
                   required
                 />
               </div>
 
               {/* Delivery Channels Badge */}
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between">
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-2xs text-slate-300 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-cyan-300">
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>WhatsApp & SMS Gateway</span>
@@ -164,7 +164,7 @@ export const HelpEscalationModals: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0082FF] hover:bg-[#0070dc] text-white font-bold transition-all shadow"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue hover:bg-brand-blue-strong text-white font-bold transition-all shadow"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Dispatch Parent Alert</span>
@@ -178,8 +178,8 @@ export const HelpEscalationModals: React.FC = () => {
       {/* 2. Modal: Ask for CX Help */}
       {isCxHelpModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-[#090e17] rounded-t-3xl sm:rounded-2xl border border-rose-900/50 shadow-2xl overflow-hidden font-sans text-white">
-            <div className="p-4 bg-gradient-to-r from-rose-950 via-[#001F40] to-[#001F40] border-b border-rose-800/40 flex items-center justify-between">
+          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-canvas rounded-t-3xl sm:rounded-2xl border border-rose-900/50 shadow-2xl overflow-hidden font-sans text-white">
+            <div className="p-4 bg-gradient-to-r from-rose-950 via-brand-navy-deep to-brand-navy-deep border-b border-rose-800/40 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-rose-900/60 text-rose-300">
                   <ShieldAlert className="w-5 h-5" />
@@ -202,7 +202,7 @@ export const HelpEscalationModals: React.FC = () => {
             <form onSubmit={handleDispatchCx} className="p-5 space-y-4 text-xs">
               {/* Issue Category */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-[11px]">
+                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
                   Issue Category:
                 </label>
                 <select
@@ -220,7 +220,7 @@ export const HelpEscalationModals: React.FC = () => {
 
               {/* Problem Description */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-[11px]">
+                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
                   Urgent Description:
                 </label>
                 <textarea
@@ -233,7 +233,7 @@ export const HelpEscalationModals: React.FC = () => {
                 />
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between">
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-2xs text-slate-300 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-rose-400">
                   <PhoneCall className="w-3.5 h-3.5" />
                   <span>21K Tech Ops Duty Desk</span>

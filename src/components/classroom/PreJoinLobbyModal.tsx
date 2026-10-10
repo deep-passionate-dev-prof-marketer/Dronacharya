@@ -215,7 +215,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#070b14]/95 backdrop-blur-xl overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/95 backdrop-blur-xl overflow-y-auto">
       <div className="w-full max-w-4xl bg-slate-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row text-slate-100">
         {/* Left Column: Live Video/Audio Greenroom Preview */}
         <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-white/10 bg-slate-950/60">
@@ -298,7 +298,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-500 font-mono">
+          <div className="mt-4 flex items-center gap-2 text-2xs text-slate-500 font-mono">
             <Shield className="w-3.5 h-3.5 text-cyan-400" />
             <span>End-to-End Encrypted WebRTC Mesh · &lt;20ms SLA</span>
           </div>
@@ -328,7 +328,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-white">Teacher / Faculty</h4>
-                  <p className="text-[10px] text-slate-400">Classroom Host & Controls</p>
+                  <p className="text-2xs text-slate-400">Classroom Host & Controls</p>
                 </div>
               </button>
 
@@ -347,7 +347,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-white">Student / Scholar</h4>
-                  <p className="text-[10px] text-slate-400">Interactive Learner</p>
+                  <p className="text-2xs text-slate-400">Interactive Learner</p>
                 </div>
               </button>
 
@@ -363,7 +363,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
                 <Eye className="w-4 h-4 text-purple-400 shrink-0" />
                 <div className="truncate">
                   <h4 className="text-xs font-bold text-white">Auditor</h4>
-                  <p className="text-[9px] text-slate-400">Compliance Inspector</p>
+                  <p className="text-2xs text-slate-400">Compliance Inspector</p>
                 </div>
               </button>
 
@@ -379,7 +379,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
                 <Zap className="w-4 h-4 text-amber-400 shrink-0" />
                 <div className="truncate">
                   <h4 className="text-xs font-bold text-white">Sales & CRM</h4>
-                  <p className="text-[9px] text-slate-400">1:1 Breakout Pitch</p>
+                  <p className="text-2xs text-slate-400">1:1 Breakout Pitch</p>
                 </div>
               </button>
             </div>
@@ -403,7 +403,7 @@ export const PreJoinLobbyModal: React.FC<Props> = ({
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
                   <span>Classroom Room Code:</span>
-                  <span className="text-[10px] text-cyan-400 font-mono">Shared across peers</span>
+                  <span className="text-2xs text-cyan-400 font-mono">Shared across peers</span>
                 </label>
                 <div className="relative">
                   <input
