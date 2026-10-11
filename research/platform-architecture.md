@@ -57,3 +57,12 @@ This document provides the foundational architecture mapping for the Dronacharya
 ├── package.json
 └── vite.config.ts
 ```
+
+## 4. Status in v4.0
+- **Media**: LiveKit (`livekit-client`, `livekit-server-sdk`, Egress for recordings); mesh as fallback.
+- **Persistence**: Postgres via Drizzle (PGlite / Supabase), not in-memory or localStorage for anything that
+  matters. Browser storage is used only for per-viewer conveniences (saved analytics views, sidebar state).
+- **Sign-in**: signed server sessions (Google Workspace SSO, email codes, signed invite links).
+- **AI**: Gemini first, local Ollama/Whisper as fallback (`AI_PROVIDERS`).
+- **New modules**: `src/server/analytics/*`, `src/routing/viewRegistry.ts`, `src/components/{ui,charts,analytics}`.
+  See `docs/MMD.md` for the current module map.

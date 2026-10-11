@@ -43,3 +43,10 @@ Listener Audio Playback              UI Audio Meters / Glow             Semantic
 - **Mechanism**: Translated speech is rendered via `window.speechSynthesis.speak(utterance)`.
 - **Dual Audio Ducking**: The user can configure `originalAudioVolume` (e.g. 20%) and `translatedAudioVolume` (e.g. 100%). When translated audio is active, listener clients maintain low background original audio while clearly hearing the translated voice.
 - **Barge-In / Interruption**: If the speaker resumes or another participant interrupts, `stopSpeaking()` immediately invokes `window.speechSynthesis.cancel()` to clear obsolete audio buffers without playing stale audio.
+
+## 4. Status in v4.0
+- Class media now goes through **LiveKit** (SFU); the peer-to-peer mesh is the fallback when LiveKit isn't
+  configured. The audio tap is unchanged: captions never touch the media track.
+- A second STT path streams 16 kHz PCM16 from an AudioWorklet to the server (`/stt`: Gemini Live, then local
+  Whisper), for browsers without Web Speech or when `STT_PREFER_SERVER=1`.
+- Final captions are stored as `transcript_lines` and feed recordings, AI notes and class analytics.

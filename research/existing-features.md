@@ -9,3 +9,14 @@
 6. **Room Bomber & 1:1 Pitch Stage**: Dedicated sales role assignment, lead intelligence, audio audit and conversion telemetry.
 7. **STEM 3D AR Visualizer**: Interactive Three.js 3D Bloch sphere for physics and quantum state visualization.
 8. **Device Audit & Remote Console**: Automated hardware environment detection, camera/mic health audit, and remote support console.
+
+## 2. Added since (v4.0)
+- Server-run class sessions (only the host starts or ends), automatic recording, AI class notes and
+  "ask about this class".
+- Parent portal with consent; device-locked class links with requests and an access report.
+- Content protection (watermark, capture deterrence, desktop app).
+- **Class analytics** for auditors and admins (quality, occupancy, duration, counselling length,
+  punctuality, attendance by 19 dimensions; targets, needs attention, reviews, CSV).
+- Attendance by session; "Observe live class" for auditors.
+- Design system (tokens, primitives, charts) and a single view registry for navigation and access.
+- Screens still on illustrative data carry a "Sample" notice (see `docs/FEATURES_AND_FUNCTIONALITY.md` §13).

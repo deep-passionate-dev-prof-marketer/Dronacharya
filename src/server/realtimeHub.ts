@@ -1023,10 +1023,10 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       { id: "PRD", title: "Product Requirements Document", file: "PRD.md" },
       { id: "BRD", title: "Business Requirements Document", file: "BRD.md" },
       { id: "LMD", title: "Low-Level Model Document", file: "LMD.md" },
-      { id: "MMD", title: "Mid-Level Architecture Document", file: "MMD.md" },
-      { id: "HMD", title: "High-Level Edge Infrastructure Document", file: "HMD.md" },
-      { id: "FEATURES", title: "Features & Functionality Matrix", file: "FEATURES_AND_FUNCTIONALITY.md" },
-      { id: "FLOWS", title: "Architecture & Wire Sequences", file: "ARCHITECTURE_AND_FLOWS.md" },
+      { id: "MMD", title: "Mid-Level Model Document", file: "MMD.md" },
+      { id: "HMD", title: "High-Level Model Document", file: "HMD.md" },
+      { id: "FEATURES", title: "Features & Functionality Guide", file: "FEATURES_AND_FUNCTIONALITY.md" },
+      { id: "FLOWS", title: "Architecture & Sequence Flows", file: "ARCHITECTURE_AND_FLOWS.md" },
     ]);
   });
 
@@ -1041,7 +1041,9 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       FLOWS: "ARCHITECTURE_AND_FLOWS.md",
     };
 
-    const fileName = docMap[req.params.id.toUpperCase()] || `${req.params.id}.md`;
+    // Only the documents listed here: the id is never used to build a path (no ../ reads)
+    const fileName = docMap[String(req.params.id).toUpperCase()];
+    if (!fileName) return res.status(404).json({ error: "Document not found." });
     const fullPath = path.resolve(process.cwd(), "docs", fileName);
 
     if (fs.existsSync(fullPath)) {

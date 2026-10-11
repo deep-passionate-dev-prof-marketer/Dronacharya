@@ -34,3 +34,9 @@
 
 ## 5. Why This Integration Point is Correct
 By implementing the self-hosted translation engine directly inside the decoupled `translationEngine.ts` and `api/ai/live-translate-stream.ts`, both the browser client and serverless edge functions operate completely offline with 0ms external API roundtrip latency, 0 external data leaks, and zero cost.
+
+## 4. Status (v4.0)
+- MyMemory calls removed from the client and server; the Vercel `live-translate-stream` function is not part
+  of the Node deployment (the Node server serves `POST /api/ai/live-translate-stream`).
+- Server-side speech recognition added (`/stt`, Gemini Live → local Whisper) for browsers without Web Speech.
+- Transcripts now feed recordings, AI notes and class analytics (learner questions, teacher talk time).

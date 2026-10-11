@@ -15,3 +15,8 @@ Dronacharya implements an in-house WebRTC mesh and selective forwarding signalin
   - WebRTC handles the transport of raw audio/video tracks between participants.
   - The AI translation layer does NOT intercept or re-encode the WebRTC media pipeline directly on the wire; it taps the user's audio input locally and distributes translated captions and synthesized speech alongside the peer media streams.
   - Failure in any AI component cannot drop or degrade the WebRTC peer connection.
+
+## 2. Status in v4.0
+LiveKit is the primary media path: the server issues tokens after the device check, hosts admit learners
+from the waiting room, auditors join hidden. Data messages follow trust rules (server-only class status and
+polls, host-only stage and whiteboard sync). The mesh described above remains the fallback.
