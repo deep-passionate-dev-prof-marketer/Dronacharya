@@ -1,33 +1,31 @@
 /**
  * Live class sessions: the server decides when a class is running.
  *  - Only the host starts/ends a class; everyone else learns about it from the server
- *    (LiveKit data message from "server", plus GET polling for people still in the lobby).
+ *    (a server message over the media and room sockets, plus GET polling for people in the lobby).
  *  - Starting a class starts its recording automatically; ending it stops the recording and
  *    produces lecture notes from the transcript.
  *  - Speakers post their own final caption lines; lines from learners without recording consent
  *    are not stored.
- *  - LiveKit webhooks: attendance (join/leave), the room closing (auto-end), egress results.
+ *  - The media server reports who joins and leaves (attendance) and when a room empties (auto-end).
  */
 import crypto from "crypto";
 import express from "express";
 import { and, desc, eq, gte, inArray, lte, notLike } from "drizzle-orm";
-import { WebhookReceiver } from "livekit-server-sdk";
 import { getDb, schema } from "./db";
 import { requireAuth, SessionUser } from "./auth/session";
 import { kvLoad, kvUpsert, persist, auditInsert } from "./db/kv";
 import { classByRoom, learnerKeys, STAFF } from "./classesHub";
-import { clearAdmitted, canHost, rooms, send } from "./roomControlHub";
-import { livekitConfig } from "./livekitHub";
-import { startRecording, stopRecording, onEgressEnded, getRecording, toRecording, generateNotes, egressEnabled, transcriptFor, RecordingRow } from "./recording/recorder";
+import { admittedByRoom, admittedLoaded, clearAdmitted, canHost, presenceProbes, send } from "./roomControlHub";
+import { mediaHooks, mediaRoomList, mediaPresence } from "./media/mediaServer";
+import { BREAKOUT_SEP, hostName, isBreakoutRoom, parentRoom } from "./roomAccess";
+import { getBreakouts } from "./breakoutAccess";
+import { startRecording, stopRecording, getRecording, toRecording, generateNotes, transcriptFor, RecordingRow } from "./recording/recorder";
 import { isRecordingExcluded } from "./recording/consent";
-import { recordingStorage } from "./recording/storage";
+import { recordingPlayback } from "./recording/storage";
 import { answerFromTranscript } from "./recording/ask";
 import { scheduleFacts, backfillFacts } from "./analytics/facts";
 import { DEMO_PREFIX, isDemoRoom } from "./analytics/demo";
 
-// ParticipantInfo.Kind values from the LiveKit protocol (recorders and agents aren't attendees)
-const KIND_EGRESS = 2;
-const KIND_AGENT = 4;
 
 export type SessionStatus = "waiting" | "in_progress" | "ended";
 
@@ -43,6 +41,7 @@ export interface ClassSession {
 const sessions = new Map<string, ClassSession>();
 let ready: Promise<void> | null = null;
 
+let timersStarted = false;
 function load() {
   if (!ready) {
     ready = (async () => {
@@ -50,11 +49,16 @@ function load() {
       resumePendingNotes().catch((e) => console.error("[notes] resume failed:", e));
       reconcileSessions().catch((e) => console.error("[sessions] reconcile failed:", e));
       backfillFacts(25).catch((e) => console.error("[analytics] backfill failed:", e));
-      setInterval(() => {
-        reconcileSessions().catch(() => {});
-        backfillFacts(25).catch(() => {});
-      }, reconcileEveryMs()).unref();
+      if (!timersStarted) {
+        timersStarted = true;
+        setInterval(() => {
+          reconcileSessions().catch(() => {});
+          backfillFacts(25).catch(() => {});
+        }, reconcileEveryMs()).unref();
+      }
     })();
+    // A database hiccup at startup must not break every room until restart: try again next time
+    ready.catch(() => (ready = null));
   }
   return ready;
 }
@@ -65,8 +69,8 @@ function save(s: ClassSession) {
 }
 
 /**
- * Safety net for missed "room closed" webhooks (LiveKit or this server was down): a class still
- * marked running whose LiveKit room has been gone for two checks in a row is ended, dated to the
+ * Safety net for a missed "room closed" event (e.g. this server restarted): a class still
+ * marked running whose media room has been gone for two checks in a row is ended, dated to the
  * last time anyone was in the room.
  */
 // Read when used (module code runs before server.ts loads .env)
@@ -74,17 +78,12 @@ const reconcileEveryMs = () => Number(process.env.SESSION_RECONCILE_MS || 5 * 60
 const staleAfterMs = () => Number(process.env.SESSION_STALE_AFTER_MS || 10 * 60_000);
 const missingSince = new Map<string, number>();
 async function reconcileSessions() {
-  const svc = rooms();
-  if (!svc) return;
-  let live: Set<string>;
-  try {
-    live = new Set((await svc.listRooms()).map((r) => r.name));
-  } catch {
-    return; // LiveKit unreachable: can't tell, so change nothing
-  }
+  const live = new Set(mediaRoomList().filter((r) => r.numParticipants > 0).map((r) => r.name));
   const now = Date.now();
   for (const s of [...sessions.values()]) {
-    if (s.status !== "in_progress" || live.has(s.roomSlug)) {
+    // Someone still in the room over the realtime socket (direct peer-to-peer video) counts as alive
+    const inBreakouts = [...live].some((name) => name.startsWith(`${s.roomSlug}${BREAKOUT_SEP}`));
+    if (s.status !== "in_progress" || live.has(s.roomSlug) || inBreakouts || presentOnSocket(s.roomSlug) > 0) {
       missingSince.delete(s.roomSlug);
       continue;
     }
@@ -101,6 +100,31 @@ async function reconcileSessions() {
       await endSession(s.roomSlug, "room_closed", await lastActivity(s));
     }
   }
+}
+
+const presentOnSocket = (roomSlug: string) => [...presenceProbes].reduce((n, probe) => n + probe(roomSlug), 0);
+
+/**
+ * The media room empties (e.g. the host refreshed or lost their network).
+ * Wait a little and check again before ending the class for everyone.
+ */
+const roomFinishedGraceMs = () => Number(process.env.ROOM_FINISHED_GRACE_MS || 120_000);
+const pendingFinish = new Map<string, NodeJS.Timeout>();
+function scheduleRoomFinished(roomSlug: string) {
+  if (pendingFinish.has(roomSlug)) return;
+  const t = setTimeout(async () => {
+    pendingFinish.delete(roomSlug);
+    try {
+      const back = mediaPresence(roomSlug) > 0;
+      // Everyone may be in breakout groups (the main video room empties): the class goes on
+      if (back || presentOnSocket(roomSlug) > 0 || (await getBreakouts(roomSlug))) return;
+      await endSession(roomSlug, "room_closed", new Date(Date.now() - roomFinishedGraceMs()));
+    } catch (e) {
+      console.warn("[sessions] room-finished check failed:", (e as any)?.message || e);
+    }
+  }, roomFinishedGraceMs());
+  t.unref?.();
+  pendingFinish.set(roomSlug, t);
 }
 
 /** When the class really stopped: the last join/leave or transcript line after it started. */
@@ -153,13 +177,8 @@ async function resumePendingNotes() {
 // ---------------- access rules ----------------
 
 /** May this person be in / see the state of this room? Mirrors class visibility. */
-export async function canAccessRoom(user: SessionUser, roomSlug: string): Promise<boolean> {
-  if (STAFF.includes(user.role)) return true;
-  const cls = await classByRoom(roomSlug);
-  if (!cls) return user.role === "student"; // ad-hoc rooms are open to learners (device policy still applies)
-  const keys = (await learnerKeys(user.id, user.role)).map((k) => k.toLowerCase());
-  return cls.studentKeys.some((k: string) => keys.includes(k.toLowerCase()));
-}
+export { canAccessRoom } from "./roomAccess";
+import { canAccessRoom } from "./roomAccess";
 
 /** Notes: auditors/admins all; teachers their classes; counsellors sessions they ran; learners and parents enrolled classes. */
 export async function canReadNotes(user: SessionUser, roomSlug: string, startedBy?: string | null): Promise<boolean> {
@@ -219,6 +238,12 @@ export function endSession(roomSlug: string, reason: "host" | "room_closed", end
 }
 
 async function startSessionNow(roomSlug: string, by: SessionUser): Promise<ClassSession> {
+  // A new class cancels any pending "room closed" check from the previous one
+  const pending = pendingFinish.get(roomSlug);
+  if (pending) {
+    clearTimeout(pending);
+    pendingFinish.delete(roomSlug);
+  }
   const cur = sessionFor(roomSlug);
   if (cur.status === "in_progress") return cur;
   const rec = await startRecording(roomSlug, by.id);
@@ -249,18 +274,43 @@ async function endSessionNow(roomSlug: string, reason: "host" | "room_closed", e
 
 const transcriptRate = new Map<string, { n: number; at: number }>();
 
+/** Attendance from the media server; breakout groups count as being in the class. Observers aren't attendees. */
+function persistAttendance(roomSlug: string, peer: { id: string; name: string; role: string; hidden: boolean }, event: "join" | "leave") {
+  if (peer.hidden) return;
+  persist(
+    "attendance",
+    getDb().then((db: any) =>
+      db.insert(schema.attendanceEvents).values({ roomSlug, userId: peer.id, name: peer.name || null, role: peer.role || null, event, at: new Date(), eventId: `media-${crypto.randomUUID()}` })
+    )
+  );
+}
+
+/** The teacher's notes pad for one recorded class */
+async function teacherPad(roomSlug: string, recordingId: string): Promise<string | null> {
+  const db: any = await getDb();
+  const [row] = await db.select().from(schema.classPads).where(and(eq(schema.classPads.roomSlug, roomSlug), eq(schema.classPads.sessionKey, recordingId)));
+  return row?.content || null;
+}
+
 export function setupClassSessionRoutes(app: express.Express) {
   load();
-  app.use(["/api/rooms", "/api/recordings", "/api/notes", "/api/livekit/webhook"], (_req, _res, next) => {
+  app.use(["/api/rooms", "/api/recordings", "/api/notes"], (_req, _res, next) => {
     load().then(() => next(), next);
   });
 
   // ---------------- session state ----------------
   app.get("/api/rooms/:slug/session", requireAuth(), async (req, res) => {
-    if (!(await canAccessRoom(req.user!, req.params.slug))) return res.status(404).json({ error: "Class not found" });
+    if (!(await canAccessRoom(req.user!, req.params.slug))) {
+      return res.status(403).json({ error: "You're not on this class's list. Check the link, or ask your teacher to add you.", reason: "not_enrolled" });
+    }
     const s = sessionFor(req.params.slug);
     const rec = s.recordingId ? await getRecording(s.recordingId) : null;
-    res.json({ session: publicSession(s, rec), me: { recordingExcluded: await isRecordingExcluded(req.user!), isHost: await canHost(req.user!, req.params.slug) } });
+    res.json({
+      session: publicSession(s, rec),
+      me: { recordingExcluded: await isRecordingExcluded(req.user!), isHost: await canHost(req.user!, req.params.slug) },
+      // "Hosted by …" for people who see the class but can't start it
+      host: { name: await hostName(req.params.slug) },
+    });
   });
 
   app.post("/api/rooms/:slug/session/start", requireAuth(), async (req, res) => {
@@ -292,6 +342,13 @@ export function setupClassSessionRoutes(app: express.Express) {
     if (s.status !== "in_progress") return res.json({ stored: false, reason: "class_not_running" });
     if (user.role === "parent" || user.role === "auditor") return res.status(403).json({ error: "Not a speaker in this class" });
     if (!(await canAccessRoom(user, req.params.slug))) return res.status(404).json({ error: "Class not found" });
+    // Only people really in the class: admitted learners, and the class's host (not other staff passing by)
+    if (user.role === "student") {
+      await admittedLoaded().catch(() => {});
+      if (!admittedByRoom.get(req.params.slug)?.has(user.id)) return res.status(403).json({ error: "Not admitted to this class" });
+    } else if (!(await canHost(user, req.params.slug))) {
+      return res.status(403).json({ error: "Only the class's host and admitted learners are transcribed" });
+    }
     if (await isRecordingExcluded(user)) return res.json({ stored: false, reason: "no_recording_consent" });
     const db: any = await getDb();
     await db.insert(schema.transcriptLines).values({
@@ -318,7 +375,7 @@ export function setupClassSessionRoutes(app: express.Express) {
       const cls = await classByRoom(r.roomSlug);
       out.push({ ...publicRecording(r), class: cls ? { kind: cls.kind, subject: cls.subject, topic: cls.topic, teacherName: cls.teacherName } : null });
     }
-    res.json({ recordings: out, egress: egressEnabled() });
+    res.json({ recordings: out, egress: false });
   });
 
   app.get("/api/recordings/:id", requireAuth(), async (req, res) => {
@@ -344,6 +401,8 @@ export function setupClassSessionRoutes(app: express.Express) {
       transcript,
       engagement: timeline,
       notes: notes ? { ...notes.data, createdAt: new Date(notes.createdAt).toISOString() } : null,
+      // What the teacher wrote in the class notes pad during this class
+      teacherNotes: await teacherPad(rec.roomSlug, rec.id),
     });
   });
 
@@ -351,7 +410,7 @@ export function setupClassSessionRoutes(app: express.Express) {
     const rec = await getRecording(req.params.id);
     if (!rec || !(await canWatchRecording(req.user!, rec))) return res.status(404).json({ error: "Recording not found" });
     if (rec.mode !== "video" || rec.status !== "ready" || !rec.filePath) return res.status(404).json({ error: "No video for this recording" });
-    const target = recordingStorage().playback(rec.filePath);
+    const target = recordingPlayback(rec.filePath);
     if (!target) return res.status(404).json({ error: "Video file is missing" });
     persist(
       "playback audit",
@@ -384,6 +443,7 @@ export function setupClassSessionRoutes(app: express.Express) {
         classStartedAt: rec?.startedAt || null,
         class: cls ? { kind: cls.kind, subject: cls.subject, topic: cls.topic, course: cls.course, teacherName: cls.teacherName } : null,
         notes: n.data,
+        teacherNotes: n.recordingId ? await teacherPad(n.roomSlug, n.recordingId) : null,
       });
     }
     res.json({ notes: out });
@@ -411,45 +471,20 @@ export function setupClassSessionRoutes(app: express.Express) {
     res.json(answer);
   });
 
-  // ---------------- LiveKit webhooks ----------------
-  app.post("/api/livekit/webhook", express.raw({ type: "*/*", limit: "1mb" }), async (req, res) => {
-    const cfg = livekitConfig();
-    if (!cfg) return res.status(503).end();
-    let event;
-    try {
-      event = await new WebhookReceiver(cfg.apiKey, cfg.apiSecret).receive(Buffer.from(req.body || "").toString("utf8"), req.get("Authorization") || undefined);
-    } catch {
-      return res.status(401).json({ error: "Invalid webhook signature" });
-    }
-    res.json({ ok: true });
-    try {
-      const roomSlug = event.room?.name || "";
-      const p = event.participant;
-      if ((event.event === "participant_joined" || event.event === "participant_left") && p && roomSlug) {
-        if ((p.kind as number) === KIND_EGRESS || (p.kind as number) === KIND_AGENT) return;
-        let meta: any = {};
-        try {
-          meta = JSON.parse(p.metadata || "{}");
-        } catch {}
-        const db: any = await getDb();
-        await db.insert(schema.attendanceEvents).values({
-          roomSlug,
-          userId: p.identity,
-          name: p.name || null,
-          role: meta.role || null,
-          event: event.event === "participant_joined" ? "join" : "leave",
-          at: event.createdAt ? new Date(Number(event.createdAt) * 1000) : new Date(),
-          // LiveKit retries webhooks; the event id keeps a retried join/leave from counting twice
-          eventId: event.id || null,
-        }).onConflictDoNothing();
-      } else if (event.event === "room_finished" && roomSlug) {
-        await endSession(roomSlug, "room_closed");
-      } else if (event.event === "egress_ended" && event.egressInfo) {
-        await onEgressEnded(event.egressInfo);
-      }
-    } catch (err) {
-      console.error("[webhook] handling failed:", err);
-    }
+  // ---------------- attendance and "everyone left", from the media server ----------------
+  mediaHooks.joined.add((mediaRoom, peer) => {
+    const roomSlug = parentRoom(mediaRoom);
+    persistAttendance(roomSlug, peer, "join");
+    // Whoever just joined gets the class's current state at once (a broadcast sent before they connected is gone)
+    (async () => {
+      const cur = sessionFor(roomSlug);
+      const rec = cur.recordingId ? await getRecording(cur.recordingId) : null;
+      await send(roomSlug, "class_status", publicSession(cur, rec), [peer.id]);
+    })().catch(() => {});
+  });
+  mediaHooks.left.add((mediaRoom, peer) => persistAttendance(parentRoom(mediaRoom), peer, "leave"));
+  mediaHooks.roomEmpty.add((mediaRoom) => {
+    if (!isBreakoutRoom(mediaRoom)) scheduleRoomFinished(mediaRoom);
   });
 }
 

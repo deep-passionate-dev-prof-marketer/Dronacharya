@@ -6,21 +6,22 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
-    "start": "tsx server.ts",
+    "start": "NODE_ENV=production tsx server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit && node scripts/ui-debt.mjs",
     "test": "vitest run",
     "test:api": "node scripts/api-smoke.mjs",
     "demo:analytics": "tsx scripts/seed-analytics-demo.ts",
-    "livekit:dev": "livekit-server --dev --bind 0.0.0.0 --config livekit.dev.yaml",
     "ai:models": "mkdir -p data/models && curl -L --fail -o data/models/ggml-base.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin && ollama pull ${OLLAMA_MODEL:-qwen2.5:3b}",
     "ai:whisper": "whisper-server -m data/models/ggml-base.bin --host 127.0.0.1 --port 8178 --inference-path /v1/audio/transcriptions -t 4",
     "ai:ollama": "OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 ollama serve"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
-    "@google/genai": "^2.4.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/lato": "^5.3.0",
+    "@fontsource/noto-sans": "^5.3.0",
     "@mediapipe/tasks-vision": "^1.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.14.0",
@@ -31,15 +32,17 @@
     "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
     "jose": "^6.2.12",
-    "livekit-client": "^2.22.3",
-    "livekit-server-sdk": "^2.19.1",
     "lucide-react": "^0.546.0",
+    "mediasoup": "^3.27.1",
+    "mediasoup-client": "^3.24.1",
     "motion": "^12.23.24",
-    "openid-client": "^6.8.8",
+    "nodemailer": "10.0.13",
+    "pdfjs-dist": "^4.10.38",
     "pg": "^8.23.1",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "three": "^0.186.1",
+    "tsx": "^4.23.15",
     "vite": "^8.3.0",
     "ws": "^8.22.0"
   },
@@ -57,8 +60,14 @@
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
+  },
+  "allowScripts": {
+    "mediasoup@3.27.1": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

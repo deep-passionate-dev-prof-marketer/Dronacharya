@@ -1,9 +1,8 @@
 /**
  * Server speech-to-text: browsers stream 16 kHz PCM16 mono over a WebSocket at /stt and get
- * caption text back. Used when the browser has no speech engine (Firefox, some Safari) or its
- * captions keep failing. Transcription runs on Gemini Live (input transcription only; the model's
- * own replies are ignored) or on the school's own Whisper server, in AI_PROVIDERS order with automatic
- * failover. Disabled when neither GEMINI_API_KEY nor WHISPER_URL is set.
+ * caption text back. All live captions are made here, on the school's own Whisper server (WHISPER_URL):
+ * the browser's built-in speech recognition is never used, because it sends audio to Google or
+ * Microsoft. Disabled when WHISPER_URL isn't set.
  *
  * Protocol: client → binary audio frames (≤ 64 KB) and {"type":"stop"};
  *           server → {"type":"ready"} | {"type":"interim","text"} | {"type":"final","text"} | {"type":"error","error"}.
@@ -11,9 +10,8 @@
 import http from "http";
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { GoogleGenAI, Modality } from "@google/genai";
 import { requireAuth, userFromCookieHeader, SessionUser } from "./auth/session";
-import { breakers, CircuitBreaker, geminiConfigured, providerOrder, whisperConfigured, withTimeout } from "./ai/providers";
+import { breakers, CircuitBreaker, whisperConfigured } from "./ai/providers";
 import { localWhisperTranscriber } from "./ai/localWhisper";
 
 export interface Transcriber {
@@ -40,7 +38,7 @@ const fakeMode = () => process.env.STT_FAKE === "1" && process.env.NODE_ENV !== 
 
 /** Server captions are on when at least one speech service is configured. */
 export function sttEnabled() {
-  return geminiConfigured() || whisperConfigured() || fakeMode();
+  return whisperConfigured() || fakeMode();
 }
 
 const fakeTranscriber: TranscriberFactory = async (_opts, cb) => {
@@ -56,84 +54,6 @@ const fakeTranscriber: TranscriberFactory = async (_opts, cb) => {
       } else cb.onInterim(`test transcript: listening (${ms} ms)`);
     },
     close() {},
-  };
-};
-
-/** Gemini Live transcription session. */
-export const geminiTranscriber: TranscriberFactory = async (opts, cb) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-  let pending = "";
-  let closedByUs = false;
-  let connected = false;
-  // A bad key or unknown model rejects the socket before it opens: the SDK's connect() never
-  // settles, but these callbacks fire. Fail fast so the next provider takes over at once.
-  let failEarly: (err: Error) => void = () => {};
-  const early = new Promise<never>((_, reject) => (failEarly = reject));
-  early.catch(() => {});
-  const session = await withTimeout(
-    () =>
-      Promise.race([early, ai.live.connect({
-        model: process.env.STT_MODEL || "gemini-live-2.5-flash",
-        config: {
-          responseModalities: [Modality.TEXT],
-          systemInstruction: "You are a silent transcription service. Never reply to the speaker.",
-          inputAudioTranscription: opts.lang ? { languageCodes: [opts.lang] } : {},
-        },
-        callbacks: {
-          onmessage: (msg: any) => {
-            const sc = msg?.serverContent;
-            if (!sc) return;
-            if (sc.interimInputTranscription?.text) cb.onInterim((pending + sc.interimInputTranscription.text).trim());
-            const t = sc.inputTranscription;
-            if (t?.text) {
-              pending += t.text;
-              if (!t.finished) cb.onInterim(pending.trim());
-            }
-            if ((t?.finished || sc.turnComplete || sc.generationComplete) && pending.trim()) {
-              cb.onFinal(pending.trim());
-              pending = "";
-            }
-          },
-          onerror: (e: any) => {
-            const message = String(e?.message || e?.error?.message || "Speech service error");
-            if (!connected) failEarly(new Error(`Gemini Live: ${message}`));
-            else cb.onError(message);
-          },
-          onclose: (e: any) => {
-            if (!connected) {
-              const reason = String(e?.reason || "").slice(0, 160);
-              // 1007/1008: invalid key or permission (won't fix itself quickly)
-              failEarly(Object.assign(new Error(`Gemini Live closed before starting (${e?.code ?? "?"}${reason ? `: ${reason}` : ""})`), { status: e?.code === 1008 || e?.code === 1007 ? 401 : undefined }));
-              return;
-            }
-            if (pending.trim()) cb.onFinal(pending.trim());
-            pending = "";
-            if (closedByUs) return;
-            // 1000 = normal end (e.g. session time limit): reopen. Anything else (bad key, quota,
-            // unknown model) is a failure: the chain moves to the next provider.
-            if (e?.code && e.code !== 1000) cb.onError(`Gemini closed the session (${e.code}${e.reason ? `: ${String(e.reason).slice(0, 120)}` : ""})`);
-            else cb.onClose();
-          },
-        },
-      })]),
-    Number(process.env.STT_CONNECT_TIMEOUT_MS || 8000),
-    "Gemini Live connect"
-  );
-  connected = true;
-  return {
-    send: (pcm) => {
-      try {
-        session.sendRealtimeInput({ audio: { data: pcm.toString("base64"), mimeType: "audio/pcm;rate=16000" } });
-      } catch (err: any) {
-        cb.onError(String(err?.message || "Gemini send failed"));
-      }
-    },
-    close: () => {
-      closedByUs = true;
-      try {
-        session.close();
-      } catch {}
-    },
   };
 };
 
@@ -212,13 +132,10 @@ export function chainTranscriber(chain: ChainEntry[]): TranscriberFactory {
   };
 }
 
-/** The configured providers, in AI_PROVIDERS order (default gemini,local), skipping any that are cooling down. */
+/** The school's Whisper server (skipped while it's cooling down after failures). */
 export const providerChainTranscriber: TranscriberFactory = (opts, cb) => {
   const chain: ChainEntry[] = [];
-  for (const p of providerOrder()) {
-    if (p === "gemini" && geminiConfigured() && breakers.geminiStt.available()) chain.push({ name: "gemini", factory: geminiTranscriber, breaker: breakers.geminiStt });
-    if (p === "local" && whisperConfigured() && breakers.whisper.available()) chain.push({ name: "local", factory: localWhisperTranscriber });
-  }
+  if (whisperConfigured() && breakers.whisper.available()) chain.push({ name: "local", factory: localWhisperTranscriber });
   if (!chain.length && fakeMode()) chain.push({ name: "fake", factory: fakeTranscriber });
   return chainTranscriber(chain)(opts, cb);
 };
@@ -228,7 +145,8 @@ const STT_ROLES = ["instructor", "admin", "sales_rep", "student"];
 /** WebSocket upgrades must come from our own pages (defence against cross-site WebSocket hijacking). */
 export function sameOrigin(req: http.IncomingMessage): boolean {
   const origin = req.headers.origin;
-  if (!origin) return true; // non-browser clients (no ambient cookies to abuse)
+  // Browsers always send an Origin on WebSocket upgrades; in production a missing one is refused
+  if (!origin) return process.env.NODE_ENV !== "production";
   const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
   try {
     return new URL(origin).host === host;
@@ -363,9 +281,10 @@ export function setupSttRoutes(app: express.Express) {
   app.get("/api/stt/status", requireAuth(), (_req, res) =>
     res.json({
       enabled: sttEnabled(),
-      // STT_PREFER_SERVER=1: everyone is transcribed on our servers (no browser/Google speech service)
-      preferServer: process.env.STT_PREFER_SERVER === "1" && sttEnabled(),
-      providers: providerOrder().filter((p) => (p === "gemini" ? geminiConfigured() : whisperConfigured())),
+      // Always our own server: the browser's speech recognition would send audio to Google/Microsoft
+      preferServer: sttEnabled(),
+      serverOnly: true,
+      providers: whisperConfigured() ? ["local"] : [],
     })
   );
 }

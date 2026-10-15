@@ -1,6 +1,6 @@
 /**
  * Postgres schema (Drizzle). Runs on PGlite (embedded, file-backed) in development and on
- * Supabase/any Postgres in production via DATABASE_URL. Complex legacy objects are kept as jsonb
+ * Postgres in production via DATABASE_URL. Complex legacy objects are kept as jsonb
  * so the existing typed logic (device policies, requests, engagement summaries) is reused as-is.
  */
 import { pgTable, text, integer, boolean, timestamp, jsonb, serial, primaryKey, index, real, uniqueIndex } from "drizzle-orm/pg-core";
@@ -18,10 +18,15 @@ export const users = pgTable("users", {
   /** IANA zone, learned from the device snapshot on join (or booking / teacher roster) */
   timezone: text("timezone"),
   disabled: boolean("disabled").notNull().default(false),
+  /** scrypt hash (see auth/password.ts); null = no password set yet */
+  passwordHash: text("password_hash"),
+  /** Set by an admin's temporary password: the person picks their own at next sign-in */
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
+  passwordUpdatedAt: timestamp("password_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** External identities (Google sub, email-OTP) linked to a user. */
+/** External identities (email-OTP) linked to a user. */
 export const identities = pgTable(
   "identities",
   {
@@ -107,7 +112,7 @@ export const attendanceEvents = pgTable(
     role: text("role"),
     event: text("event").notNull(), // join | leave
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
-    /** LiveKit webhook id: deliveries are at-least-once, so duplicates are ignored */
+    /** Event id: deliveries may repeat, so duplicates are ignored */
     eventId: text("event_id"),
   },
   (t) => [index("attendance_room_user").on(t.roomSlug, t.userId), uniqueIndex("attendance_event_id").on(t.eventId)]
@@ -199,7 +204,7 @@ export const lectureNotes = pgTable("lecture_notes", {
   id: text("id").primaryKey(),
   roomSlug: text("room_slug").notNull(),
   recordingId: text("recording_id"),
-  generator: text("generator").notNull(), // gemini | extractive
+  generator: text("generator").notNull(), // local | extractive
   data: jsonb("data").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -276,7 +281,7 @@ export const sessionFacts = pgTable(
     scheduledDurationMin: integer("scheduled_duration_min"),
     startDelayMin: real("start_delay_min"),
     plannedSize: integer("planned_size"),
-    /** False when no LiveKit join/leave data exists for the class (attendance unknown, not zero) */
+    /** False when no join/leave data exists for the class (attendance unknown, not zero) */
     attendanceTracked: boolean("attendance_tracked").notNull().default(true),
     enrolled: integer("enrolled").notNull().default(0),
     attended: integer("attended").notNull().default(0),
@@ -351,4 +356,128 @@ export const classReviews = pgTable(
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
   },
   (t) => [index("reviews_recording").on(t.recordingId), uniqueIndex("reviews_one_per_auditor").on(t.recordingId, t.auditorId)]
+);
+
+/** Signed class-invite links (learners and parents): stored so they can be counted, limited and revoked. */
+export const inviteTokens = pgTable("invite_tokens", {
+  jti: text("jti").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  roomSlug: text("room_slug").notNull(),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  uses: integer("uses").notNull().default(0),
+  maxUses: integer("max_uses").notNull().default(10),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
+/** In-app messages (the bell): parent alerts from class, help-request replies, etc. */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    kind: text("kind").notNull(), // ask_parent | ticket_reply | ticket_new | …
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    link: text("link"),
+    data: jsonb("data"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+  },
+  (t) => [index("notifications_user").on(t.userId, t.createdAt)]
+);
+
+/** "Tech help" requests from class, answered by admins. */
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    roomSlug: text("room_slug"),
+    category: text("category").notNull(), // audio | video | connection | access | other
+    message: text("message").notNull(),
+    device: jsonb("device"),
+    status: text("status").notNull().default("open"), // open | answered | closed
+    answer: text("answer"),
+    answeredBy: text("answered_by"),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tickets_status").on(t.status, t.createdAt), index("tickets_user").on(t.userId)]
+);
+
+/** Library files and slide decks. Stored in files storage (local disk or the school's S3-compatible store). */
+export const materials = pgTable(
+  "materials",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    kind: text("kind").notNull().default("file"), // file | slides
+    fileName: text("file_name").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    storageKey: text("storage_key").notNull(),
+    /** Shared with one class (room)… */
+    roomSlug: text("room_slug"),
+    /** …or with every class of a course (and grade) */
+    course: text("course"),
+    gradeLevel: integer("grade_level"),
+    uploadedBy: text("uploaded_by").notNull().references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("materials_room").on(t.roomSlug), index("materials_course").on(t.course)]
+);
+
+/** The teacher's class notes pad: one per class session (or a draft before the class starts). */
+export const classPads = pgTable(
+  "class_pads",
+  {
+    id: serial("id").primaryKey(),
+    roomSlug: text("room_slug").notNull(),
+    /** recording id of the session, or "draft" before it starts */
+    sessionKey: text("session_key").notNull(),
+    content: text("content").notNull().default(""),
+    updatedBy: text("updated_by"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("pads_room_session").on(t.roomSlug, t.sessionKey)]
+);
+
+/** Campus feed. */
+export const posts = pgTable(
+  "posts",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id").notNull().references(() => users.id),
+    category: text("category").notNull(), // announcement | achievement | question | resource | discussion
+    body: text("body").notNull(),
+    pinned: boolean("pinned").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("posts_created").on(t.createdAt)]
+);
+
+export const postComments = pgTable(
+  "post_comments",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id").notNull().references(() => posts.id),
+    authorId: text("author_id").notNull().references(() => users.id),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("comments_post").on(t.postId)]
+);
+
+export const postLikes = pgTable(
+  "post_likes",
+  {
+    postId: text("post_id").notNull().references(() => posts.id),
+    userId: text("user_id").notNull().references(() => users.id),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.userId] })]
 );

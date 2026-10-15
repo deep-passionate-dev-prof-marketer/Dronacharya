@@ -1,6 +1,6 @@
 /**
  * Database connection.
- * - DATABASE_URL set (Supabase / any Postgres) → node-postgres pool.
+ * - DATABASE_URL set (any Postgres) → node-postgres pool.
  * - Otherwise → PGlite: real Postgres compiled to WASM, stored in data/pglite (the "dummy" DB for testing).
  * Migrations in ./migrations run on startup for both.
  */
@@ -36,7 +36,7 @@ async function open(): Promise<Db> {
   dbKind = process.env.DATABASE_URL ? "postgres" : "pglite";
   if (process.env.DATABASE_URL) {
     const { Pool } = await import("pg");
-    // TLS: verify the server with the provider's CA when given (Supabase publishes one); otherwise
+    // TLS: verify the server with the provider's CA when given ; otherwise
     // encrypt without verification, and say so in production logs
     const wantsTls = /supabase|sslmode=require/.test(process.env.DATABASE_URL);
     const ca = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n");

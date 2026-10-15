@@ -5,6 +5,9 @@
  * - Read APIs reject every role except auditor/admin (header x-actor-role).
  * - Storage: Postgres (engagement_samples, consents with full history, kv settings) plus in-memory rollups.
  */
+import { createLimiter } from "./rateLimit";
+import { canAccessRoom, canHost, parentRoom } from "./roomAccess";
+import { admittedByRoom, admittedLoaded } from "./roomControlHub";
 import express from "express";
 import { asc, desc, eq, notLike } from "drizzle-orm";
 import { DEMO_PREFIX } from "./analytics/demo";
@@ -131,6 +134,9 @@ function rollup(samples: Sample[]) {
   });
 }
 
+/** The analyser sends a summary every ~10 s; allow some slack */
+const sampleLimiter = createLimiter(20, 60_000);
+
 export function setupEngagementRoutes(app: express.Express) {
   const ready = loadFromDb().catch((err) => console.error("[Engagement] load failed:", err));
   app.use("/api/engagement", (_req, _res, next) => {
@@ -156,8 +162,9 @@ export function setupEngagementRoutes(app: express.Express) {
 
   app.post("/api/engagement/consent", requireAuth(), (req, res) => {
     const p = { id: req.user!.id, name: req.user!.name, role: req.user!.role };
-    if (p.role === "student" && req.body?.granted && !(req.body?.guardianAttested && req.body?.guardianName)) {
-      return res.status(400).json({ error: "A parent or guardian must confirm consent for learners." });
+    // Learners are minors: only a linked parent can switch this on (parent portal); learners can always switch it off
+    if (p.role === "student" && req.body?.granted) {
+      return res.status(403).json({ error: "Your parent can turn this on for you from the parent portal.", parentOnly: true });
     }
     const record: ConsentRecord = {
       participantId: String(p.id).slice(0, 120),
@@ -174,8 +181,18 @@ export function setupEngagementRoutes(app: express.Express) {
     res.json({ consent: record });
   });
 
-  app.post("/api/engagement/samples", requireAuth(), (req, res) => {
+  app.post("/api/engagement/samples", requireAuth(), async (req, res) => {
     if (!settings.enabled) return res.status(503).json({ error: "Analytics disabled" });
+    if (!sampleLimiter.hit(req.user!.id)) return res.status(429).json({ error: "Too many samples" });
+    // Only from people really in that class: admitted learners and its host
+    const room = String(req.body?.roomSlug || "").slice(0, 120);
+    if (!room || !(await canAccessRoom(req.user!, room))) return res.status(404).json({ error: "Class not found" });
+    if (req.user!.role === "student") {
+      await admittedLoaded().catch(() => {});
+      if (!admittedByRoom.get(parentRoom(room))?.has(req.user!.id)) return res.status(403).json({ error: "Not in this class" });
+    } else if (!(await canHost(req.user!, room))) {
+      return res.status(403).json({ error: "Not in this class" });
+    }
     const p = { id: req.user!.id, name: req.user!.name, role: req.user!.role };
     const c = consent.get(String(p.id));
     if (!c?.granted) return res.status(403).json({ error: "No consent on record" });
@@ -225,6 +242,14 @@ export function setupEngagementRoutes(app: express.Express) {
     if (!canRead(req)) return res.status(403).json({ error: "Engagement analytics are restricted to auditors and analysts." });
     const sinceMs = Date.now() - Math.min(24 * 60, Number(req.query.minutes) || 120) * 60000;
     const list = (samplesByRoom.get(req.params.slug) || []).filter((s) => Date.parse(s.at) >= sinceMs);
-    res.json({ roomSlug: req.params.slug, participants: rollup(list), consent: Array.from(consent.values()) });
+    // Consent records only for the people in this room's samples (not the whole school)
+    const ids = new Set(list.map((s) => s.participant.id));
+    res.json({
+      roomSlug: req.params.slug,
+      participants: rollup(list),
+      consent: Array.from(consent.values())
+        .filter((c) => ids.has(c.participantId))
+        .map(({ userAgent, ...c }) => c),
+    });
   });
 }

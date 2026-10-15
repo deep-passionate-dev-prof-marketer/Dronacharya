@@ -1,22 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import http from "http";
-
-// Gemini always fails with a quota error in these tests
-let geminiCalls = 0;
-vi.mock("@google/genai", async (importOriginal) => {
-  const actual: any = await importOriginal();
-  return {
-    ...actual,
-    GoogleGenAI: class {
-      models = {
-        generateContent: async () => {
-          geminiCalls++;
-          throw Object.assign(new Error("Resource exhausted: quota exceeded"), { status: 429 });
-        },
-      };
-    },
-  };
-});
 
 import { buildNotes } from "../recording/notes";
 import { answerFromTranscript } from "../recording/ask";
@@ -40,12 +23,9 @@ let ollamaUrl = "";
 beforeAll(() => new Promise<void>((r) => ollama.listen(0, () => ((ollamaUrl = `http://127.0.0.1:${(ollama.address() as any).port}`), r()))));
 afterAll(() => new Promise<void>((r) => ollama.close(() => r())));
 beforeEach(() => {
-  geminiCalls = 0;
   ollamaRequests = [];
   Object.values(breakers).forEach((b) => b.reset());
-  process.env.GEMINI_API_KEY = "test-key";
   process.env.OLLAMA_URL = ollamaUrl;
-  delete process.env.AI_PROVIDERS;
 });
 
 const at = (min: number) => new Date(Date.UTC(2026, 9, 9, 10, min)).toISOString();
@@ -56,8 +36,8 @@ const lines = [
   { at: at(9), speakerId: "t", speakerName: "Dr. Vance", text: "For homework solve questions one to five from the worksheet" },
 ];
 
-describe("lecture notes fall back from Gemini to the local model", () => {
-  it("uses the local model when Gemini fails, and drops anything not said in class", async () => {
+describe("lecture notes on the school's own AI server", () => {
+  it("uses the local model, and drops anything not said in class", async () => {
     ollamaReply = () => ({
       summary: "The class covered interference and coherent sources.",
       keyConcepts: ["interference", "coherent sources", "quantum tunnelling"],
@@ -66,7 +46,6 @@ describe("lecture notes fall back from Gemini to the local model", () => {
       outline: [{ minute: 0, title: "Interference" }, { minute: 99, title: "Homework" }],
     });
     const notes = await buildNotes(lines, { subject: "Physics" });
-    expect(geminiCalls).toBe(1);
     expect(notes.generator).toBe("local");
     expect(notes.keyConcepts).toEqual(["interference", "coherent sources"]); // "quantum tunnelling" never said
     expect(notes.questions).toEqual([{ question: "Why do we need coherent sources?", askedBy: "Sophia" }]);
@@ -78,14 +57,6 @@ describe("lecture notes fall back from Gemini to the local model", () => {
     expect(ollamaRequests[0].stream).toBe(false);
   });
 
-  it("after a quota error Gemini is skipped for a while (no waiting on it)", async () => {
-    ollamaReply = () => ({ summary: "ok", keyConcepts: [], questions: [], homework: [], outline: [] });
-    await buildNotes(lines, {});
-    await buildNotes(lines, {});
-    expect(geminiCalls).toBe(1);
-    expect(ollamaRequests.length).toBe(2);
-  });
-
   it("falls back to extractive notes when the local server is down too", async () => {
     process.env.OLLAMA_URL = "http://127.0.0.1:9"; // nothing listens here
     const notes = await buildNotes(lines, {});
@@ -93,12 +64,11 @@ describe("lecture notes fall back from Gemini to the local model", () => {
     expect(notes.homework).toEqual(["For homework solve questions one to five from the worksheet"]);
   });
 
-  it("AI_PROVIDERS=local keeps everything on our servers (Gemini never called)", async () => {
-    process.env.AI_PROVIDERS = "local";
-    ollamaReply = () => ({ summary: "Local only.", keyConcepts: [], questions: [], homework: [], outline: [] });
+  it("writes extractive notes without asking anyone when no AI server is set up", async () => {
+    delete process.env.OLLAMA_URL;
     const notes = await buildNotes(lines, {});
-    expect(notes.generator).toBe("local");
-    expect(geminiCalls).toBe(0);
+    expect(notes.generator).toBe("extractive");
+    expect(ollamaRequests.length).toBe(0);
   });
 
   it("long classes are summarised in parts and merged", async () => {
@@ -118,7 +88,7 @@ describe("lecture notes fall back from Gemini to the local model", () => {
   });
 });
 
-describe("ask about this class falls back too", () => {
+describe("ask about this class", () => {
   it("answers with the local model and cites what was said", async () => {
     ollamaReply = () => ({ answer: "Coherent sources keep a constant phase difference, so the pattern stays stable.", minutes: [4] });
     const a = await answerFromTranscript("Why coherent sources?", lines, at(0));

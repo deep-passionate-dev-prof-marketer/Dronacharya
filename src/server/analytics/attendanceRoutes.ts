@@ -1,5 +1,5 @@
 /**
- * Attendance by class session, from the session facts (LiveKit join/leave records). Teachers see the
+ * Attendance by class session, from the session facts (media server join/leave records). Teachers see the
  * classes they taught or hosted; auditors and admins see every class. Demo history is left out.
  * No quality scores here: teachers never see analytics about themselves.
  */

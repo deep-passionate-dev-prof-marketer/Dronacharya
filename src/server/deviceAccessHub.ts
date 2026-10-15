@@ -8,6 +8,7 @@ import crypto from "crypto";
 import express from "express";
 import { auditInsert, auditLoad, kvLoad, kvUpsert, persist } from "./db/kv";
 import { requireAuth } from "./auth/session";
+import { canHost } from "./roomAccess";
 import {
   ALL_DEVICE_TYPES,
   ApproverRole,
@@ -129,10 +130,9 @@ function sanitizeActor(raw: any): AccessActor {
   };
 }
 
+/** The browser's address: Express works it out from the trusted proxy (never trust a raw header) */
 function clientIp(req: express.Request): string {
-  const fwd = req.headers["x-forwarded-for"];
-  const first = Array.isArray(fwd) ? fwd[0] : fwd?.split(",")[0];
-  return (first || req.socket.remoteAddress || "unknown").trim();
+  return String(req.ip || req.socket?.remoteAddress || "unknown").trim();
 }
 
 /** Enriches the client-reported snapshot with what the server can see for itself. */
@@ -289,13 +289,15 @@ function findOpenRequest(roomSlug: string, student: AccessActor, deviceId: strin
 }
 
 function toCsvValue(v: unknown): string {
-  const s = v == null ? "" : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  let s = v == null ? "" : String(v);
+  // A cell starting with = + - @ (or a tab/CR) would run as a formula in Excel/Sheets
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 /**
  * Decides whether this user/device may join the room and records the outcome in the audit log.
- * Used by the evaluate endpoint and by the LiveKit token endpoint, so a blocked device never
+ * Used by the evaluate endpoint and by the media server's join, so a blocked device never
  * receives media credentials.
  */
 /**
@@ -355,7 +357,7 @@ export function evaluateJoinRequest(req: express.Request, roomSlug: string, stud
 export function setupDeviceAccessRoutes(app: express.Express, broadcast: BroadcastFn) {
   // Requests wait until the store is loaded from Postgres (first ~ms after boot)
   const ready = loadFromDb().catch((err) => console.error("[DeviceAccess] load failed:", err));
-  app.use(["/api/device-access", "/api/device-policy", "/api/livekit/token", "/api/links"], (_req, _res, next) => {
+  app.use(["/api/device-access", "/api/device-policy", "/api/links"], (_req, _res, next) => {
     ready.then(() => next());
   });
   setInterval(expireStaleRequests, 60 * 1000).unref?.();
@@ -363,6 +365,26 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
   const notifyApprovers = (request: DeviceAccessRequest, type: string) => {
     const roles = request.policySnapshot.approverRoles as string[];
     broadcast({ type, request }, (c) => c.role === "admin" || (roles.includes(c.role) && c.roomId === request.roomSlug));
+  };
+  /** A decision goes to the learner who asked and the approvers in that class (it carries device details) */
+  const notifyDecision = (request: DeviceAccessRequest) => {
+    const roles = request.policySnapshot.approverRoles as string[];
+    broadcast(
+      { type: "DEVICE_ACCESS_REQUEST_DECIDED", request },
+      (c) => c.userId === request.student.id || c.role === "admin" || (roles.includes(c.role) && c.roomId === request.roomSlug)
+    );
+  };
+
+  /**
+   * Teachers and counsellors see device data only for classes they host; admins and auditors see
+   * everything. Returns a room filter for the rooms in question.
+   */
+  const scopeFor = async (req: express.Request, rooms: Iterable<string>): Promise<(room: string) => boolean> => {
+    const user = req.user!;
+    if (user.role === "admin" || user.role === "auditor") return () => true;
+    const allowed = new Set<string>();
+    for (const room of new Set(rooms)) if (room && (await canHost(user, room))) allowed.add(room);
+    return (room: string) => allowed.has(room);
   };
 
   // ---------- Rules (auto workflow) ----------
@@ -399,11 +421,13 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.json({ policy: getRoomPolicy(req.params.slug) });
   });
 
-  app.post("/api/device-policy/rooms", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
+  app.post("/api/device-policy/rooms", requireAuth("admin", "instructor", "sales_rep"), async (req, res) => {
     const { roomSlug, context, mode, allowedDeviceTypes, allowRequestOverride, approverRoles, linkShortCode } = req.body || {};
     const actor = actorFromSession(req);
     if (!roomSlug) return res.status(400).json({ error: "roomSlug is required" });
-    const policy = upsertRoomPolicy({ roomSlug: String(roomSlug), context, mode, allowedDeviceTypes, allowRequestOverride, approverRoles, linkShortCode, actor });
+    if (!(await canHost(req.user!, String(roomSlug)))) return res.status(403).json({ error: "Only the class host can change its device rules." });
+    const roles = Array.isArray(approverRoles) ? approverRoles.filter((r: unknown) => ["admin", "instructor", "sales_rep", "auditor"].includes(String(r))) : undefined;
+    const policy = upsertRoomPolicy({ roomSlug: String(roomSlug), context, mode, allowedDeviceTypes, allowRequestOverride, approverRoles: roles, linkShortCode, actor });
     res.json({ success: true, policy });
   });
 
@@ -444,11 +468,13 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.json({ success: true, request });
   });
 
-  app.get("/api/device-access/requests", requireAuth("admin", "instructor", "sales_rep", "auditor"), (req, res) => {
+  app.get("/api/device-access/requests", requireAuth("admin", "instructor", "sales_rep", "auditor"), async (req, res) => {
     expireStaleRequests();
     const { status, roomSlug } = req.query as Record<string, string | undefined>;
-    const list = Array.from(state.requests.values())
-      .filter((r) => (!status || r.status === status) && (!roomSlug || r.roomSlug === roomSlug))
+    const all = Array.from(state.requests.values());
+    const inScope = await scopeFor(req, all.map((r) => r.roomSlug));
+    const list = all
+      .filter((r) => (!status || r.status === status) && (!roomSlug || r.roomSlug === roomSlug) && inScope(r.roomSlug))
       .sort((a, b) => Date.parse(b.requestedAt) - Date.parse(a.requestedAt));
     res.json({ requests: list });
   });
@@ -462,7 +488,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.json({ request: r });
   });
 
-  app.post("/api/device-access/requests/:id/decision", requireAuth("admin", "instructor", "sales_rep", "auditor"), (req, res) => {
+  app.post("/api/device-access/requests/:id/decision", requireAuth("admin", "instructor", "sales_rep", "auditor"), async (req, res) => {
     const r = state.requests.get(req.params.id);
     if (!r) return res.status(404).json({ error: "Request not found" });
     if (r.status !== "pending") return res.status(409).json({ error: `Request already ${r.status}.`, request: r });
@@ -470,6 +496,9 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     const allowedRoles = r.policySnapshot.approverRoles as string[];
     if (actor.role !== "admin" && !allowedRoles.includes(actor.role)) {
       return res.status(403).json({ error: `Only ${allowedRoles.join(", ")} can decide this request.` });
+    }
+    if (actor.role !== "admin" && actor.role !== "auditor" && !(await canHost(req.user!, r.roomSlug))) {
+      return res.status(403).json({ error: "Only this class's host can decide its device requests." });
     }
     const decision = req.body?.decision === "approve" ? "approve" : "deny";
     const scope: ApprovalScope = req.body?.scope === "this_device" ? "this_device" : "this_session";
@@ -492,7 +521,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
       device: r.device,
       details: `${decision === "approve" ? `Approved (${scope}, until ${r.expiresAt})` : "Denied"} after ${waitedSec}s.${r.decisionNote ? ` Note: ${r.decisionNote}` : ""}`,
     });
-    broadcast({ type: "DEVICE_ACCESS_REQUEST_DECIDED", request: r });
+    notifyDecision(r);
     res.json({ success: true, request: r });
   });
 
@@ -506,7 +535,7 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
       r.decidedAt = new Date().toISOString();
       saveState();
       recordEvent({ type: "request_cancelled", roomSlug: r.roomSlug, actor, requestId: r.id, device: r.device });
-      broadcast({ type: "DEVICE_ACCESS_REQUEST_DECIDED", request: r });
+      notifyDecision(r);
     }
     res.json({ success: true, request: r });
   });
@@ -528,15 +557,23 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     });
   };
 
-  app.get("/api/device-access/events", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
+  /** Events the caller may see (their classes, unless admin/auditor) */
+  const scopedEvents = async (req: express.Request) => {
+    const events = filterEvents(req.query as Record<string, string | undefined>);
+    const inScope = await scopeFor(req, events.map((e) => e.roomSlug || ""));
+    // Events without a room (school-wide rules) are for admins and auditors
+    return events.filter((e) => (e.roomSlug ? inScope(e.roomSlug) : req.user!.role === "admin" || req.user!.role === "auditor"));
+  };
+
+  app.get("/api/device-access/events", requireAuth("admin", "auditor", "instructor", "sales_rep"), async (req, res) => {
     const q = req.query as Record<string, string | undefined>;
     const limit = Math.min(parseInt(q.limit || "500", 10) || 500, 5000);
-    const list = filterEvents(q).slice(-limit).reverse();
+    const list = (await scopedEvents(req)).slice(-limit).reverse();
     res.json({ events: list, total: list.length, persisted: persistenceAvailable });
   });
 
-  app.get("/api/device-access/events.csv", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
-    const rows = filterEvents(req.query as Record<string, string | undefined>).reverse();
+  app.get("/api/device-access/events.csv", requireAuth("admin", "auditor", "instructor", "sales_rep"), async (req, res) => {
+    const rows = (await scopedEvents(req)).reverse();
     const header = [
       "timestamp", "event", "room", "actor_name", "actor_role", "actor_id", "subject_name", "request_id", "decision",
       "device_type_claimed", "device_type_server", "device_type_effective", "integrity", "device_model", "os", "browser",
@@ -560,8 +597,8 @@ export function setupDeviceAccessRoutes(app: express.Express, broadcast: Broadca
     res.send([header.join(","), ...lines].join("\n"));
   });
 
-  app.get("/api/device-access/analytics", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
-    const events = filterEvents(req.query as Record<string, string | undefined>);
+  app.get("/api/device-access/analytics", requireAuth("admin", "auditor", "instructor", "sales_rep"), async (req, res) => {
+    const events = await scopedEvents(req);
     const joins = events.filter((e) => e.type === "join_allowed" || e.type === "join_blocked" || e.type === "join_allowed_by_approval");
     const byDevice: Record<string, { allowed: number; blocked: number; approved: number }> = {};
     const byRoom: Record<string, { blocked: number; requests: number; approved: number; denied: number }> = {};

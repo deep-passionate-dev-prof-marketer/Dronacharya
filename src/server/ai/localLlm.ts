@@ -1,6 +1,6 @@
 /**
  * Local language model on the school's own servers (Ollama). Used for lecture notes and
- * "ask about this class" when Gemini isn't available. Structured JSON output via Ollama's
+ * "ask about this class" . Structured JSON output via Ollama's
  * `format` (JSON schema), with an explicit context window so long transcripts aren't cut silently.
  *
  *   OLLAMA_URL=http://localhost:11434   OLLAMA_MODEL=qwen2.5:7b-instruct (default qwen2.5:3b)

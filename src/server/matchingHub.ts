@@ -8,7 +8,7 @@ import { isDemoRoom } from "./analytics/demo";
 import { getDb, schema } from "./db";
 import { persist } from "./db/kv";
 import crypto from "crypto";
-import { createInviteToken } from "./auth/routes";
+import { inviteUrl } from "./auth/routes";
 import { FACULTY_ROSTER, findFaculty } from "../services/matching/facultyRoster";
 import { Booking, MatchRequest, findOpenSection, matchTeachers } from "../services/matching/teacherMatcher";
 import { actorFromSession, upsertRoomPolicy } from "./deviceAccessHub";
@@ -111,7 +111,9 @@ function roomSlugFor(req: MatchRequest, teacherId: string): string {
  */
 async function ensureLearnerAccounts(
   student: { key: string; name?: string; email?: string; gradeLevel?: number; country?: string | null; timezone?: string | null },
-  parent?: { name?: string; email?: string }
+  parent?: { name?: string; email?: string },
+  /** Only admins may attach a parent to a learner who already existed (otherwise anyone booking could claim a child) */
+  canLinkExisting = false
 ) {
   const db: any = await getDb();
   const code = student.key.toUpperCase();
@@ -140,7 +142,8 @@ async function ensureLearnerAccounts(
       .set({ country: existing.country || student.country, timezone: existing.timezone || student.timezone })
       .where(eq(schema.users.id, studentId));
   }
-  if (parent?.email) {
+  const createdNow = !existing;
+  if (parent?.email && (createdNow || canLinkExisting)) {
     const email = parent.email.trim().toLowerCase();
     let [p] = await db.select().from(schema.users).where(eq(schema.users.email, email));
     if (!p) {
@@ -149,7 +152,7 @@ async function ensureLearnerAccounts(
         .values({ id: `par-${crypto.randomUUID().slice(0, 8)}`, email, name: parent.name || "Parent", role: "parent", avatarColor: "#F59E0B" })
         .returning();
     }
-    if (p?.role === "parent") await db.insert(schema.guardians).values({ parentId: p.id, studentId, relation: "parent" }).onConflictDoNothing();
+    if (p?.role === "parent") await db.insert(schema.guardians).values({ parentId: p.id, studentId, relation: "parent" }).onConflictDoNothing().catch(() => {});
   }
   return studentId;
 }
@@ -191,12 +194,12 @@ export function setupMatchingRoutes(app: express.Express) {
         country: knownIso3(parsed.studentCountryIso2),
         timezone: validTimezone(parsed.studentTimezone),
       },
-      req.body?.parent
+      req.body?.parent,
+      actorRole === "admin"
     );
     // Enrolments always reference the learner's user id
     const studentKey = learnerId;
-    const inviteFor = async (slug: string) =>
-      `${req.protocol}://${req.get("host")}/?room=${encodeURIComponent(slug)}&invite=${encodeURIComponent(await createInviteToken(learnerId, slug))}`;
+    const inviteFor = (slug: string) => inviteUrl(req, learnerId, slug, actor.id);
 
     // 1. Join an open section of the same cohort if there is one
     const section = findOpenSection(parsed, bookings);

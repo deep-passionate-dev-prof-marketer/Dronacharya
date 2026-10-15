@@ -1,5 +1,5 @@
 /**
- * Attendance for one class session from LiveKit join/leave events (webhooks).
+ * Attendance for one class session from the media server's join/leave events.
  * Time in the waiting room counts as present (the learner arrived; the host decides when to admit).
  */
 export type AttendanceStatus = "present" | "late" | "left_early" | "absent";

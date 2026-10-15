@@ -1,28 +1,15 @@
 /**
- * AI provider order and health.
- *
- * Every AI feature (captions, lecture notes, "ask about this class") tries providers in order,
- * default "gemini,local": Gemini first, and the school's own servers (Whisper / Ollama) when
- * Gemini isn't configured, fails, times out or is rate-limited. A provider that keeps failing is
- * skipped for a cool-down so classes aren't slowed down waiting on it.
+ * The school's own AI servers and their health: the language model (Ollama) for notes, answers and
+ * translation, and Whisper for live captions. A server that keeps failing is skipped for a
+ * cool-down so classes aren't slowed down waiting on it.
  */
 
-export type ProviderName = "gemini" | "local";
-
-/** Order from AI_PROVIDERS ("gemini,local" by default; "local,gemini" or "local" keep data on our servers). */
-export function providerOrder(): ProviderName[] {
-  const raw = (process.env.AI_PROVIDERS || "gemini,local").split(",").map((s) => s.trim().toLowerCase());
-  const out = raw.filter((p): p is ProviderName => p === "gemini" || p === "local");
-  return out.length ? [...new Set(out)] : ["gemini", "local"];
-}
-
-export const geminiConfigured = () => Boolean(process.env.GEMINI_API_KEY);
 export const ollamaConfigured = () => Boolean(process.env.OLLAMA_URL);
 export const whisperConfigured = () => Boolean(process.env.WHISPER_URL);
 
 /**
  * Skips a provider for `cooldownMs` after `maxFailures` failures within `windowMs`
- * (e.g. Gemini quota exhausted, network down, local server stopped).
+ * (e.g. the AI server is stopped or overloaded).
  */
 export class CircuitBreaker {
   private failures: number[] = [];
@@ -55,8 +42,6 @@ export class CircuitBreaker {
 }
 
 export const breakers = {
-  geminiText: new CircuitBreaker("Gemini (notes/answers)"),
-  geminiStt: new CircuitBreaker("Gemini (captions)"),
   ollama: new CircuitBreaker("Local LLM (Ollama)"),
   whisper: new CircuitBreaker("Local Whisper"),
 };

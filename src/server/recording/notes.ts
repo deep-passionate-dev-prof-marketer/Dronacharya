@@ -1,14 +1,12 @@
 /**
- * Lecture notes from a class transcript, trying providers in order (AI_PROVIDERS, default gemini,local):
- *  - Gemini (GEMINI_API_KEY): summary, key concepts, questions asked, homework, outline.
- *  - Local LLM on our servers (OLLAMA_URL) when Gemini isn't set up or fails; long classes are
- *    summarised in parts and merged so nothing is cut off.
+ * Lecture notes from a class transcript, made on the school's own server:
+ *  - The local language model (OLLAMA_URL): summary, key concepts, questions asked, homework,
+ *    outline. Long classes are summarised in parts and merged so nothing is cut off.
  *  - Otherwise an extractive summary built only from what was said, labelled "extractive" so
  *    nobody mistakes it for AI-written notes.
  * AI output is grounded: homework, questions and concepts that don't appear in the transcript are dropped.
  */
-import { GoogleGenAI, Type } from "@google/genai";
-import { breakers, geminiConfigured, ollamaConfigured, providerOrder, withTimeout } from "../ai/providers";
+import { ollamaConfigured } from "../ai/providers";
 import { approxTokens, ollamaContext, ollamaJson } from "../ai/localLlm";
 
 export interface TranscriptEntry {
@@ -25,7 +23,7 @@ export interface LectureNotes {
   homework: string[];
   outline: Array<{ minute: number; title: string }>;
   stats: { lines: number; speakers: number; minutes: number };
-  generator: "gemini" | "local" | "extractive";
+  generator: "local" | "extractive";
 }
 
 const STOP = new Set(
@@ -99,18 +97,6 @@ export function extractiveNotes(lines: TranscriptEntry[]): LectureNotes {
 type NotesContext = { subject?: string; topic?: string; kind?: string };
 type RawNotes = Omit<LectureNotes, "stats" | "generator">;
 
-const SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    summary: { type: Type.STRING },
-    keyConcepts: { type: Type.ARRAY, items: { type: Type.STRING } },
-    questions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { question: { type: Type.STRING }, askedBy: { type: Type.STRING } }, required: ["question"] } },
-    homework: { type: Type.ARRAY, items: { type: Type.STRING } },
-    outline: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { minute: { type: Type.INTEGER }, title: { type: Type.STRING } }, required: ["minute", "title"] } },
-  },
-  required: ["summary", "keyConcepts", "questions", "homework", "outline"],
-};
-
 /** The same shape as plain JSON Schema (for the local model). */
 export const NOTES_JSON_SCHEMA = {
   type: "object",
@@ -152,7 +138,7 @@ function groundedShare(text: string, vocabulary: Set<string>) {
 const GENERIC_CONCEPTS = new Set(["homework", "class", "lesson", "today", "worksheet", "assignment", "questions", "teacher", "students", "introduction", "summary", "notes"]);
 
 /** Validates model output and drops anything not backed by the transcript. */
-export function groundNotes(raw: any, lines: TranscriptEntry[], generator: "gemini" | "local"): LectureNotes | null {
+export function groundNotes(raw: any, lines: TranscriptEntry[], generator: "local"): LectureNotes | null {
   if (!raw || typeof raw.summary !== "string" || !raw.summary.trim()) return null;
   const vocabulary = new Set(lines.flatMap((l) => words(l.text)));
   const stats = statsOf(lines);
@@ -176,33 +162,6 @@ export function groundNotes(raw: any, lines: TranscriptEntry[], generator: "gemi
   return { summary: raw.summary.trim(), keyConcepts, questions, homework, outline, stats, generator };
 }
 
-/** Gemini notes; null if not configured, cooling down, or the call fails (caller tries the next provider). */
-export async function geminiNotes(lines: TranscriptEntry[], context: NotesContext): Promise<LectureNotes | null> {
-  if (!geminiConfigured() || !lines.length || !breakers.geminiText.available()) return null;
-  const t0 = new Date(lines[0].at).getTime();
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    const res = await withTimeout(
-      (signal) =>
-        ai.models.generateContent({
-          model: process.env.NOTES_MODEL || "gemini-3.1-flash-lite",
-          contents: `${SYSTEM}\n${instructions(context)}\n\nTranscript:\n${transcriptText(lines, t0).slice(-120_000)}`,
-          config: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, abortSignal: signal },
-        }),
-      Number(process.env.NOTES_TIMEOUT_MS || 90_000),
-      "Gemini notes"
-    );
-    const notes = groundNotes(JSON.parse(res.text || "{}"), lines, "gemini");
-    if (!notes) throw new Error("Gemini returned unusable notes");
-    breakers.geminiText.success();
-    return notes;
-  } catch (err: any) {
-    breakers.geminiText.failure(err);
-    console.warn("[notes] Gemini failed, trying the next provider:", String(err?.message || err).slice(0, 200));
-    return null;
-  }
-}
-
 /** Splits lines into chunks that fit the local model's context window. */
 export function chunkLines(lines: TranscriptEntry[], t0: number, maxTokens: number): TranscriptEntry[][] {
   const chunks: TranscriptEntry[][] = [];
@@ -222,7 +181,6 @@ export function chunkLines(lines: TranscriptEntry[], t0: number, maxTokens: numb
   return chunks;
 }
 
-/** Notes from the local model; long classes are summarised part by part, then merged. */
 export async function localNotes(lines: TranscriptEntry[], context: NotesContext): Promise<LectureNotes | null> {
   if (!ollamaConfigured() || !lines.length) return null;
   const t0 = new Date(lines[0].at).getTime();
@@ -272,9 +230,5 @@ export async function localNotes(lines: TranscriptEntry[], context: NotesContext
 
 export async function buildNotes(lines: TranscriptEntry[], context: NotesContext): Promise<LectureNotes> {
   if (!lines.length) return extractiveNotes(lines);
-  for (const provider of providerOrder()) {
-    const notes = provider === "gemini" ? await geminiNotes(lines, context) : await localNotes(lines, context);
-    if (notes) return notes;
-  }
-  return extractiveNotes(lines);
+  return (await localNotes(lines, context)) || extractiveNotes(lines);
 }

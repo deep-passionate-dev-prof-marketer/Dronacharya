@@ -1,46 +1,14 @@
 /**
- * Where class recordings live.
- *  - local (default, the "dummy" store while testing): files under data/recordings. LiveKit Egress
- *    writes into its own container path (EGRESS_OUTPUT_DIR, default /out) that is mounted to it.
- *  - s3: any S3-compatible bucket, including Supabase Storage (set RECORDING_S3_*). Playback uses
- *    short-lived pre-signed URLs, so the bucket stays private.
+ * Where older class video recordings live (playback only): local disk (data/recordings) or an
+ * S3-compatible bucket you run yourself (e.g. MinIO), via short-lived signed links.
  */
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { EncodedFileOutput, EncodedFileType, S3Upload } from "livekit-server-sdk";
 
-export interface StorageAdapter {
-  kind: "local" | "s3";
-  /** Egress output for a new recording file */
-  egressOutput(fileName: string): EncodedFileOutput;
-  /** Path we store in the recordings row */
-  storedPath(fileName: string): string;
-  /** Local absolute path to stream (local) or a pre-signed URL (s3) */
-  playback(storedPath: string): { file: string } | { url: string } | null;
-}
-
-// Read when used (module code runs before server.ts loads .env)
 export const recordingsDir = () => process.env.RECORDINGS_DIR || path.join(process.cwd(), "data", "recordings");
 
-class LocalStorage implements StorageAdapter {
-  kind = "local" as const;
-  egressOutput(fileName: string) {
-    const outDir = process.env.EGRESS_OUTPUT_DIR || "/out";
-    return new EncodedFileOutput({ fileType: EncodedFileType.MP4, filepath: `${outDir}/${fileName}` });
-  }
-  storedPath(fileName: string) {
-    return fileName;
-  }
-  playback(storedPath: string) {
-    // Only plain file names inside the recordings folder (no traversal)
-    const name = path.basename(storedPath);
-    const file = path.join(recordingsDir(), name);
-    return fs.existsSync(file) ? { file } : null;
-  }
-}
-
-interface S3Config {
+export interface S3Config {
   bucket: string;
   region: string;
   endpoint?: string;
@@ -49,49 +17,13 @@ interface S3Config {
   forcePathStyle: boolean;
 }
 
-class S3Storage implements StorageAdapter {
-  kind = "s3" as const;
-  constructor(private cfg: S3Config) {}
-  egressOutput(fileName: string) {
-    return new EncodedFileOutput({
-      fileType: EncodedFileType.MP4,
-      filepath: `recordings/${fileName}`,
-      output: {
-        case: "s3",
-        value: new S3Upload({
-          accessKey: this.cfg.accessKeyId,
-          secret: this.cfg.secretAccessKey,
-          region: this.cfg.region,
-          endpoint: this.cfg.endpoint || "",
-          bucket: this.cfg.bucket,
-          forcePathStyle: this.cfg.forcePathStyle,
-        }),
-      },
-    });
-  }
-  storedPath(fileName: string) {
-    return `recordings/${fileName}`;
-  }
-  playback(storedPath: string) {
-    return { url: presignS3Get({ ...this.cfg, key: storedPath, expiresSec: 15 * 60 }) };
-  }
-}
-
-export function recordingStorage(): StorageAdapter {
-  const e = process.env;
-  if (e.RECORDING_S3_BUCKET && e.RECORDING_S3_ACCESS_KEY && e.RECORDING_S3_SECRET) {
-    return new S3Storage({
-      bucket: e.RECORDING_S3_BUCKET,
-      region: e.RECORDING_S3_REGION || "us-east-1",
-      endpoint: e.RECORDING_S3_ENDPOINT || undefined,
-      accessKeyId: e.RECORDING_S3_ACCESS_KEY,
-      secretAccessKey: e.RECORDING_S3_SECRET,
-      // Supabase Storage and most S3-compatible services need path-style URLs
-      forcePathStyle: e.RECORDING_S3_FORCE_PATH_STYLE ? e.RECORDING_S3_FORCE_PATH_STYLE === "1" : Boolean(e.RECORDING_S3_ENDPOINT),
-    });
-  }
-  fs.mkdirSync(recordingsDir(), { recursive: true });
-  return new LocalStorage();
+/** A recording file to stream (local) or a signed link (bucket) */
+export function recordingPlayback(storedPath: string): { file: string } | { url: string } | null {
+  const s3 = s3ConfigFromEnv();
+  if (s3) return { url: presignS3Get({ ...s3, key: storedPath, expiresSec: 15 * 60 }) };
+  // Only plain file names inside the recordings folder (no traversal)
+  const file = path.join(recordingsDir(), path.basename(storedPath));
+  return fs.existsSync(file) ? { file } : null;
 }
 
 // ---------------- AWS Signature V4 query-string pre-signing (GET) ----------------
@@ -100,7 +32,9 @@ const enc = (s: string) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => "%" 
 const hmac = (key: crypto.BinaryLike, data: string) => crypto.createHmac("sha256", key).update(data).digest();
 const sha256 = (data: string) => crypto.createHash("sha256").update(data).digest("hex");
 
-export function presignS3Get(o: {
+/** Any S3 operation as a pre-signed URL (GET downloads, PUT uploads, DELETE removals). */
+export function presignS3(o: {
+  method: "GET" | "PUT" | "DELETE";
   bucket: string;
   key: string;
   region: string;
@@ -110,6 +44,8 @@ export function presignS3Get(o: {
   forcePathStyle?: boolean;
   expiresSec: number;
   now?: Date;
+  /** Extra signed query parameters, e.g. response-content-disposition */
+  query?: Record<string, string>;
 }): string {
   const now = o.now || new Date();
   const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -133,13 +69,14 @@ export function presignS3Get(o: {
     ["X-Amz-Date", amzDate],
     ["X-Amz-Expires", String(o.expiresSec)],
     ["X-Amz-SignedHeaders", "host"],
+    ...Object.entries(o.query || {}),
   ];
   const query = params
     .map(([k, v]) => [enc(k), enc(v)])
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`)
     .join("&");
-  const canonicalRequest = ["GET", canonicalPath, query, `host:${host}`, "", "host", "UNSIGNED-PAYLOAD"].join("\n");
+  const canonicalRequest = [o.method, canonicalPath, query, `host:${host}`, "", "host", "UNSIGNED-PAYLOAD"].join("\n");
   const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256(canonicalRequest)].join("\n");
   const kDate = hmac(`AWS4${o.secretAccessKey}`, day);
   const kRegion = hmac(kDate, o.region);
@@ -147,4 +84,22 @@ export function presignS3Get(o: {
   const kSigning = hmac(kService, "aws4_request");
   const signature = crypto.createHmac("sha256", kSigning).update(stringToSign).digest("hex");
   return `${base.protocol}//${host}${canonicalPath}?${query}&X-Amz-Signature=${signature}`;
+}
+
+export function presignS3Get(o: Omit<Parameters<typeof presignS3>[0], "method">): string {
+  return presignS3({ ...o, method: "GET" });
+}
+
+/** The S3 settings shared by recordings and uploaded files (the school's own S3-compatible store, e.g. MinIO) */
+export function s3ConfigFromEnv(): S3Config | null {
+  const e = process.env;
+  if (!(e.RECORDING_S3_BUCKET && e.RECORDING_S3_ACCESS_KEY && e.RECORDING_S3_SECRET)) return null;
+  return {
+    bucket: e.RECORDING_S3_BUCKET,
+    region: e.RECORDING_S3_REGION || "us-east-1",
+    endpoint: e.RECORDING_S3_ENDPOINT || undefined,
+    accessKeyId: e.RECORDING_S3_ACCESS_KEY,
+    secretAccessKey: e.RECORDING_S3_SECRET,
+    forcePathStyle: e.RECORDING_S3_FORCE_PATH_STYLE ? e.RECORDING_S3_FORCE_PATH_STYLE === "1" : Boolean(e.RECORDING_S3_ENDPOINT),
+  };
 }

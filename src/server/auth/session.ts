@@ -20,7 +20,10 @@ export interface SessionUser {
   studentCode?: string | null;
   country?: string | null;
   languageTag?: string | null;
+  timezone?: string | null;
   gradeLevel?: number | null;
+  /** Signed in with an admin's temporary password: must pick their own before anything else */
+  mustChangePassword?: boolean;
   sid: string;
 }
 
@@ -36,6 +39,8 @@ declare global {
 export const COOKIE = "dr_session";
 const TTL_MS = 8 * 3600 * 1000;
 const REFRESH_WHEN_LEFT_MS = 4 * 3600 * 1000;
+/** A session ends 14 days after sign-in however active it is */
+const MAX_SESSION_MS = 14 * 86400 * 1000;
 
 let devSecretWarned = false;
 function secret(): Uint8Array {
@@ -57,9 +62,14 @@ export async function signToken(claims: Record<string, unknown>, ttlSec: number,
   return jwt.sign(secret());
 }
 
-export async function verifyToken<T = Record<string, unknown>>(token: string): Promise<(T & { sub?: string; exp?: number }) | null> {
+/**
+ * Verifies a token. `typ` must match the kind of token expected ("session", "ws", "invite", "oidc"),
+ * so one kind can never be replayed as another (e.g. a 60-second socket ticket as a session cookie).
+ */
+export async function verifyToken<T = Record<string, unknown>>(token: string, typ?: string): Promise<(T & { sub?: string; exp?: number; typ?: string }) | null> {
   try {
     const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
+    if (typ && payload.typ !== typ) return null;
     return payload as any;
   } catch {
     return null;
@@ -69,7 +79,7 @@ export async function verifyToken<T = Record<string, unknown>>(token: string): P
 const cookieOptions = (req: express.Request) => ({
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+  secure: process.env.NODE_ENV === "production" || req.secure,
   path: "/",
   maxAge: TTL_MS,
 });
@@ -84,9 +94,10 @@ export async function startSession(req: express.Request, res: express.Response, 
     provider,
     expiresAt: new Date(Date.now() + TTL_MS),
     userAgent: String(req.headers["user-agent"] || "").slice(0, 300),
-    ip: String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].slice(0, 64),
+    // req.ip honours "trust proxy" (the first X-Forwarded-For entry can be set by the client)
+    ip: String(req.ip || "").slice(0, 64),
   });
-  res.cookie(COOKIE, await signToken({ sid }, TTL_MS / 1000, userId), cookieOptions(req));
+  res.cookie(COOKIE, await signToken({ sid, typ: "session" }, TTL_MS / 1000, userId), cookieOptions(req));
 }
 
 export async function endSession(req: express.Request, res: express.Response) {
@@ -105,6 +116,13 @@ export function forgetSession(sid: string) {
   cache.delete(sid);
 }
 
+/** Signs a person out everywhere (disabled account, role change): revokes their sessions and drops cached ones. */
+export async function revokeUserSessions(userId: string) {
+  const db: any = await getDb();
+  await db.update(schema.sessions).set({ revokedAt: new Date() }).where(eq(schema.sessions.userId, userId));
+  for (const [sid, hit] of cache) if (hit.user?.id === userId) cache.delete(sid);
+}
+
 function readCookie(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
   for (const part of header.split(";")) {
@@ -117,8 +135,12 @@ function readCookie(header: string | undefined, name: string): string | undefine
 /** Resolves the signed-in user from a raw Cookie header (used by HTTP middleware and WebSocket upgrades). */
 export async function userFromCookieHeader(cookieHeader: string | undefined): Promise<{ user: SessionUser; exp: number } | null> {
   const token = readCookie(cookieHeader, COOKIE);
-  if (!token) return null;
-  const claims = await verifyToken<{ sid: string }>(token);
+  return token ? userFromToken(token, "session") : null;
+}
+
+/** Resolves the user behind a session token, or behind a short-lived WebSocket ticket (typ "ws"). */
+export async function userFromToken(token: string, typ: "session" | "ws"): Promise<{ user: SessionUser; exp: number } | null> {
+  const claims = await verifyToken<{ sid: string }>(token, typ);
   if (!claims?.sid || !claims.sub) return null;
   const hit = cache.get(claims.sid);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.user ? { user: hit.user, exp: (claims.exp || 0) * 1000 } : null;
@@ -129,7 +151,14 @@ export async function userFromCookieHeader(cookieHeader: string | undefined): Pr
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
     .where(eq(schema.sessions.id, claims.sid));
-  const valid = row && !row.s.revokedAt && new Date(row.s.expiresAt).getTime() > Date.now() && !row.u.disabled && row.u.id === claims.sub;
+  const valid =
+    row &&
+    !row.s.revokedAt &&
+    new Date(row.s.expiresAt).getTime() > Date.now() &&
+    // Sliding expiry never extends a session past its absolute lifetime
+    Date.now() - new Date(row.s.createdAt).getTime() < MAX_SESSION_MS &&
+    !row.u.disabled &&
+    row.u.id === claims.sub;
   const user: SessionUser | null = valid
     ? {
         id: row.u.id,
@@ -140,7 +169,9 @@ export async function userFromCookieHeader(cookieHeader: string | undefined): Pr
         studentCode: row.u.studentCode,
         country: row.u.country,
         languageTag: row.u.languageTag,
+        timezone: row.u.timezone,
         gradeLevel: row.u.gradeLevel,
+        mustChangePassword: Boolean(row.u.mustChangePassword),
         sid: row.s.id,
       }
     : null;
@@ -158,7 +189,7 @@ export function attachUser(): express.RequestHandler {
         if (found.exp - Date.now() < REFRESH_WHEN_LEFT_MS) {
           const db: any = await getDb();
           await db.update(schema.sessions).set({ expiresAt: new Date(Date.now() + TTL_MS) }).where(eq(schema.sessions.id, found.user.sid));
-          res.cookie(COOKIE, await signToken({ sid: found.user.sid }, TTL_MS / 1000, found.user.id), cookieOptions(req));
+          res.cookie(COOKIE, await signToken({ sid: found.user.sid, typ: "session" }, TTL_MS / 1000, found.user.id), cookieOptions(req));
         }
       }
     } catch (err) {

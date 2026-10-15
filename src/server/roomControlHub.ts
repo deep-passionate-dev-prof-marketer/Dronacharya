@@ -1,5 +1,5 @@
 /**
- * Teacher in-class controls on top of LiveKit's server API:
+ * Teacher in-class controls, on the school's own media server:
  *  - waiting room: learners join without publish/subscribe rights until a host admits them;
  *  - mute / stop video / remove a participant;
  *  - quick polls (stored in Postgres, one vote per person, live results pushed to the room).
@@ -7,57 +7,28 @@
  */
 import crypto from "crypto";
 import express from "express";
-import { RoomServiceClient, DataPacket_Kind, TrackSource } from "livekit-server-sdk";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "./db";
 import { requireAuth, SessionUser } from "./auth/session";
-import { livekitConfig } from "./livekitHub";
+import { mediaAdmit, mediaEnabled, mediaMute, mediaRemove, mediaSend } from "./media/mediaServer";
 import { classByRoom } from "./classesHub";
-import { auditInsert, persist, kvLoad, kvUpsert, kvDelete } from "./db/kv";
+import { auditInsert, persist } from "./db/kv";
 
-/** Identities admitted in each room for this class session (rejoin after refresh skips the lobby). */
-export const admittedByRoom = new Map<string, Set<string>>();
+// Who's been let in from the waiting room (shared with the media server)
+export { admittedByRoom, admittedLoaded, saveAdmitted, clearAdmitted } from "./admission";
+import { admittedByRoom, admittedLoaded, saveAdmitted } from "./admission";
 
-// Kept in the database too, so a server restart or deploy mid-class doesn't send everyone back to the lobby
-let admittedReady: Promise<void> | null = null;
-export function admittedLoaded() {
-  if (!admittedReady) {
-    admittedReady = kvLoad<string[]>("room_admitted").then((rows) => {
-      for (const { key, value } of rows) admittedByRoom.set(key, new Set(value));
-    });
-  }
-  return admittedReady;
-}
-function saveAdmitted(roomSlug: string) {
-  const set = admittedByRoom.get(roomSlug);
-  persist("admitted", set && set.size ? kvUpsert("room_admitted", [{ key: roomSlug, value: [...set] }]) : kvDelete("room_admitted", roomSlug));
-}
-/** New class session: everyone waits to be admitted again. */
-export function clearAdmitted(roomSlug: string) {
-  admittedByRoom.delete(roomSlug);
-  saveAdmitted(roomSlug);
-}
-
-let roomService: RoomServiceClient | null = null;
-export function rooms(): RoomServiceClient | null {
-  const cfg = livekitConfig();
-  if (!cfg) return null;
-  if (!roomService) roomService = new RoomServiceClient(cfg.url.replace(/^ws/, "http"), cfg.apiKey, cfg.apiSecret);
-  return roomService;
-}
-
-export async function canHost(user: SessionUser, roomSlug: string): Promise<boolean> {
-  if (user.role === "admin") return true;
-  if (!["instructor", "sales_rep"].includes(user.role)) return false;
-  const cls = await classByRoom(roomSlug);
-  if (!cls) return true; // ad-hoc room: any teacher/counsellor present can host
-  if (cls.teacherId === user.id) return true;
-  return user.role === "sales_rep" && cls.kind !== "enrolled" && cls.kind !== "doubt_clearing";
-}
+// Host rules live in roomAccess.ts (shared with tokens, sockets, invites and breakouts)
+export { canHost } from "./roomAccess";
+import { canAccessRoom, canHost } from "./roomAccess";
 
 const hostOnly: express.RequestHandler = async (req, res, next) => {
   if (!(await canHost(req.user!, req.params.slug))) return res.status(403).json({ error: "Only the class host can do this." });
-  if (!rooms()) return res.status(503).json({ error: "Live video service is not configured." });
+  next();
+};
+/** Muting someone else's track needs the media server (direct peer-to-peer mode can't force it). */
+const needsMedia: express.RequestHandler = (_req, res, next) => {
+  if (!mediaEnabled()) return res.status(503).json({ error: "This needs the school's media server, which isn't running." });
   next();
 };
 
@@ -74,12 +45,26 @@ const log = (req: express.Request, type: string, detail: Record<string, unknown>
     })
   );
 
-/** Server-originated data message to everyone in a LiveKit room (clients trust only these for class state). */
-export async function send(roomSlug: string, topic: string, payload: unknown) {
-  const svc = rooms();
-  if (!svc) return;
-  const data = new TextEncoder().encode(JSON.stringify({ topic, payload, from: "server" }));
-  await svc.sendData(roomSlug, data, DataPacket_Kind.RELIABLE, { topic }).catch((e) => console.warn("[rooms] sendData failed", e?.message));
+/**
+ * Other ways a server message reaches a room (the realtime WebSocket registers here), so class state
+ * still arrives when a participant isn't on the media server, or joined just after a send.
+ */
+type RoomListener = (roomSlug: string, topic: string, payload: unknown, toIdentities?: string[]) => void;
+export const roomListeners = new Set<RoomListener>();
+/** How many people are in a room over the realtime socket (registered by the realtime hub) */
+export const presenceProbes = new Set<(roomSlug: string) => number>();
+
+/**
+ * Server-originated message to a class (clients trust only these for class state): over the media
+ * server's connection and the realtime WebSocket, to the class room and its breakout groups.
+ */
+export async function send(roomSlug: string, topic: string, payload: unknown, toIdentities?: string[]) {
+  for (const fn of roomListeners) {
+    try {
+      fn(roomSlug, topic, payload, toIdentities);
+    } catch {}
+  }
+  mediaSend(roomSlug, topic, payload, toIdentities);
 }
 
 async function tally(pollId: string) {
@@ -95,63 +80,43 @@ export function setupRoomControlRoutes(app: express.Express) {
   admittedLoaded();
   // ---------------- waiting room ----------------
   app.post("/api/rooms/:slug/admit", requireAuth(), hostOnly, async (req, res) => {
-    const ids: string[] = Array.isArray(req.body?.identities) ? req.body.identities.map(String) : [String(req.body?.identity || "")];
-    const svc = rooms()!;
-    const admitted: string[] = [];
-    for (const identity of ids.filter(Boolean)) {
-      try {
-        const p = await svc.getParticipant(req.params.slug, identity);
-        const meta = { ...(p.metadata ? JSON.parse(p.metadata) : {}), waiting: false };
-        await svc.updateParticipant(req.params.slug, identity, {
-          metadata: JSON.stringify(meta),
-          permission: {
-            canSubscribe: true,
-            canPublish: true,
-            canPublishData: true,
-            canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE],
-          },
-        });
-        if (!admittedByRoom.has(req.params.slug)) admittedByRoom.set(req.params.slug, new Set());
-        admittedByRoom.get(req.params.slug)!.add(identity);
-        admitted.push(identity);
-      } catch (e: any) {
-        console.warn("[rooms] admit failed", identity, e?.message);
-      }
-    }
+    const ids: string[] = (Array.isArray(req.body?.identities) ? req.body.identities.map(String) : [String(req.body?.identity || "")]).filter(Boolean).slice(0, 100);
+    // Remembered first, so a learner who reconnects (or isn't connected yet) is let straight in
+    if (!admittedByRoom.has(req.params.slug)) admittedByRoom.set(req.params.slug, new Set());
+    for (const identity of ids) admittedByRoom.get(req.params.slug)!.add(identity);
     saveAdmitted(req.params.slug);
-    log(req, "admit", { identities: admitted });
-    res.json({ admitted });
+    const reached = mediaAdmit(req.params.slug, ids);
+    // Also told over the class socket (direct mode, or someone whose video is reconnecting)
+    await send(req.params.slug, "admitted", { identities: ids }, ids);
+    log(req, "admit", { identities: ids, connected: reached });
+    res.json({ admitted: ids, failed: [] });
   });
 
   app.post("/api/rooms/:slug/deny", requireAuth(), hostOnly, async (req, res) => {
     const identity = String(req.body?.identity || "");
-    await rooms()!.removeParticipant(req.params.slug, identity).catch(() => {});
+    await send(req.params.slug, "removed", { identity, reason: "denied" }, [identity]);
+    mediaRemove(req.params.slug, identity, "denied");
     log(req, "deny", { identity });
     res.json({ ok: true });
   });
 
   // ---------------- mute / stop video / remove ----------------
-  app.post("/api/rooms/:slug/mute", requireAuth(), hostOnly, async (req, res) => {
+  // The slug is the video room the person is in (a breakout group while the host visits one)
+  app.post("/api/rooms/:slug/mute", requireAuth(), hostOnly, needsMedia, async (req, res) => {
     const identity = String(req.body?.identity || "");
     const kind = req.body?.kind === "video" ? "video" : "audio";
-    const svc = rooms()!;
-    try {
-      const p = await svc.getParticipant(req.params.slug, identity);
-      const wanted = kind === "audio" ? TrackSource.MICROPHONE : TrackSource.CAMERA;
-      const tracks = p.tracks.filter((t) => t.source === wanted);
-      for (const t of tracks) await svc.mutePublishedTrack(req.params.slug, identity, t.sid, true);
-      log(req, kind === "audio" ? "mute" : "stop_video", { identity });
-      res.json({ muted: tracks.length });
-    } catch (e: any) {
-      res.status(404).json({ error: "Participant not found" });
-    }
+    const muted = await mediaMute(req.params.slug, identity, kind);
+    if (muted < 0) return res.status(404).json({ error: "They're not in this room right now." });
+    log(req, kind === "audio" ? "mute" : "stop_video", { identity });
+    res.json({ muted });
   });
 
   app.post("/api/rooms/:slug/remove", requireAuth(), hostOnly, async (req, res) => {
     const identity = String(req.body?.identity || "");
     admittedByRoom.get(req.params.slug)?.delete(identity);
     saveAdmitted(req.params.slug);
-    await rooms()!.removeParticipant(req.params.slug, identity).catch(() => {});
+    await send(req.params.slug, "removed", { identity, reason: "removed" }, [identity]);
+    mediaRemove(req.params.slug, identity, "removed");
     log(req, "remove", { identity, reason: req.body?.reason ? String(req.body.reason).slice(0, 200) : undefined });
     res.json({ ok: true });
   });
@@ -173,7 +138,7 @@ export function setupRoomControlRoutes(app: express.Express) {
   app.post("/api/polls/:id/vote", requireAuth(), async (req, res) => {
     const db: any = await getDb();
     const [poll] = await db.select().from(schema.polls).where(eq(schema.polls.id, req.params.id));
-    if (!poll) return res.status(404).json({ error: "Poll not found" });
+    if (!poll || !(await canAccessRoom(req.user!, poll.roomSlug))) return res.status(404).json({ error: "Poll not found" });
     if (poll.closedAt) return res.status(409).json({ error: "This poll has closed." });
     const optionIndex = Number(req.body?.optionIndex);
     if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= (poll.options as string[]).length) return res.status(400).json({ error: "Invalid option" });
@@ -200,7 +165,7 @@ export function setupRoomControlRoutes(app: express.Express) {
 
   app.get("/api/polls/:id", requireAuth(), async (req, res) => {
     const result = await tally(req.params.id);
-    if (!result) return res.status(404).json({ error: "Poll not found" });
+    if (!result || !(await canAccessRoom(req.user!, result.roomSlug))) return res.status(404).json({ error: "Poll not found" });
     res.json({ poll: result });
   });
 }

@@ -1,18 +1,16 @@
 /**
- * "Ask about this class": answers only from the class transcript, trying providers in order
- * (AI_PROVIDERS, default gemini,local):
- *  - Gemini, then the local model on our servers: a short answer citing the minutes used.
- *  - If neither is available: the transcript lines that best match the question, quoted as-is.
+ * "Ask about this class": answers only from the class transcript, on the school's own server:
+ *  - The local language model: a short answer citing the minutes used.
+ *  - If it isn't available: the transcript lines that best match the question, quoted as-is.
  */
-import { GoogleGenAI, Type } from "@google/genai";
 import type { TranscriptEntry } from "./notes";
-import { breakers, geminiConfigured, ollamaConfigured, providerOrder, withTimeout } from "../ai/providers";
+import { ollamaConfigured } from "../ai/providers";
 import { approxTokens, ollamaContext, ollamaJson } from "../ai/localLlm";
 
 export interface AskAnswer {
   answer: string | null;
   quotes: Array<{ minute: number; speakerName: string | null; text: string }>;
-  generator: "gemini" | "local" | "search";
+  generator: "local" | "search";
 }
 
 const STOP = new Set("a an the and or of to in on at is are was were be what why how when who which does do did can could would should it this that these those for with about from by as i you we they he she me my our your".split(" "));
@@ -64,37 +62,6 @@ function cite(question: string, lines: TranscriptEntry[], startedAt: string, min
   return ranked.length ? ranked : inMinutes.slice(0, 5).map((l) => ({ minute: minuteOf(l.at, t0), speakerName: l.speakerName, text: l.text }));
 }
 
-async function geminiAnswer(question: string, lines: TranscriptEntry[], startedAt: string, quotes: AskAnswer["quotes"]): Promise<AskAnswer | null> {
-  if (!geminiConfigured() || !breakers.geminiText.available()) return null;
-  const t0 = new Date(startedAt).getTime();
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    const res = await withTimeout(
-      (signal) =>
-        ai.models.generateContent({
-          model: process.env.NOTES_MODEL || "gemini-3.1-flash-lite",
-          contents: PROMPT(question, lines.map((l) => line(l, t0)).join("\n").slice(-100_000)),
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: { type: Type.OBJECT, properties: { answer: { type: Type.STRING }, minutes: { type: Type.ARRAY, items: { type: Type.INTEGER } } }, required: ["answer"] },
-            temperature: 0.2,
-            abortSignal: signal,
-          },
-        }),
-      Number(process.env.ASK_TIMEOUT_MS || 20_000),
-      "Gemini answer"
-    );
-    const data = JSON.parse(res.text || "{}");
-    if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("Gemini returned no answer");
-    breakers.geminiText.success();
-    return { answer: cleanAnswer(data.answer), quotes: cite(question, lines, startedAt, data.minutes, quotes), generator: "gemini" };
-  } catch (err: any) {
-    breakers.geminiText.failure(err);
-    console.warn("[ask] Gemini failed, trying the next provider:", String(err?.message || err).slice(0, 200));
-    return null;
-  }
-}
-
 async function localAnswer(question: string, lines: TranscriptEntry[], startedAt: string, quotes: AskAnswer["quotes"]): Promise<AskAnswer | null> {
   if (!ollamaConfigured()) return null;
   const t0 = new Date(startedAt).getTime();
@@ -130,10 +97,8 @@ async function localAnswer(question: string, lines: TranscriptEntry[], startedAt
 export async function answerFromTranscript(question: string, lines: TranscriptEntry[], startedAt: string): Promise<AskAnswer> {
   const quotes = searchTranscript(question, lines, startedAt);
   if (lines.length) {
-    for (const provider of providerOrder()) {
-      const a = provider === "gemini" ? await geminiAnswer(question, lines, startedAt, quotes) : await localAnswer(question, lines, startedAt, quotes);
-      if (a) return a;
-    }
+    const a = await localAnswer(question, lines, startedAt, quotes);
+    if (a) return a;
   }
   return { answer: null, quotes, generator: "search" };
 }

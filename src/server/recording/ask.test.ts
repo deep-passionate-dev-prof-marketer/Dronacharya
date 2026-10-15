@@ -21,11 +21,11 @@ describe("searchTranscript", () => {
   });
 
   it("answers without AI by quoting the transcript", async () => {
-    const prev = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
+    const prev = process.env.OLLAMA_URL;
+    delete process.env.OLLAMA_URL;
     const a = await answerFromTranscript("fringes", lines, start);
     expect(a).toEqual({ answer: null, generator: "search", quotes: [{ minute: 9, speakerName: "Dr. Vance", text: "Bright fringes appear where waves arrive in phase" }] });
-    if (prev) process.env.GEMINI_API_KEY = prev;
+    if (prev) process.env.OLLAMA_URL = prev;
   });
 
   it("cleans transcript formatting that small models echo back", () => {

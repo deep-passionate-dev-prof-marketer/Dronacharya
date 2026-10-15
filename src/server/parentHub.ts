@@ -1,6 +1,6 @@
 /**
  * Parent portal: a guardian sees their own children only.
- *  - attendance per class session (LiveKit join/leave webhooks against each held class),
+ *  - attendance per class session (media server join/leave records against each held class),
  *  - progress (classes attended, notes and homework, teacher remarks),
  *  - consent for engagement analytics and class recording, with history. A change applies
  *    immediately: analytics samples are refused at once, and a learner in a live class is
@@ -15,7 +15,8 @@ import { requireAuth, SessionUser } from "./auth/session";
 import { saveConsent } from "./engagementHub";
 import { latestConsents, isRecordingExcluded, recordingDefaultIncluded } from "./recording/consent";
 import { computeAttendance } from "./attendance";
-import { canHost, rooms } from "./roomControlHub";
+import { canHost } from "./roomControlHub";
+import { mediaHasPeer, mediaSetRecordingExcluded } from "./media/mediaServer";
 import { learnerKeys } from "./classesHub";
 import { auditInsert, persist } from "./db/kv";
 
@@ -43,21 +44,9 @@ const childAccess: express.RequestHandler = async (req, res, next) => {
   return res.status(404).json({ error: "Not found" });
 };
 
-/** Live classes: put the learner's current consent on their participant so the recording layout follows it. */
+/** Live classes: everyone's screen shows the learner's current recording choice at once */
 async function applyRecordingConsentLive(childId: string, role: string) {
-  const svc = rooms();
-  if (!svc) return;
-  const excluded = await isRecordingExcluded({ id: childId, role });
-  const live = await svc.listRooms().catch(() => []);
-  for (const room of live) {
-    const p = await svc.getParticipant(room.name, childId).catch(() => null);
-    if (!p) continue;
-    let meta: any = {};
-    try {
-      meta = JSON.parse(p.metadata || "{}");
-    } catch {}
-    await svc.updateParticipant(room.name, childId, { metadata: JSON.stringify({ ...meta, recordingExcluded: excluded }) }).catch((e) => console.warn("[consent] live update failed", e?.message));
-  }
+  mediaSetRecordingExcluded(childId, await isRecordingExcluded({ id: childId, role }));
 }
 
 async function overview(childId: string) {
@@ -168,8 +157,7 @@ async function mayRemark(user: SessionUser, studentId: string, roomSlug: string 
     if (mine.length) return true;
   }
   if (roomSlug && (await canHost(user, roomSlug))) {
-    const p = await rooms()?.getParticipant(roomSlug, studentId).catch(() => null);
-    if (p) return true;
+    if (mediaHasPeer(roomSlug, studentId)) return true;
   }
   return false;
 }

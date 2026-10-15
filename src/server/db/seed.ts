@@ -1,8 +1,10 @@
 /**
- * Test data for development (the "dummy" accounts used with the dev sign-in).
- * Runs only when the users table is empty.
+ * First-run data.
+ *  - Development, or staging with test sign-in on: the test accounts and sample classes (users table empty).
+ *  - Production: nothing but the first admin, from BOOTSTRAP_ADMIN_EMAIL (created if no account has that email).
  */
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
+import { hashPassword, passwordProblem, temporaryPassword } from "../auth/password";
 import type { Db } from "./index";
 import { users, guardians, classes, classEnrollments } from "./schema";
 import { FACULTY_ROSTER } from "../../services/matching/facultyRoster";
@@ -31,9 +33,48 @@ function upcoming(hoursFromNow: number) {
   return d;
 }
 
+/** The first administrator for a real deployment, so someone can sign in and add everyone else. */
+/**
+ * The first admin (BOOTSTRAP_ADMIN_EMAIL). Their first password is BOOTSTRAP_ADMIN_PASSWORD, or a
+ * temporary one printed once in the server log; either way they choose their own at first sign-in.
+ */
+export async function ensureBootstrapAdmin(db: Db) {
+  const email = (process.env.BOOTSTRAP_ADMIN_EMAIL || "").trim().toLowerCase();
+  if (!email.includes("@")) return false;
+  const [existing] = await (db as any).select().from(users).where(eq(users.email, email));
+  if (existing?.passwordHash) return false;
+  const given = process.env.BOOTSTRAP_ADMIN_PASSWORD || "";
+  const first = given && !passwordProblem(given) ? given : temporaryPassword();
+  const passwordFields = { passwordHash: await hashPassword(first), mustChangePassword: true, passwordUpdatedAt: new Date() };
+  if (existing) {
+    await (db as any).update(users).set(passwordFields).where(eq(users.id, existing.id));
+  } else {
+    await (db as any).insert(users).values({
+      id: `adm-${email.split("@")[0].replace(/[^a-z0-9]/g, "").slice(0, 20) || "first"}-${Math.random().toString(36).slice(2, 6)}`,
+      email,
+      name: process.env.BOOTSTRAP_ADMIN_NAME || "School administrator",
+      role: "admin",
+      avatarColor: "#DC2626",
+      ...passwordFields,
+    });
+  }
+  if (given && first === given) console.log(`[db] first admin ${email}: sign in with BOOTSTRAP_ADMIN_PASSWORD, then choose a new password`);
+  else {
+    if (given) console.warn("[db] BOOTSTRAP_ADMIN_PASSWORD is too weak (10+ characters, not common); using a temporary password instead");
+    console.log(`[db] first admin ${email}: temporary password ${first} (shown once; you'll choose your own at first sign-in)`);
+  }
+  return true;
+}
+
+/** Test accounts belong to development, or staging with test sign-in on; never to a real school's database. */
+const testDataWanted = () => process.env.NODE_ENV !== "production" || process.env.AUTH_DEV_LOGIN === "1";
+
 export async function seedIfEmpty(db: Db) {
+  await ensureBootstrapAdmin(db);
+  if (!testDataWanted()) return false;
   const [{ n }] = await (db as any).select({ n: count() }).from(users);
-  if (Number(n) > 0) return false;
+  // Only the bootstrap admin (or nobody) yet: add the test data
+  if (Number(n) > 1) return false;
 
   await (db as any).insert(users).values([
     ...STAFF,
@@ -48,7 +89,7 @@ export async function seedIfEmpty(db: Db) {
     })),
     ...STUDENTS.map((s) => ({ ...s, role: "student", avatarColor: "#0082FF" })),
     ...PARENTS.map(({ children, ...p }) => ({ ...p, role: "parent", avatarColor: "#F59E0B", country: "IND", languageTag: "en-IN" })),
-  ]);
+  ]).onConflictDoNothing();
   await (db as any).insert(guardians).values(PARENTS.flatMap((p) => p.children.map((studentId) => ({ parentId: p.id, studentId, relation: "parent" }))));
 
   const sample = [

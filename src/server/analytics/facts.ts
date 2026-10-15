@@ -1,6 +1,6 @@
 /**
  * Session facts: everything analytics needs about one finished class, measured once from the raw
- * records (recording, class, enrolments, LiveKit attendance webhooks, engagement samples,
+ * records (recording, class, enrolments, media server attendance, engagement samples,
  * transcript, polls, audit events, auditor reviews) and stored in session_facts / session_learners.
  *
  * Computed 20 s after a class ends and again 10 min later (late engagement samples, the last

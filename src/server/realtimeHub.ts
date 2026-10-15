@@ -4,9 +4,10 @@ import path from "path";
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
 import { getRoomPolicy, setupDeviceAccessRoutes, upsertRoomPolicy } from "./deviceAccessHub";
-import { setupLivekitRoutes } from "./livekitHub";
+import { setupMediaRoutes } from "./media/mediaRoutes";
+import { handleMediaUpgrade, startMediaServer } from "./media/mediaServer";
 import { setupMatchingRoutes } from "./matchingHub";
-import { requireAuth, userFromCookieHeader } from "./auth/session";
+import { requireAuth, SessionUser, userFromCookieHeader, userFromToken } from "./auth/session";
 import crypto from "crypto";
 
 /** CRM webhooks: shared-secret header when CRM_WEBHOOK_SECRET is set, otherwise staff sessions only. */
@@ -23,27 +24,34 @@ const crmWebhookAuth: express.RequestHandler = (req, res, next) => {
 import { setupEngagementRoutes } from "./engagementHub";
 import { setupClassRoutes } from "./classesHub";
 import { setupSecurityRoutes } from "./securityHub";
-import { setupRoomControlRoutes } from "./roomControlHub";
+import { admittedByRoom, admittedLoaded, presenceProbes, roomListeners, setupRoomControlRoutes } from "./roomControlHub";
+import { canAccessRoom, canHost, parentRoom } from "./roomAccess";
+import { demoFeatures, demoOnly } from "./features";
+import { createLimiter } from "./rateLimit";
 import { setupClassSessionRoutes } from "./classSessionHub";
 import { setupParentRoutes } from "./parentHub";
 import { createSttServer, providerChainTranscriber, sameOrigin, setupSttRoutes } from "./sttHub";
 import { setupAnalyticsRoutes } from "./analytics/routes";
 import { setupAttendanceRoutes } from "./analytics/attendanceRoutes";
+import { setupPeopleRoutes } from "./peopleHub";
+import { setupSocialRoutes } from "./socialHub";
+import { setupNotificationRoutes } from "./notifyHub";
+import { setupHelpRoutes } from "./helpHub";
+import { setupMaterialsRoutes } from "./materialsHub";
+import { setupSlidesRoutes } from "./slidesHub";
+import { setupBreakoutRoutes } from "./breakoutHub";
 
 export interface ConnectedClient {
   ws: WebSocket;
   id: string;
   userId: string;
   name: string;
-  role: "instructor" | "student" | "ta" | "admin" | "auditor" | "sales_rep";
+  role: "instructor" | "student" | "ta" | "admin" | "auditor" | "sales_rep" | "parent";
   roomId: string;
-  parentName?: string;
-  parentEmail?: string;
-  parentPhone?: string;
-  gradeLevel?: number;
-  deviceType?: "phone" | "tablet" | "laptop" | "desktop";
-  academicGoals?: string;
+  /** Can host this room (decided once when the socket joins) */
+  isHost: boolean;
   joinedAt: string;
+  joinedAtMs: number;
 }
 
 export interface PitchRoomData {
@@ -125,80 +133,6 @@ class RealtimeStateStore {
   public deviceAudits = new Map<string, any>();
   public isRoomBomberActive = false;
 
-  constructor() {
-    // Initialize standard primary classroom
-    this.rooms.set("default-room", {
-      id: "default-room",
-      name: "Main STEM Hall · Dr. Vance",
-      topic: "Quantum Mechanics & Superconducting Circuits",
-      participants: new Set(),
-    });
-
-    // Seed default remote session for Sophia Chen's tablet
-    this.remoteSessions.set("ras-tablet-sophia", {
-      id: "ras-tablet-sophia",
-      studentId: "stu-1",
-      studentName: "Sophia Chen",
-      requesterId: "host-1",
-      requesterName: "Dr. Evelyn Vance",
-      deviceType: "tablet",
-      deviceModel: 'Apple iPad Pro 13" (M4)',
-      osName: "iPadOS 18.2",
-      accessLevel: "full_control",
-      status: "active",
-      cursorPosition: { x: 0.46, y: 0.38 },
-      activeAnnotationTool: "pen",
-      annotations: [
-        { x: 0.36, y: 0.32, color: "#00C2E0", size: 4 },
-        { x: 0.62, y: 0.52, color: "#FFBB00", size: 6 },
-      ],
-      worksheetContent:
-        "Exercise 4.2: Calculate the density matrix trace for a 2-qubit entangled Bell State |Φ+⟩ = 1/√2 (|00⟩ + |11⟩).\n\nStep 1: Write state vector\nStep 2: Compute outer product ρ = |Φ+⟩⟨Φ+|\nStep 3: Verification: Tr(ρ) = 1/2 + 1/2 = 1.0 (Q.E.D.)",
-      screenResolution: { width: 2064, height: 2752 },
-      fps: 60,
-      latencyMs: 9.8,
-      isMutedControl: false,
-      interactiveContent: {
-        activeApp: "worksheet",
-        codeEditorText: `# Superconducting Transmon Hamiltonian Simulation
-import numpy as np
-
-def calculate_transmon_levels(Ej, Ec, n_states=5):
-    """Computes Josephson junction qubit eigenenergies"""
-    matrix = np.zeros((n_states, n_states))
-    for n in range(n_states):
-        matrix[n, n] = 4 * Ec * (n**2)
-        if n < n_states - 1:
-            matrix[n, n + 1] = -0.5 * Ej
-            matrix[n + 1, n] = -0.5 * Ej
-    energies, _ = np.linalg.eigh(matrix)
-    return energies
-
-Ej_val, Ec_val = 20.0, 0.25 # GHz
-eigenvalues = calculate_transmon_levels(Ej_val, Ec_val)
-print("Qubit Transition Frequency f01:", round(eigenvalues[1] - eigenvalues[0], 3), "GHz")
-`,
-        terminalLogs: [
-          "[system] 21K Remote Kernel v2.4 connected via BOM-1 PoP (11.4ms)",
-          "[stdout] Qubit Transition Frequency f01: 4.891 GHz",
-          "[stdout] Anharmonicity alpha: -248.4 MHz",
-          "[system] Remote interactive session authorized (Full Control).",
-        ],
-        worksheetAnswers: {
-          q1: "Tr(ρ) = 1.0",
-          q2: "Hadamard H gate maps |0⟩ -> (|0⟩+|1⟩)/√2",
-          q3: "Decoherence T2 phase drift along z-axis pole",
-        },
-        notesText: "Student Sophia Chen requested assistance on boundary matrix derivation for problem 4.2.",
-      },
-      actionLog: [
-        { timestamp: "09:02 AM", actor: "Dr. Evelyn Vance", description: "Granted Full Remote Control on iPad Pro (M4)" },
-        { timestamp: "09:05 AM", actor: "Dr. Evelyn Vance", description: "Executed remote python test in terminal" },
-      ],
-      requestedAt: "09:00 AM",
-    });
-  }
-
   public getClientsInRoom(roomId: string): ConnectedClient[] {
     const result: ConnectedClient[] = [];
     for (const client of this.clients.values()) {
@@ -218,7 +152,9 @@ export const realtimeStore = new RealtimeStateStore();
 
 export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Express) {
   // One HTTP server, routed by path: /stt is server speech-to-text, everything else is the realtime room socket
-  const wss = new WebSocketServer({ noServer: true });
+  // 64 KB per message is plenty for signalling, strokes and captions
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+  const socketLimiter = createLimiter(200, 1000);
   const stt = createSttServer(providerChainTranscriber);
   httpServer.on("upgrade", async (req, socket, head) => {
     try {
@@ -228,6 +164,8 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
         socket.destroy();
         return;
       }
+      // The school's media server (class video and audio)
+      if (handleMediaUpgrade(req, socket, head)) return;
       wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
     } catch {
       socket.destroy();
@@ -246,18 +184,28 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     }
   }
 
-  function broadcastToRoom(roomId: string, message: any, excludeWs?: WebSocket) {
+  /**
+   * Learners wait in the lobby until a host admits them (same rule as the media server). While
+   * waiting they get server messages (class status, "admitted") and nothing from the class itself.
+   */
+  const isWaiting = (c: Pick<ConnectedClient, "role" | "roomId" | "userId">) => c.role === "student" && !admittedByRoom.get(c.roomId)?.has(c.userId);
+
+  /** Room messages from people in class go to people in class (never to or from the lobby). */
+  function broadcastToRoom(roomId: string, message: any, excludeWs?: WebSocket, opts: { includeWaiting?: boolean } = {}) {
     const serialized = JSON.stringify(message);
     for (const [ws, client] of realtimeStore.clients.entries()) {
-      if (ws !== excludeWs && client.roomId === roomId && ws.readyState === WebSocket.OPEN) {
+      if (ws !== excludeWs && client.roomId === roomId && ws.readyState === WebSocket.OPEN && (opts.includeWaiting || !isWaiting(client))) {
         ws.send(serialized);
       }
     }
   }
 
+  const publicParticipant = (c: ConnectedClient) => ({ id: c.userId, name: c.name, role: c.role, joinedAt: c.joinedAt, joinedAtMs: c.joinedAtMs, waiting: isWaiting(c) });
+
   // Device access policies, exception requests & audit trail
   setupDeviceAccessRoutes(app, broadcast);
-  setupLivekitRoutes(app);
+  setupMediaRoutes(app);
+  startMediaServer();
   setupMatchingRoutes(app);
   setupEngagementRoutes(app);
   setupClassRoutes(app);
@@ -268,543 +216,376 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   setupSttRoutes(app);
   setupAnalyticsRoutes(app);
   setupAttendanceRoutes(app);
+  setupPeopleRoutes(app);
+  setupSocialRoutes(app);
+  setupNotificationRoutes(app);
+  setupHelpRoutes(app);
+  setupMaterialsRoutes(app);
+  setupSlidesRoutes(app);
+  setupBreakoutRoutes(app);
+
+  // Server messages for a room (class status, polls, admissions…) also go out over this socket, so
+  // they arrive even for people not on the media server (direct peer-to-peer mode) or who just reconnected
+  roomListeners.add((roomSlug, topic, payload, toIdentities) => {
+    const room = parentRoom(roomSlug);
+    const serialized = JSON.stringify({ type: "SERVER_ROOM_DATA", roomId: room, message: { topic, payload, from: "server", fromRole: "server" } });
+    for (const [sock, client] of realtimeStore.clients.entries()) {
+      if (client.roomId !== room || sock.readyState !== WebSocket.OPEN) continue;
+      if (toIdentities && !toIdentities.includes(client.userId)) continue;
+      sock.send(serialized);
+    }
+    // Admitting or removing someone changes who's in the lobby: tell the room so lists stay right
+    if (topic === "admitted" || topic === "removed") {
+      const ids = topic === "admitted" ? ((payload as any)?.identities as string[]) || [] : [String((payload as any)?.identity || "")];
+      for (const c of realtimeStore.getClientsInRoom(room)) {
+        if (ids.includes(c.userId)) broadcastToRoom(room, { type: "PARTICIPANT_UPDATED", participant: publicParticipant(c) }, undefined, { includeWaiting: true });
+      }
+    }
+  });
+  presenceProbes.add((roomSlug) => realtimeStore.getClientsInRoom(parentRoom(roomSlug)).filter((c) => c.ws.readyState === WebSocket.OPEN).length);
+
+  /** Staff who may see admissions (pitch room) data, which includes parents' contact details */
+  const admissionsStaff = (c: ConnectedClient) => c.role === "admin" || c.role === "sales_rep";
 
   // Active WebSocket Connection Listener
   wss.on("connection", (ws: WebSocket, upgradeReq: http.IncomingMessage) => {
     let currentClient: ConnectedClient | null = null;
+    let joining = false;
     // Identity for this socket comes from the signed session cookie sent with the upgrade request
     const sessionUser = userFromCookieHeader(upgradeReq.headers.cookie).then((r) => r?.user || null).catch(() => null);
+    const connId = `conn-${crypto.randomUUID()}`;
+    // A socket that hasn't joined a room within 15 s is closed
+    const authTimer = setTimeout(() => {
+      if (!currentClient) ws.close(4001, "authentication required");
+    }, 15_000);
+    authTimer.unref?.();
 
-    // Send initial ACK
-    ws.send(
-      JSON.stringify({
-        type: "CONNECTED_ACK",
-        timestamp: new Date().toISOString(),
-        serverNode: "BOM-1 (Mumbai Local Cluster)",
-        latencyMs: 11.4,
-      })
-    );
+    ws.send(JSON.stringify({ type: "CONNECTED_ACK", timestamp: new Date().toISOString() }));
 
-    ws.on("message", (raw: string) => {
+    ws.on("message", (raw: Buffer) => {
+      // Per-socket flood protection (whiteboard strokes and WebRTC signalling are the busiest)
+      if (!socketLimiter.hit(connId)) return;
+      let data: any;
       try {
-        const data = JSON.parse(raw.toString());
-        // Clients may not invoke the internal verified-join step directly
-        if (data?.type === "AUTH_JOIN_VERIFIED") return;
-        handleMessage(data);
-      } catch (err) {
-        console.error("[WS] bad message", err);
+        data = JSON.parse(raw.toString());
+      } catch {
+        return;
       }
+      if (!data || typeof data !== "object" || typeof data.type !== "string") return;
+      // Nothing but joining is accepted before the socket is signed in and in a room, and nothing
+      // reaches the class from someone still waiting in the lobby
+      if (data.type !== "AUTH_JOIN" && (!currentClient || isWaiting(currentClient))) return;
+      handleMessage(data).catch((err) => console.error("[Realtime WS] Message processing error:", err?.message || err));
     });
 
-    function handleMessage(data: any) {
-      try {
-        const { type, payload } = data;
+    /** Puts this socket into a room after its user is verified and allowed in. */
+    async function join(user: SessionUser, roomId: string) {
+      // Joining another room: leave the current one first
+      if (currentClient) leave();
+      const isHost = await canHost(user, roomId);
+      currentClient = {
+        ws,
+        id: connId,
+        userId: user.id,
+        name: user.name || "Participant",
+        role: user.role as ConnectedClient["role"],
+        roomId,
+        isHost,
+        joinedAtMs: Date.now(),
+        joinedAt: new Date().toISOString(),
+      };
+      realtimeStore.clients.set(ws, currentClient);
+      if (!realtimeStore.rooms.has(roomId)) realtimeStore.rooms.set(roomId, { id: roomId, name: roomId, topic: "", participants: new Set() });
+      realtimeStore.rooms.get(roomId)!.participants.add(currentClient.userId);
 
-        switch (type) {
-          // Client Authenticates & Joins a Room
-          case "AUTH_JOIN": {
-            const roomId = payload.roomId || "default-room";
-            const viaTicket = payload?.ticket
-              ? userFromCookieHeader(`dr_session=${encodeURIComponent(String(payload.ticket))}`).then((r) => r?.user || null)
-              : Promise.resolve(null);
-            Promise.all([sessionUser, viaTicket]).then(([fromCookie, fromTicket]) => {
-              const verified = fromTicket || fromCookie;
-              if (!verified) {
-                ws.send(JSON.stringify({ type: "AUTH_REQUIRED" }));
-                return;
-              }
-              // Ignore any identity the browser sent; use the verified session
-              handleMessage({ type: "AUTH_JOIN_VERIFIED", payload: { ...payload, roomId, user: verified } });
-            });
-            break;
-          }
-          case "AUTH_JOIN_VERIFIED": {
-            const user = payload.user || {};
-            const roomId = payload.roomId || "default-room";
+      await admittedLoaded().catch(() => {});
+      const waiting = isWaiting(currentClient);
+      const participants = realtimeStore.getClientsInRoom(roomId).map(publicParticipant);
+      ws.send(
+        JSON.stringify({
+          type: "ROOM_STATE_SYNC",
+          roomId,
+          you: { id: user.id, isHost, waiting },
+          participants,
+          // Admissions data (parents' contact details) only for admissions staff, and only when the demo is on
+          pitchRooms: demoFeatures() && admissionsStaff(currentClient) ? Array.from(realtimeStore.pitchRooms.values()) : [],
+          isRoomBomberActive: demoFeatures() ? realtimeStore.isRoomBomberActive : false,
+          chatMessages: waiting ? [] : realtimeStore.chatMessages.get(roomId) || [],
+        })
+      );
+      // Hosts see people arrive in the lobby too, so they can admit them
+      broadcastToRoom(roomId, { type: "PARTICIPANT_JOINED", participant: publicParticipant(currentClient) }, ws, { includeWaiting: true });
+    }
 
-            currentClient = {
-              ws,
-              id: `conn-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              userId: user.id || `usr-${Date.now()}`,
-              name: user.name || "Participant",
-              role: user.role || "student",
-              roomId,
-              parentName: user.parentName || (user.role === "student" ? `${user.name?.split(" ")[1] || "Student"} Guardian` : undefined),
-              parentEmail: user.parentEmail || (user.role === "student" ? `${user.name?.toLowerCase().replace(/\s+/g, ".")}@family.21k.school` : undefined),
-              parentPhone: user.parentPhone || "+1 (555) 019-2834",
-              gradeLevel: user.gradeLevel || 10,
-              deviceType: user.deviceType || "laptop",
-              academicGoals: user.academicGoals || "Advanced STEM, AI & Robotics Track",
-              joinedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            };
+    function leave() {
+      if (!currentClient) return;
+      const { roomId, userId } = currentClient;
+      realtimeStore.clients.delete(ws);
+      const stillHere = realtimeStore.getClientsInRoom(roomId).some((c) => c.userId === userId);
+      if (!stillHere) realtimeStore.rooms.get(roomId)?.participants.delete(userId);
+      broadcastToRoom(roomId, { type: "PARTICIPANT_LEFT", userId }, undefined, { includeWaiting: true });
+      currentClient = null;
+    }
 
-            realtimeStore.clients.set(ws, currentClient);
+    async function handleMessage(data: any) {
+      const { type } = data;
+      const payload = data.payload && typeof data.payload === "object" ? data.payload : {};
 
-            // Strict 1:1 Room Bomber Access Enforcement
-            const pitchRoom = realtimeStore.pitchRooms.get(roomId);
-            if (pitchRoom) {
-              const isRep = currentClient.role === "sales_rep";
-              const isLead = currentClient.role === "student";
-
-              if (isRep && currentClient.userId !== pitchRoom.salesRepId && currentClient.role !== "admin") {
-                ws.send(
-                  JSON.stringify({
-                    type: "ROOM_ACCESS_DENIED",
-                    roomId,
-                    reason: `1:1 Room Locked: Only assigned counselor ${pitchRoom.salesRepName} is cryptographically authorized to join.`,
-                  })
-                );
-                break;
-              }
-
-              if (isLead && currentClient.userId !== pitchRoom.studentId && currentClient.role !== "admin") {
-                ws.send(
-                  JSON.stringify({
-                    type: "ROOM_ACCESS_DENIED",
-                    roomId,
-                    reason: `1:1 Room Locked: Exclusively reserved for ${pitchRoom.studentName}.`,
-                  })
-                );
-                break;
-              }
+      switch (type) {
+        // Client authenticates & joins a room (identity from the signed session, never from the message)
+        case "AUTH_JOIN": {
+          if (joining) return;
+          joining = true;
+          try {
+            const roomId = String(payload.roomId || "").slice(0, 120);
+            if (!roomId) return;
+            const fromTicket = payload.ticket ? await userFromToken(String(payload.ticket), "ws").then((r) => r?.user || null) : null;
+            const user = fromTicket || (await sessionUser);
+            if (!user) {
+              ws.send(JSON.stringify({ type: "AUTH_REQUIRED" }));
+              return;
             }
-
-            // Ensure room exists
-            if (!realtimeStore.rooms.has(roomId)) {
-              realtimeStore.rooms.set(roomId, {
-                id: roomId,
-                name: roomId === "default-room" ? "Main STEM Hall" : `Breakout Room ${roomId}`,
-                topic: "Interactive Real-Time STEM Session",
-                participants: new Set(),
-              });
+            const room = parentRoom(roomId);
+            const pitchRoom = realtimeStore.pitchRooms.get(room);
+            const allowed = pitchRoom
+              ? user.role === "admin" || user.id === pitchRoom.salesRepId || user.id === pitchRoom.studentId
+              : await canAccessRoom(user, room);
+            if (!allowed || user.role === "parent") {
+              ws.send(JSON.stringify({ type: "ROOM_ACCESS_DENIED", roomId: room, reason: "You're not on this class's list." }));
+              return;
             }
-            realtimeStore.rooms.get(roomId)!.participants.add(currentClient.userId);
-
-            // Notify user of room sync
-            const roomParticipants = realtimeStore.getClientsInRoom(roomId).map((c) => ({
-              id: c.userId,
-              name: c.name,
-              role: c.role,
-              avatarColor: "#0082FF",
-              audioEnabled: true,
-              videoEnabled: true,
-              screenSharing: false,
-              handRaised: false,
-              audioLevel: 25,
-              attendanceStatus: "present",
-              joinedAt: c.joinedAt,
-              parentEmail: c.parentEmail,
-              parentName: c.parentName,
-              parentPhone: c.parentPhone,
-              gradeLevel: c.gradeLevel,
-              deviceType: c.deviceType,
-              academicGoals: c.academicGoals,
-              xpPoints: 1800,
-            }));
-
-            ws.send(
-              JSON.stringify({
-                type: "ROOM_STATE_SYNC",
-                roomId,
-                participants: roomParticipants,
-                remoteSessions: Array.from(realtimeStore.remoteSessions.values()),
-                pitchRooms: Array.from(realtimeStore.pitchRooms.values()),
-                isRoomBomberActive: realtimeStore.isRoomBomberActive,
-                chatMessages: realtimeStore.chatMessages.get(roomId) || [],
-              })
-            );
-
-            // Broadcast to other peers in room
-            broadcastToRoom(
-              roomId,
-              {
-                type: "PARTICIPANT_JOINED",
-                participant: {
-                  id: currentClient.userId,
-                  name: currentClient.name,
-                  role: currentClient.role,
-                  parentName: currentClient.parentName,
-                  parentEmail: currentClient.parentEmail,
-                  gradeLevel: currentClient.gradeLevel,
-                  deviceType: currentClient.deviceType,
-                  joinedAt: currentClient.joinedAt,
-                },
-              },
-              ws
-            );
-            break;
+            clearTimeout(authTimer);
+            await join(user, room);
+          } finally {
+            joining = false;
           }
-
-          // Live Chat Message
-          case "CHAT_MESSAGE": {
-            if (!currentClient) return;
-            const roomId = currentClient.roomId;
-            const message = {
-              id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-              senderId: currentClient.userId,
-              senderName: currentClient.name,
-              role: currentClient.role,
-              text: payload.text || "",
-              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            };
-
-            if (!realtimeStore.chatMessages.has(roomId)) {
-              realtimeStore.chatMessages.set(roomId, []);
-            }
-            realtimeStore.chatMessages.get(roomId)!.push(message);
-
-            broadcastToRoom(roomId, {
-              type: "CHAT_BROADCAST",
-              message,
-            });
-            break;
-          }
-
-          // Peer-to-peer fallback: classroom data messages and WebRTC signaling relayed to the room
-          case "ROOM_DATA":
-          case "MESH_SIGNAL": {
-            // Only signed-in sockets, only into their own room, and the sender is stamped by us
-            if (!currentClient) return;
-            const roomId = currentClient.roomId;
-            if (type === "ROOM_DATA") {
-              const message = payload?.message && typeof payload.message === "object" ? payload.message : null;
-              if (!message) return;
-              broadcastToRoom(roomId, { type, roomId, message: { ...message, from: currentClient.userId, fromRole: currentClient.role } }, ws);
-            } else {
-              const signal = payload?.signal && typeof payload.signal === "object" ? payload.signal : null;
-              if (!signal) return;
-              broadcastToRoom(roomId, { type, roomId, signal: { ...signal, senderId: currentClient.userId } }, ws);
-            }
-            break;
-          }
-
-          // Collaborative Whiteboard Stroke
-          case "WHITEBOARD_DRAW": {
-            if (!currentClient) return;
-            const roomId = currentClient.roomId;
-            if (!realtimeStore.whiteboardStrokes.has(roomId)) {
-              realtimeStore.whiteboardStrokes.set(roomId, []);
-            }
-            realtimeStore.whiteboardStrokes.get(roomId)!.push(payload.stroke);
-
-            broadcastToRoom(
-              roomId,
-              {
-                type: "WHITEBOARD_BROADCAST",
-                stroke: payload.stroke,
-              },
-              ws
-            );
-            break;
-          }
-
-          case "WHITEBOARD_CLEAR": {
-            if (!currentClient) return;
-            const roomId = currentClient.roomId;
-            realtimeStore.whiteboardStrokes.set(roomId, []);
-            broadcastToRoom(roomId, { type: "WHITEBOARD_CLEARED" });
-            break;
-          }
-
-          // Hand Raise
-          case "HAND_RAISE": {
-            if (!currentClient) return;
-            broadcastToRoom(currentClient.roomId, {
-              type: "HAND_RAISE_SYNC",
-              userId: currentClient.userId,
-              raised: !!payload.raised,
-            });
-            break;
-          }
-
-          // Live Speech Recognition & Caption Broadcast
-          case "SPEECH_CAPTION": {
-            if (!currentClient) return;
-            const roomId = currentClient.roomId;
-            const caption = payload.caption;
-            if (caption) {
-              if (!realtimeStore.speechCaptions.has(roomId)) {
-                realtimeStore.speechCaptions.set(roomId, []);
-              }
-              if (caption.isFinal) {
-                const list = realtimeStore.speechCaptions.get(roomId)!;
-                list.push(caption);
-                if (list.length > 150) list.shift();
-              }
-              broadcastToRoom(roomId, {
-                type: "SPEECH_CAPTION_BROADCAST",
-                caption,
-              });
-            }
-            break;
-          }
-
-          // Automatic Device Audit Telemetry Log
-          case "DEVICE_AUDIT_LOG": {
-            if (!currentClient) return;
-            // Stored for staff only (GET /api/audit/devices); never broadcast to the room
-            const record = payload.record;
-            if (record && typeof record === "object") realtimeStore.deviceAudits.set(currentClient.userId, { ...record, userId: currentClient.userId });
-            break;
-          }
-
-          // Remote Access: Request / Offer / Approve / Deny
-          case "REMOTE_ACCESS_REQUEST": {
-            const { targetUserId, deviceType, accessLevel } = payload;
-            broadcast(
-              {
-                type: "REMOTE_ACCESS_INCOMING",
-                requesterId: currentClient?.userId,
-                requesterName: currentClient?.name,
-                targetUserId,
-                deviceType,
-                accessLevel,
-              },
-              (c) => c.userId === targetUserId
-            );
-            break;
-          }
-
-          case "REMOTE_ACCESS_RESPONSE": {
-            const { sessionId, accepted, studentId, studentName, deviceType, accessLevel } = payload;
-            if (accepted) {
-              const session: RemoteSessionData = {
-                id: sessionId || `ras-${Date.now()}`,
-                studentId,
-                studentName,
-                requesterId: currentClient?.userId || "host-1",
-                requesterName: currentClient?.name || "Dr. Evelyn Vance",
-                deviceType: deviceType || "tablet",
-                deviceModel: `${deviceType === "phone" ? "Samsung Galaxy S24" : deviceType === "tablet" ? "iPad Pro M4" : "ThinkPad X1"}`,
-                osName: deviceType === "tablet" ? "iPadOS 18.2" : "Android 15 / Windows 11",
-                accessLevel: accessLevel || "full_control",
-                status: "active",
-                cursorPosition: { x: 0.5, y: 0.5 },
-                activeAnnotationTool: "pen",
-                annotations: [],
-                screenResolution: { width: 1920, height: 1080 },
-                fps: 60,
-                latencyMs: 11.2,
-                isMutedControl: false,
-                interactiveContent: {
-                  activeApp: "worksheet",
-                  codeEditorText: "# Live Synchronized Code Environment\nprint('Remote Control Active')",
-                  terminalLogs: ["[system] Remote session synchronized."],
-                  worksheetAnswers: {},
-                  notesText: "Active collaborative session.",
-                },
-                actionLog: [{ timestamp: new Date().toLocaleTimeString(), actor: currentClient?.name || "User", description: "Accepted remote session" }],
-                requestedAt: new Date().toLocaleTimeString(),
-              };
-
-              realtimeStore.remoteSessions.set(session.id, session);
-              broadcast({
-                type: "REMOTE_SESSION_UPDATED",
-                session,
-              });
-            } else {
-              broadcast(
-                {
-                  type: "REMOTE_ACCESS_DENIED",
-                  studentId,
-                },
-                (c) => c.role === "instructor" || c.role === "admin"
-              );
-            }
-            break;
-          }
-
-          // Remote Access: Live Input Relaying (Mouse, Touch, Keystrokes)
-          case "REMOTE_INPUT_EVENT": {
-            const { sessionId, event } = payload;
-            const session = realtimeStore.remoteSessions.get(sessionId);
-            if (session) {
-              if (event.type === "move" && event.x !== undefined && event.y !== undefined) {
-                session.cursorPosition = { x: event.x, y: event.y };
-              }
-              // Relay event to room participants
-              broadcast({
-                type: "REMOTE_EVENT_RELAY",
-                sessionId,
-                event,
-              });
-            }
-            break;
-          }
-
-          // Remote Access: Real-Time Annotation Overlay
-          case "REMOTE_ANNOTATE": {
-            const { sessionId, annotation } = payload;
-            const session = realtimeStore.remoteSessions.get(sessionId);
-            if (session && annotation) {
-              session.annotations.push(annotation);
-              broadcast({
-                type: "REMOTE_ANNOTATION_ADDED",
-                sessionId,
-                annotation,
-              });
-            }
-            break;
-          }
-
-          case "REMOTE_CLEAR_ANNOTATIONS": {
-            const { sessionId } = payload;
-            const session = realtimeStore.remoteSessions.get(sessionId);
-            if (session) {
-              session.annotations = [];
-              broadcast({
-                type: "REMOTE_ANNOTATIONS_CLEARED",
-                sessionId,
-              });
-            }
-            break;
-          }
-
-          // Remote Access: Worksheet and Terminal Edits
-          case "REMOTE_WORKSHEET_EDIT": {
-            const { sessionId, fieldId, value } = payload;
-            const session = realtimeStore.remoteSessions.get(sessionId);
-            if (session) {
-              session.interactiveContent.worksheetAnswers[fieldId] = value;
-              broadcast({
-                type: "REMOTE_WORKSHEET_SYNC",
-                sessionId,
-                fieldId,
-                value,
-              });
-            }
-            break;
-          }
-
-          case "TERMINAL_COMMAND_EXEC": {
-            const { sessionId, command } = payload;
-            const session = realtimeStore.remoteSessions.get(sessionId);
-            if (session) {
-              session.interactiveContent.terminalLogs.push(`$ ${command}`);
-              let output = `Executed: ${command}`;
-              if (command.includes("ls") || command.includes("dir")) output = "quantum_lab_04.py  bloch_sim.ipynb  hamiltonian.cpp  README.md";
-              if (command.includes("python")) output = "Running quantum simulation: Fidelity 99.84% (Q.E.D.)";
-              session.interactiveContent.terminalLogs.push(output);
-
-              broadcast({
-                type: "TERMINAL_LOG_SYNC",
-                sessionId,
-                logs: session.interactiveContent.terminalLogs,
-              });
-            }
-            break;
-          }
-
-          // -------------------------------------------------------------
-          // ROOM BOMBER 1:1 SALES ENGINE (REAL WEBSOCKET IMPLEMENTATION)
-          // -------------------------------------------------------------
-          case "ROOM_BOMBER_TRIGGER": {
-            // Partition all available students into 1:1 rooms with sales reps
-            executeRoomBomberPartition(payload);
-            break;
-          }
-
-          case "ROOM_BOMBER_RESET": {
-            // Recall all participants back to the main hall
-            resetRoomBomberToMainHall();
-            break;
-          }
-
-          case "PITCH_STAGE_UPDATE": {
-            const { roomId, currentStage, stageName, notes } = payload;
-            const pitchRoom = realtimeStore.pitchRooms.get(roomId);
-            if (pitchRoom) {
-              pitchRoom.currentStage = currentStage;
-              pitchRoom.stageName = stageName;
-              if (notes) pitchRoom.notes = notes;
-
-              // Increase parent engagement score dynamically as script progresses
-              pitchRoom.parentEngagementScore = Math.min(98, 70 + currentStage * 6);
-
-              broadcast({
-                type: "PITCH_STAGE_SYNC",
-                pitchRoom,
-              });
-            }
-            break;
-          }
-
-          case "PITCH_OFFER_APPLY": {
-            const { roomId, discountPercent, contractSigned } = payload;
-            const pitchRoom = realtimeStore.pitchRooms.get(roomId);
-            if (pitchRoom) {
-              pitchRoom.scholarshipGrantedPercent = discountPercent || 25;
-              pitchRoom.discountedTuition = Math.round(pitchRoom.tuitionTotal * (1 - pitchRoom.scholarshipGrantedPercent / 100));
-              if (contractSigned) pitchRoom.contractStatus = "signed";
-
-              broadcast({
-                type: "PITCH_OFFER_SYNC",
-                pitchRoom,
-              });
-            }
-            break;
-          }
-
-          // Sales Lead Assignment & Dispatch Broadcast
-          case "SALES_LEAD_ASSIGN": {
-            const { lead, rep } = payload;
-            broadcast({
-              type: "SALES_LEAD_ASSIGN_BROADCAST",
-              lead,
-              rep,
-              timestamp: new Date().toLocaleTimeString(),
-            });
-            break;
-          }
-
-          // Real-Time & Post-Call AI Pitch Audit Persistence
-          case "PITCH_CALL_AUDIT_SAVE": {
-            const { roomId, auditReport } = payload;
-            const pRoom = realtimeStore.pitchRooms.get(roomId);
-            if (pRoom) {
-              pRoom.postCallAudit = auditReport;
-              broadcast({
-                type: "PITCH_CALL_AUDIT_SAVED",
-                roomId,
-                auditReport,
-              });
-            }
-            break;
-          }
-
-          default:
-            break;
+          break;
         }
-      } catch (err) {
-        console.error("[Realtime WS] Message processing error:", err);
+
+        // Live chat (own room only; capped)
+        case "CHAT_MESSAGE": {
+          const c = currentClient!;
+          const text = String(payload.text || "").trim().slice(0, 1000);
+          if (!text) return;
+          const message = { id: `msg-${crypto.randomUUID()}`, senderId: c.userId, senderName: c.name, role: c.role, text, timestamp: new Date().toISOString() };
+          const list = realtimeStore.chatMessages.get(c.roomId) || [];
+          list.push(message);
+          if (list.length > 200) list.splice(0, list.length - 200);
+          realtimeStore.chatMessages.set(c.roomId, list);
+          broadcastToRoom(c.roomId, { type: "CHAT_BROADCAST", message });
+          break;
+        }
+
+        // Peer-to-peer fallback: classroom data messages and WebRTC signalling relayed to the room.
+        // The sender's id, name and role are always set here, never taken from the message.
+        case "ROOM_DATA":
+        case "MESH_SIGNAL": {
+          const c = currentClient!;
+          if (type === "ROOM_DATA") {
+            const message = payload.message && typeof payload.message === "object" ? payload.message : null;
+            if (!message || JSON.stringify(message).length > 32_000) return;
+            broadcastToRoom(c.roomId, { type, roomId: c.roomId, message: { ...message, from: c.userId, fromRole: c.role, fromHost: c.isHost } }, ws);
+          } else {
+            const signal = payload.signal && typeof payload.signal === "object" ? payload.signal : null;
+            if (!signal || JSON.stringify(signal).length > 32_000) return;
+            const stamped = JSON.stringify({ type, roomId: c.roomId, signal: { ...signal, senderId: c.userId, senderName: c.name, senderRole: c.role } });
+            // Offers, answers and ICE candidates (which carry network addresses) go only to their target
+            const target = typeof signal.targetId === "string" ? signal.targetId : null;
+            for (const [sock, other] of realtimeStore.clients.entries()) {
+              if (sock === ws || other.roomId !== c.roomId || sock.readyState !== WebSocket.OPEN || isWaiting(other)) continue;
+              if (target && other.userId !== target) continue;
+              sock.send(stamped);
+            }
+          }
+          break;
+        }
+
+        // Collaborative whiteboard (legacy socket path)
+        case "WHITEBOARD_DRAW": {
+          const c = currentClient!;
+          const stroke = payload.stroke;
+          if (!stroke || typeof stroke !== "object" || JSON.stringify(stroke).length > 16_000) return;
+          const list = realtimeStore.whiteboardStrokes.get(c.roomId) || [];
+          list.push({ ...stroke, by: c.userId });
+          if (list.length > 3000) list.splice(0, list.length - 3000);
+          realtimeStore.whiteboardStrokes.set(c.roomId, list);
+          broadcastToRoom(c.roomId, { type: "WHITEBOARD_BROADCAST", stroke: { ...stroke, by: c.userId } }, ws);
+          break;
+        }
+
+        case "WHITEBOARD_CLEAR": {
+          const c = currentClient!;
+          // Clearing everyone's drawing is for hosts only
+          if (!c.isHost) return;
+          realtimeStore.whiteboardStrokes.set(c.roomId, []);
+          broadcastToRoom(c.roomId, { type: "WHITEBOARD_CLEARED" });
+          break;
+        }
+
+        case "HAND_RAISE": {
+          const c = currentClient!;
+          broadcastToRoom(c.roomId, { type: "HAND_RAISE_SYNC", userId: c.userId, raised: !!payload.raised });
+          break;
+        }
+
+        // Live captions: the speaker is always the sender
+        case "SPEECH_CAPTION": {
+          const c = currentClient!;
+          const caption = payload.caption && typeof payload.caption === "object" ? payload.caption : null;
+          if (!caption || JSON.stringify(caption).length > 8_000) return;
+          const stamped = { ...caption, speakerId: c.userId, speakerName: c.name, speakerRole: c.role };
+          if (stamped.isFinal) {
+            const list = realtimeStore.speechCaptions.get(c.roomId) || [];
+            list.push(stamped);
+            if (list.length > 150) list.shift();
+            realtimeStore.speechCaptions.set(c.roomId, list);
+          }
+          broadcastToRoom(c.roomId, { type: "SPEECH_CAPTION_BROADCAST", caption: stamped });
+          break;
+        }
+
+        case "DEVICE_AUDIT_LOG": {
+          const c = currentClient!;
+          // Stored for staff only (GET /api/audit/devices); never broadcast to the room
+          const record = payload.record;
+          if (record && typeof record === "object" && JSON.stringify(record).length < 16_000) realtimeStore.deviceAudits.set(c.userId, { ...record, userId: c.userId });
+          break;
+        }
+
+        // ---------------- demo: remote device control (illustrative; off in production) ----------------
+        case "REMOTE_ACCESS_REQUEST":
+        case "REMOTE_ACCESS_RESPONSE":
+        case "REMOTE_INPUT_EVENT":
+        case "REMOTE_ANNOTATE":
+        case "REMOTE_CLEAR_ANNOTATIONS":
+        case "REMOTE_WORKSHEET_EDIT":
+        case "TERMINAL_COMMAND_EXEC": {
+          if (!demoFeatures()) return;
+          handleRemoteDemo(type, payload, currentClient!);
+          break;
+        }
+
+        // ---------------- demo: admissions pitch rooms (off in production; admissions staff only) ----------------
+        case "ROOM_BOMBER_TRIGGER":
+        case "ROOM_BOMBER_RESET":
+        case "PITCH_STAGE_UPDATE":
+        case "PITCH_OFFER_APPLY":
+        case "SALES_LEAD_ASSIGN":
+        case "PITCH_CALL_AUDIT_SAVE": {
+          const c = currentClient!;
+          if (!demoFeatures() || !admissionsStaff(c)) return;
+          handlePitchDemo(type, payload, c);
+          break;
+        }
+
+        default:
+          break;
+      }
+    }
+
+    /** Remote device control demo: only within the sender's room; a session's events only from its two people. */
+    function handleRemoteDemo(type: string, payload: any, c: ConnectedClient) {
+      const inRoom = (fn: (x: ConnectedClient) => boolean) => (x: ConnectedClient) => x.roomId === c.roomId && fn(x);
+      if (type === "REMOTE_ACCESS_REQUEST") {
+        broadcast({ type: "REMOTE_ACCESS_INCOMING", requesterId: c.userId, requesterName: c.name, targetUserId: payload.targetUserId, deviceType: payload.deviceType, accessLevel: payload.accessLevel }, inRoom((x) => x.userId === payload.targetUserId));
+        return;
+      }
+      if (type === "REMOTE_ACCESS_RESPONSE") {
+        // Only the learner whose device it is can grant access
+        if (!payload.accepted) {
+          broadcast({ type: "REMOTE_ACCESS_DENIED", studentId: c.userId }, inRoom((x) => x.isHost));
+          return;
+        }
+        const session: RemoteSessionData = {
+          id: String(payload.sessionId || `ras-${Date.now()}`).slice(0, 60),
+          studentId: c.userId,
+          studentName: c.name,
+          requesterId: String(payload.requesterId || ""),
+          requesterName: String(payload.requesterName || "Teacher").slice(0, 80),
+          deviceType: payload.deviceType || "laptop",
+          deviceModel: "This device",
+          osName: "",
+          accessLevel: ["view_only", "annotate", "full_control"].includes(payload.accessLevel) ? payload.accessLevel : "view_only",
+          status: "active",
+          cursorPosition: { x: 0.5, y: 0.5 },
+          activeAnnotationTool: "pen",
+          annotations: [],
+          screenResolution: { width: 1920, height: 1080 },
+          fps: 0,
+          latencyMs: 0,
+          isMutedControl: false,
+          interactiveContent: { activeApp: "worksheet", codeEditorText: "", terminalLogs: [], worksheetAnswers: {}, notesText: "" },
+          actionLog: [{ timestamp: new Date().toISOString(), actor: c.name, description: "Accepted remote session" }],
+          requestedAt: new Date().toISOString(),
+        };
+        realtimeStore.remoteSessions.set(session.id, session);
+        broadcast({ type: "REMOTE_SESSION_UPDATED", session }, inRoom((x) => x.userId === session.studentId || x.userId === session.requesterId));
+        return;
+      }
+      const session = realtimeStore.remoteSessions.get(String(payload.sessionId || ""));
+      if (!session || (c.userId !== session.studentId && c.userId !== session.requesterId)) return;
+      const toPair = inRoom((x) => x.userId === session.studentId || x.userId === session.requesterId);
+      if (type === "REMOTE_INPUT_EVENT" && payload.event && typeof payload.event === "object") {
+        if (payload.event.type === "move") session.cursorPosition = { x: Number(payload.event.x) || 0, y: Number(payload.event.y) || 0 };
+        broadcast({ type: "REMOTE_EVENT_RELAY", sessionId: session.id, event: payload.event }, toPair);
+      } else if (type === "REMOTE_ANNOTATE" && payload.annotation) {
+        if (session.annotations.length < 2000) session.annotations.push(payload.annotation);
+        broadcast({ type: "REMOTE_ANNOTATION_ADDED", sessionId: session.id, annotation: payload.annotation }, toPair);
+      } else if (type === "REMOTE_CLEAR_ANNOTATIONS") {
+        session.annotations = [];
+        broadcast({ type: "REMOTE_ANNOTATIONS_CLEARED", sessionId: session.id }, toPair);
+      } else if (type === "REMOTE_WORKSHEET_EDIT") {
+        session.interactiveContent.worksheetAnswers[String(payload.fieldId).slice(0, 40)] = String(payload.value ?? "").slice(0, 2000);
+        broadcast({ type: "REMOTE_WORKSHEET_SYNC", sessionId: session.id, fieldId: payload.fieldId, value: payload.value }, toPair);
+      } else if (type === "TERMINAL_COMMAND_EXEC") {
+        // Illustrative terminal: nothing is executed
+        session.interactiveContent.terminalLogs.push(`$ ${String(payload.command || "").slice(0, 200)}`, "(demo terminal: commands aren't run)");
+        broadcast({ type: "TERMINAL_LOG_SYNC", sessionId: session.id, logs: session.interactiveContent.terminalLogs.slice(-200) }, toPair);
+      }
+    }
+
+    function handlePitchDemo(type: string, payload: any, c: ConnectedClient) {
+      if (type === "ROOM_BOMBER_TRIGGER") return executeRoomBomberPartition(c.roomId);
+      if (type === "ROOM_BOMBER_RESET") return resetRoomBomberToMainHall(c.roomId);
+      const pitchRoom = realtimeStore.pitchRooms.get(String(payload.roomId || ""));
+      if (type === "SALES_LEAD_ASSIGN") {
+        broadcast({ type: "SALES_LEAD_ASSIGN_BROADCAST", lead: payload.lead, rep: payload.rep, timestamp: new Date().toISOString() }, admissionsStaff);
+        return;
+      }
+      if (!pitchRoom || (c.role !== "admin" && c.userId !== pitchRoom.salesRepId)) return;
+      if (type === "PITCH_STAGE_UPDATE") {
+        const stage = Math.min(5, Math.max(1, Number(payload.currentStage) || 1)) as PitchRoomData["currentStage"];
+        pitchRoom.currentStage = stage;
+        pitchRoom.stageName = payload.stageName || pitchRoom.stageName;
+        if (payload.notes) pitchRoom.notes = String(payload.notes).slice(0, 2000);
+        broadcast({ type: "PITCH_STAGE_SYNC", pitchRoom }, admissionsStaff);
+      } else if (type === "PITCH_OFFER_APPLY") {
+        pitchRoom.scholarshipGrantedPercent = Math.min(50, Math.max(0, Number(payload.discountPercent) || 0));
+        pitchRoom.discountedTuition = Math.round(pitchRoom.tuitionTotal * (1 - pitchRoom.scholarshipGrantedPercent / 100));
+        broadcast({ type: "PITCH_OFFER_SYNC", pitchRoom }, admissionsStaff);
+      } else if (type === "PITCH_CALL_AUDIT_SAVE") {
+        pitchRoom.postCallAudit = payload.auditReport;
+        broadcast({ type: "PITCH_CALL_AUDIT_SAVED", roomId: pitchRoom.roomId }, admissionsStaff);
       }
     }
 
     ws.on("close", () => {
-      if (currentClient) {
-        const roomId = currentClient.roomId;
-        realtimeStore.clients.delete(ws);
-        if (realtimeStore.rooms.has(roomId)) {
-          realtimeStore.rooms.get(roomId)!.participants.delete(currentClient.userId);
-        }
-        broadcastToRoom(roomId, {
-          type: "PARTICIPANT_LEFT",
-          userId: currentClient.userId,
-        });
-      }
+      clearTimeout(authTimer);
+      leave();
     });
   });
 
   // -------------------------------------------------------------
   // Room Bomber Partitioning Algorithm
   // -------------------------------------------------------------
-  function executeRoomBomberPartition(config: any = {}) {
+  /** Demo: splits the learners in one room (never the whole platform) into 1:1 counselling rooms. */
+  function executeRoomBomberPartition(fromRoom: string) {
     realtimeStore.isRoomBomberActive = true;
     realtimeStore.pitchRooms.clear();
 
-    // 1. Gather all connected student clients
-    const studentClients = Array.from(realtimeStore.clients.values()).filter((c) => c.role === "student");
-    const salesRepClients = Array.from(realtimeStore.clients.values()).filter((c) => c.role === "sales_rep" || c.role === "instructor");
+    // 1. Learners and counsellors in the room it was started from
+    const studentClients = realtimeStore.getClientsInRoom(fromRoom).filter((c) => c.role === "student");
+    const salesRepClients = realtimeStore.getClientsInRoom(fromRoom).filter((c) => c.role === "sales_rep");
 
     // Standard pool of specialized admissions counselors
     const fallbackSalesReps = [
@@ -827,11 +608,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       ? studentClients.map((c, i) => ({
           id: c.userId,
           name: c.name,
-          parentName: c.parentName || `Guardian of ${c.name}`,
-          parentEmail: c.parentEmail || `${c.name.toLowerCase().replace(/\s+/g, ".")}@parent.com`,
-          parentPhone: c.parentPhone || "+1 (555) 019-2834",
-          gradeLevel: c.gradeLevel || 10,
-          academicGoals: c.academicGoals || "Global Cambridge / IB Curriculum Excellence",
+          parentName: `Parent of ${c.name}`,
+          parentEmail: "",
+          parentPhone: "",
+          gradeLevel: 0,
+          academicGoals: "",
           currentSchool: "International Academy",
           curriculumTrack: "Cambridge IGCSE",
           clientWs: c.ws,
@@ -942,25 +723,30 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       }
     });
 
-    // Broadcast master grid update to all clients (especially Admin and Auditors)
-    broadcast({
-      type: "ROOM_BOMBER_GRID_SYNC",
-      active: true,
-      pitchRooms: Array.from(realtimeStore.pitchRooms.values()),
-    });
+    // The grid (with parents' details) goes to admissions staff only
+    broadcast(
+      {
+        type: "ROOM_BOMBER_GRID_SYNC",
+        active: true,
+        pitchRooms: Array.from(realtimeStore.pitchRooms.values()),
+      },
+      (c) => c.role === "admin" || c.role === "sales_rep"
+    );
   }
 
-  function resetRoomBomberToMainHall() {
+  /** Demo: sends everyone in the pitch rooms back to the room the demo started from. */
+  function resetRoomBomberToMainHall(toRoom: string) {
     realtimeStore.isRoomBomberActive = false;
-    for (const client of realtimeStore.clients.values()) {
-      client.roomId = "default-room";
-    }
-
-    broadcast({
-      type: "ROOM_BOMBER_RESET_NOTIFY",
-      targetRoomId: "default-room",
-      message: "Room Bomber pitch completed. All participants recalled to Main Hall.",
-    });
+    const pitchIds = new Set(realtimeStore.pitchRooms.keys());
+    broadcast(
+      {
+        type: "ROOM_BOMBER_RESET_NOTIFY",
+        targetRoomId: toRoom,
+        message: "Counselling rooms closed. Everyone is back in the main room.",
+      },
+      (c) => pitchIds.has(c.roomId) || c.roomId === toRoom
+    );
+    realtimeStore.pitchRooms.clear();
   }
 
   // -------------------------------------------------------------
@@ -968,7 +754,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   // -------------------------------------------------------------
 
   // 1. Room Bomber REST Endpoints
-  app.get("/api/room-bomber/status", requireAuth(), (_req, res) => {
+  app.get("/api/room-bomber/status", demoOnly, requireAuth("admin", "sales_rep"), (_req, res) => {
     res.json({
       active: realtimeStore.isRoomBomberActive,
       totalRooms: realtimeStore.pitchRooms.size,
@@ -976,8 +762,8 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     });
   });
 
-  app.post("/api/room-bomber/trigger", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
-    executeRoomBomberPartition(req.body);
+  app.post("/api/room-bomber/trigger", demoOnly, requireAuth("admin", "sales_rep"), (req, res) => {
+    executeRoomBomberPartition(String(req.body?.roomId || "").slice(0, 120));
     res.json({
       success: true,
       message: "Room Bomber successfully partitioned students into 1:1 pitch rooms.",
@@ -985,40 +771,40 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     });
   });
 
-  app.post("/api/room-bomber/reset", requireAuth("admin", "instructor", "sales_rep"), (_req, res) => {
-    resetRoomBomberToMainHall();
+  app.post("/api/room-bomber/reset", demoOnly, requireAuth("admin", "sales_rep"), (req, res) => {
+    resetRoomBomberToMainHall(String(req.body?.roomId || "").slice(0, 120));
     res.json({ success: true, message: "All participants recalled to main hall." });
   });
 
-  app.post("/api/room-bomber/stage", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
+  app.post("/api/room-bomber/stage", demoOnly, requireAuth("admin", "sales_rep"), (req, res) => {
     const { roomId, currentStage, stageName, notes } = req.body;
     const room = realtimeStore.pitchRooms.get(roomId);
-    if (!room) return res.status(404).json({ error: "Pitch room not found" });
+    if (!room || (req.user!.role !== "admin" && room.salesRepId !== req.user!.id)) return res.status(404).json({ error: "Pitch room not found" });
 
-    room.currentStage = currentStage;
+    room.currentStage = Math.min(5, Math.max(1, Number(currentStage) || 1)) as PitchRoomData["currentStage"];
     room.stageName = stageName;
     if (notes) room.notes = notes;
     room.parentEngagementScore = Math.min(98, 70 + currentStage * 6);
 
-    broadcast({ type: "PITCH_STAGE_SYNC", pitchRoom: room });
+    broadcast({ type: "PITCH_STAGE_SYNC", pitchRoom: room }, (c) => c.role === "admin" || c.role === "sales_rep");
     res.json({ success: true, pitchRoom: room });
   });
 
-  app.post("/api/room-bomber/offer", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
-    const { roomId, discountPercent, contractSigned } = req.body;
+  app.post("/api/room-bomber/offer", demoOnly, requireAuth("admin", "sales_rep"), (req, res) => {
+    const { roomId, discountPercent } = req.body;
     const room = realtimeStore.pitchRooms.get(roomId);
-    if (!room) return res.status(404).json({ error: "Pitch room not found" });
+    if (!room || (req.user!.role !== "admin" && room.salesRepId !== req.user!.id)) return res.status(404).json({ error: "Pitch room not found" });
 
-    room.scholarshipGrantedPercent = discountPercent || 25;
+    room.scholarshipGrantedPercent = Math.min(50, Math.max(0, Number(discountPercent) || 0));
     room.discountedTuition = Math.round(room.tuitionTotal * (1 - room.scholarshipGrantedPercent / 100));
-    if (contractSigned) room.contractStatus = "signed";
 
-    broadcast({ type: "PITCH_OFFER_SYNC", pitchRoom: room });
+    broadcast({ type: "PITCH_OFFER_SYNC", pitchRoom: room }, (c) => c.role === "admin" || c.role === "sales_rep");
     res.json({ success: true, pitchRoom: room });
   });
 
   // 2. Standalone Documentation Reader REST Endpoints
-  app.get("/api/docs/list", requireAuth(), (_req, res) => {
+  // Platform documentation (architecture, security posture): staff only
+  app.get("/api/docs/list", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
     res.json([
       { id: "PRD", title: "Product Requirements Document", file: "PRD.md" },
       { id: "BRD", title: "Business Requirements Document", file: "BRD.md" },
@@ -1027,10 +813,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       { id: "HMD", title: "High-Level Model Document", file: "HMD.md" },
       { id: "FEATURES", title: "Features & Functionality Guide", file: "FEATURES_AND_FUNCTIONALITY.md" },
       { id: "FLOWS", title: "Architecture & Sequence Flows", file: "ARCHITECTURE_AND_FLOWS.md" },
+      { id: "DEPLOY", title: "Deploying on your own server", file: "DEPLOY.md" },
     ]);
   });
 
-  app.get("/api/docs/:id", requireAuth(), (req, res) => {
+  app.get("/api/docs/:id", requireAuth("admin", "auditor", "instructor", "sales_rep"), (req, res) => {
     const docMap: Record<string, string> = {
       PRD: "PRD.md",
       BRD: "BRD.md",
@@ -1039,6 +826,7 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
       HMD: "HMD.md",
       FEATURES: "FEATURES_AND_FUNCTIONALITY.md",
       FLOWS: "ARCHITECTURE_AND_FLOWS.md",
+      DEPLOY: "DEPLOY.md",
     };
 
     // Only the documents listed here: the id is never used to build a path (no ../ reads)
@@ -1058,132 +846,11 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   // 3. Authenticated Multi-Role Login Endpoint with Auto-Detected Device Audit
   // The old endpoint issued a fake token for any claimed role. Sign-in now lives in src/server/auth.
   app.post("/api/auth/login", (_req, res) => {
-    res.status(410).json({ error: "Use /api/auth/* sign-in (Google, email code, or invite link)." });
-  });
-  app.post("/api/auth/legacy-login-disabled", requireAuth("admin"), (req, res) => {
-    const {
-      role,
-      username,
-      email,
-      password,
-      gradeLevel,
-      parentName,
-      parentPhone,
-      auditorLicense,
-      adminKey,
-      department,
-      deviceType,
-      deviceModel,
-      osName,
-      deviceAudit,
-    } = req.body;
-
-    const detectedDevType = deviceType || (role === "student" ? "tablet" : "laptop");
-    const detectedDevModel = deviceModel || (detectedDevType === "tablet" ? "Apple iPad Pro 13\" (M4)" : "ThinkPad X1 Carbon Gen 12");
-    const detectedOs = osName || (detectedDevType === "tablet" ? "iPadOS 18.2" : "Windows 11 / macOS");
-
-    const roleCredentials: Record<string, any> = {
-      instructor: {
-        id: "tch-vance",
-        name: username || "Dr. Evelyn Vance",
-        email: email || "e.vance@faculty.21k.school",
-        role: "instructor",
-        avatarColor: "#003872",
-        department: department || "STEM & Quantum Physics",
-        section: "Grade 10 - Honors",
-        deviceType: detectedDevType,
-        deviceModel: detectedDevModel,
-        osName: detectedOs,
-        deviceAudit: deviceAudit || null,
-        joinedAt: "08:45 AM",
-      },
-      student: {
-        id: "stu-1",
-        name: username || "Sophia Chen",
-        email: email || "chen.sophia@student.21k.school",
-        role: "student",
-        avatarColor: "#0082FF",
-        gradeLevel: gradeLevel || 10,
-        parentName: parentName || "Mrs. Linda Chen",
-        parentEmail: "linda.chen@family.org",
-        parentPhone: parentPhone || "+1 (555) 234-8901",
-        deviceType: detectedDevType,
-        deviceModel: detectedDevModel,
-        osName: detectedOs,
-        deviceAudit: deviceAudit || null,
-        academicGoals: "Quantum Computing & AP Physics Preparation",
-        joinedAt: "08:55 AM",
-      },
-      auditor: {
-        id: "audit-1",
-        name: username || "Inspector Marcus Aurelius",
-        email: email || "m.aurelius@compliance.21k.school",
-        role: "auditor",
-        avatarColor: "#7C3AED",
-        auditorLicense: auditorLicense || "ISO-21001-NEASC-9824",
-        department: "Global Academic Compliance & Quality Assurance",
-        deviceType: detectedDevType,
-        deviceModel: detectedDevModel,
-        osName: detectedOs,
-        deviceAudit: deviceAudit || null,
-        joinedAt: "08:50 AM",
-      },
-      admin: {
-        id: "admin-1",
-        name: username || "Director Vikram Malhotra",
-        email: email || "v.malhotra@executive.21k.school",
-        role: "admin",
-        avatarColor: "#DC2626",
-        salesCluster: "Global EdTech Admissions & Revenue Command",
-        adminSecurityKey: adminKey || "21K-EXEC-CLUSTER-ALPHA",
-        deviceType: detectedDevType,
-        deviceModel: detectedDevModel,
-        osName: detectedOs,
-        deviceAudit: deviceAudit || null,
-        joinedAt: "08:40 AM",
-      },
-      sales_rep: {
-        id: "sales-1",
-        name: username || "Rajesh Khanna",
-        email: email || "r.khanna@admissions.21k.school",
-        role: "sales_rep",
-        avatarColor: "#059669",
-        salesTerritory: "Middle East & South Asia (Tier 1)",
-        repTier: "Senior Admissions Counselor",
-        deviceType: detectedDevType,
-        deviceModel: detectedDevModel,
-        osName: detectedOs,
-        deviceAudit: deviceAudit || null,
-        joinedAt: "08:30 AM",
-      },
-    };
-
-    const authenticatedUser = roleCredentials[role] || {
-      id: `usr-${Date.now()}`,
-      name: username || "Verified User",
-      email: email || "user@21k.school",
-      role: role || "student",
-      avatarColor: "#0082FF",
-      deviceType: detectedDevType,
-      deviceModel: detectedDevModel,
-      osName: detectedOs,
-      deviceAudit: deviceAudit || null,
-      joinedAt: new Date().toLocaleTimeString(),
-    };
-
-    if (deviceAudit) {
-      realtimeStore.deviceAudits.set(authenticatedUser.id, deviceAudit);
-    }
-
-    res.json({
-      success: true,
-      token: `jwt-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-      user: authenticatedUser,
-    });
+    res.status(410).json({ error: "Use /api/auth/password/login (or an email code or invite link)." });
   });
 
   // Device Audit & Compliance Endpoints
-  app.get("/api/audit/devices", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
+  app.get("/api/audit/devices", requireAuth("admin", "auditor"), (_req, res) => {
     const devices = Array.from(realtimeStore.deviceAudits.values());
     res.json({ success: true, devices });
   });
@@ -1191,31 +858,18 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
   app.post("/api/audit/devices", requireAuth(), (req, res) => {
     // A device record always belongs to the signed-in sender
     const record = req.body;
-    if (record && typeof record === "object") realtimeStore.deviceAudits.set(req.user!.id, { ...record, userId: req.user!.id });
+    if (!record || typeof record !== "object" || JSON.stringify(record).length > 8_000) return res.status(400).json({ error: "Invalid device record" });
+    realtimeStore.deviceAudits.set(req.user!.id, { ...record, userId: req.user!.id });
     res.json({ success: true });
   });
 
   // 4. Live System Rooms and Participants State
-  app.get("/api/state/rooms", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
-    const list = Array.from(realtimeStore.rooms.values()).map((r) => ({
-      ...r,
-      participantsCount: r.participants.size,
-    }));
-    res.json(list);
+  app.get("/api/state/rooms", requireAuth("admin", "auditor"), (_req, res) => {
+    res.json(Array.from(realtimeStore.rooms.values()).map((r) => ({ id: r.id, participantsCount: r.participants.size })));
   });
 
-  app.get("/api/state/participants", requireAuth("admin", "auditor", "instructor", "sales_rep"), (_req, res) => {
-    const participants = Array.from(realtimeStore.clients.values()).map((c) => ({
-      id: c.userId,
-      name: c.name,
-      role: c.role,
-      roomId: c.roomId,
-      gradeLevel: c.gradeLevel,
-      parentName: c.parentName,
-      deviceType: c.deviceType,
-      joinedAt: c.joinedAt,
-    }));
-    res.json(participants);
+  app.get("/api/state/participants", requireAuth("admin", "auditor"), (_req, res) => {
+    res.json(Array.from(realtimeStore.clients.values()).map((c) => ({ id: c.userId, name: c.name, role: c.role, roomId: c.roomId, joinedAt: c.joinedAt })));
   });
 
   // -------------------------------------------------------------
@@ -1415,11 +1069,12 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     },
   ];
 
-  app.get("/api/facilitators/roster", requireAuth(), (_req, res) => {
+  // Sample faculty roster (demo): staff only, and only when demos are on
+  app.get("/api/facilitators/roster", demoOnly, requireAuth("admin", "instructor", "sales_rep", "auditor"), (_req, res) => {
     res.json(candidateFaculty);
   });
 
-  app.post("/api/facilitators/substitute-failover", requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
+  app.post("/api/facilitators/substitute-failover", demoOnly, requireAuth("admin", "instructor", "sales_rep"), (req, res) => {
     const { roomCode, absentTeacherId, subject } = req.body;
     const substitute = candidateFaculty.find(
       (c) => c.id !== absentTeacherId && c.status === "available" && c.isSubstituteEligible
@@ -1565,123 +1220,4 @@ export function setupRealtimeWebSocket(httpServer: http.Server, app: express.Exp
     });
   });
 
-  // -------------------------------------------------------------
-  // 8. Campus Social Media Feed & Safety Moderation Store
-  // -------------------------------------------------------------
-  const campusPostsDatabase = [
-    {
-      id: "post-1",
-      authorId: "tch-vance",
-      authorName: "Dr. Evelyn Vance",
-      authorRole: "instructor",
-      authorAvatar: "#003872",
-      content:
-        "Congratulations to Grade 10-A scholars for finishing Lab 04 on Two-Qubit Superconducting Entanglement! The live 3D Bloch sphere projections showed an astounding 99.8% fidelity. Problem sets are due Friday midnight.",
-      category: "Academic Question",
-      likes: 24,
-      likedByMe: false,
-      comments: [
-        { id: "c-1", authorName: "Sophia Chen", text: "The z-axis dephasing visualization cleared up all my doubts, thank you Dr. Vance!", timestamp: "1 hour ago" },
-        { id: "c-2", authorName: "Marcus Vance", text: "Calculated Hamiltonian eigenvalues match perfectly with the remote Python terminal.", timestamp: "45 mins ago" },
-      ],
-      safetyStatus: "approved",
-      timestamp: "2 hours ago",
-    },
-    {
-      id: "post-2",
-      authorId: "stu-1",
-      authorName: "Sophia Chen",
-      authorRole: "student",
-      authorAvatar: "#0082FF",
-      content:
-        "Excited to showcase my project for the 21K School Global Robotics Hackathon! Built an inverse kinematics closed-loop controller in Python with remote tablet stylus annotations.",
-      category: "STEM Project",
-      likes: 38,
-      likedByMe: true,
-      comments: [
-        { id: "c-3", authorName: "Prof. Arjun Sharma", text: "Brilliant implementation Sophia, make sure to document the Jacobian boundary limits!", timestamp: "30 mins ago" },
-      ],
-      safetyStatus: "approved",
-      timestamp: "3 hours ago",
-    },
-    {
-      id: "post-3",
-      authorId: "admin-1",
-      authorName: "Director Vikram Malhotra",
-      authorRole: "admin",
-      authorAvatar: "#DC2626",
-      content:
-        "Admissions announcement: 1:1 Room Bomber counseling breakouts are now active for upcoming Cambridge IGCSE and IB Diploma cohorts. Check the upcoming schedule below and join your session.",
-      category: "Campus Announcement",
-      likes: 19,
-      likedByMe: false,
-      comments: [],
-      safetyStatus: "approved",
-      timestamp: "5 hours ago",
-    },
-  ];
-
-  app.get("/api/social/posts", requireAuth(), (_req, res) => {
-    res.json(campusPostsDatabase);
-  });
-
-  app.post("/api/social/posts", requireAuth(), (req, res) => {
-    const { authorId, authorName, authorRole, authorAvatar, content, mediaUrl, category } = req.body;
-
-    // Safety checks
-    const lower = (content || "").toLowerCase();
-    const adultRegex = /\b(nsfw|18\+|porn|xxx|nude|sex|erotic|escort|camgirl|onlyfans|stripper|fetish|lewd|cock|pussy|vagina|penis|boobs)\b/i;
-    if (adultRegex.test(lower)) {
-      return res.status(400).json({
-        error: "Content rejected by Campus Safety Guard: Adult, NSFW or 18+ content is strictly prohibited.",
-        safetyFlag: "adult_nsfw",
-      });
-    }
-
-    const newPost = {
-      id: `post-${Date.now()}`,
-      authorId: authorId || "usr-current",
-      authorName: authorName || "Campus Scholar",
-      authorRole: authorRole || "student",
-      authorAvatar: authorAvatar || "#0082FF",
-      content: content || "",
-      mediaUrl: mediaUrl || undefined,
-      category: category || "STEM Project",
-      likes: 0,
-      likedByMe: false,
-      comments: [],
-      safetyStatus: "approved",
-      timestamp: "Just now",
-    };
-
-    campusPostsDatabase.unshift(newPost);
-    broadcast({ type: "NEW_CAMPUS_POST", post: newPost });
-    res.json({ success: true, post: newPost });
-  });
-
-  app.post("/api/social/posts/:id/react", requireAuth(), (req, res) => {
-    const post = campusPostsDatabase.find((p) => p.id === req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
-
-    post.likedByMe = !post.likedByMe;
-    post.likes += post.likedByMe ? 1 : -1;
-    broadcast({ type: "POST_REACTED", postId: post.id, likes: post.likes });
-    res.json({ success: true, likes: post.likes, likedByMe: post.likedByMe });
-  });
-
-  app.post("/api/social/posts/:id/comment", requireAuth(), (req, res) => {
-    const post = campusPostsDatabase.find((p) => p.id === req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
-
-    const { authorName, text } = req.body;
-    const newComment = {
-      id: `c-${Date.now()}`,
-      authorName: authorName || "Peer Scholar",
-      text: text || "",
-      timestamp: "Just now",
-    };
-    post.comments.push(newComment);
-    broadcast({ type: "POST_COMMENT_ADDED", postId: post.id, comment: newComment });
-    res.json({ success: true, comment: newComment });
-  });
 }
