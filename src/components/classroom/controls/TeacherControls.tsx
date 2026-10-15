@@ -4,8 +4,7 @@ import { useClassroom } from "../../../context/ClassroomContext";
 
 /** Host-only: learners waiting to be let in. Hidden when nobody is waiting. */
 export const WaitingRoomButton: React.FC<{ className?: string }> = ({ className = "" }) => {
-  const { participants, hostAction } = useClassroom();
-  const waiting = participants.filter((p) => p.waiting && !p.isLocal);
+  const { waitingList: waiting, hostAction } = useClassroom();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +41,7 @@ export const WaitingRoomButton: React.FC<{ className?: string }> = ({ className 
             <ul className="space-y-1.5">
               {waiting.map((w) => (
                 <li key={w.id} className="flex items-center gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-3 py-2">
-                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: w.avatarColor }}>
+                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: w.avatarColor || "#0082FF" }}>
                     {w.name.charAt(0)}
                   </span>
                   <span className="flex-1 min-w-0 truncate text-sm text-slate-100">{w.name}</span>

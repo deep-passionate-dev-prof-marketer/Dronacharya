@@ -69,7 +69,7 @@ export function generateDemoMeetingUrl(params: {
 }): string {
   const origin = typeof window !== "undefined" && window.location?.origin
     ? window.location.origin
-    : (params.customOrigin || "https://dronacharya-puce.vercel.app");
+    : (params.customOrigin || "http://localhost:3000");
   
   const query = new URLSearchParams({
     room: params.roomCode,

@@ -114,8 +114,9 @@ class RealtimeSpeechAndTtsEngine {
 
   private initTtsVoices() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      // Only voices built into the device: "network" voices send the text to an outside service
       const loadVoices = () => {
-        this.availableVoices = window.speechSynthesis.getVoices();
+        this.availableVoices = window.speechSynthesis.getVoices().filter((v) => v.localService);
       };
       loadVoices();
       window.speechSynthesis.onvoiceschanged = loadVoices;
@@ -125,8 +126,10 @@ class RealtimeSpeechAndTtsEngine {
   private initRecognition() {
     if (typeof window === "undefined") return;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // Captions are made on the school's own server only. The browser's built-in speech recognition
+    // (SpeechRecognition / webkitSpeechRecognition) streams audio to Google or Microsoft, so it's
+    // never used; everyone goes through server captions (startServerStt).
+    const SpeechRecognition = null as any;
 
     if (!SpeechRecognition) {
       this.isSupported = false;
@@ -502,7 +505,7 @@ class RealtimeSpeechAndTtsEngine {
 
       // Ensure voices are freshly fetched and synth is not paused
       if (this.availableVoices.length === 0) {
-        this.availableVoices = window.speechSynthesis.getVoices();
+        this.availableVoices = window.speechSynthesis.getVoices().filter((v) => v.localService);
       }
       if (window.speechSynthesis.paused) {
         try { window.speechSynthesis.resume(); } catch {}

@@ -31,33 +31,80 @@ const QUICK: Array<{ id: string; label: string; Icon: React.ComponentType<{ clas
 ];
 
 /**
- * One sign-in screen for everyone. Staff use Google Workspace; learners and parents use Google or a
- * one-time email code. While testing, seeded dummy accounts can be used ("Test accounts").
+ * One sign-in screen for everyone: email and password (set up by the school office), an email code
+ * when the school runs its own mail server, and test accounts while testing.
  */
 export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext }) => {
-  const [providers, setProviders] = useState<{ google: boolean; emailOtp: boolean; dev: boolean } | null>(null);
+  const [providers, setProviders] = useState<{ password: boolean; emailOtp: boolean; dev: boolean; devPasscode?: boolean } | null>(null);
+  /** Staging only: test accounts sit behind a passcode (kept in memory for this tab) */
+  const [passcode, setPasscode] = useState("");
+  const [passcodeOk, setPasscodeOk] = useState(false);
   const [accounts, setAccounts] = useState<AuthUser[]>([]);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"password" | "email" | "code">("password");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(error || null);
 
+  const loadAccounts = async (pass: string) => {
+    const res = await fetch("/api/auth/dev/accounts", { headers: pass ? { "x-dev-passcode": pass } : undefined });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error || "Couldn't load the test accounts.");
+    setAccounts(body.accounts || []);
+    setPasscodeOk(true);
+  };
+
   useEffect(() => {
     fetch("/api/auth/providers")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!(r.headers.get("content-type") || "").includes("application/json")) throw new Error("not the app server");
+        return r.json();
+      })
       .then((p) => {
         setProviders(p);
-        if (p.dev) fetch("/api/auth/dev/accounts").then((r) => r.json()).then((b) => setAccounts(b.accounts || []));
+        if (p.dev && !p.devPasscode) loadAccounts("").catch(() => {});
       })
-      .catch(() => setMessage("Can't reach the school server. Check your connection."));
+      .catch(() => setMessage("Can't reach the school server. Check your connection, or that this is the right web address."));
   }, []);
 
   const post = async (url: string, body: unknown) => {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(passcode ? { "x-dev-passcode": passcode } : {}) },
+      body: JSON.stringify(body),
+    });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.error || "Something went wrong");
     return json;
+  };
+
+  const unlockTestAccounts = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy("passcode");
+    setMessage(null);
+    try {
+      await loadAccounts(passcode);
+    } catch (err: any) {
+      setMessage(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const passwordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy("password");
+    setMessage(null);
+    try {
+      const r = await post("/api/auth/password/login", { email, password });
+      setPassword("");
+      onSignedIn({ ...r.user, mustChangePassword: r.mustChangePassword });
+    } catch (err: any) {
+      setMessage(err.message);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const sendCode = async (e: React.FormEvent) => {
@@ -121,25 +168,46 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
 
             {message && <p className="text-sm rounded-xl px-3 py-2 bg-white/5 border border-white/10 text-slate-200">{message}</p>}
 
-            {providers?.google && (
-              <button
-                onClick={() => (window.location.href = `/api/auth/google/start?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
-                className="btn-ghost w-full bg-white text-slate-900 hover:bg-slate-100 border-transparent font-semibold"
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
-                  <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8z" />
-                  <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z" />
-                  <path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1z" />
-                  <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z" />
-                </svg>
-                Continue with Google
-              </button>
-            )}
-
-            {step === "email" ? (
+            {step === "password" ? (
+              <form onSubmit={passwordSignIn} className="space-y-2.5">
+                <label htmlFor="signin-email" className="block text-sm text-slate-300">
+                  Email
+                </label>
+                <input
+                  id="signin-email"
+                  type="email"
+                  required
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-xl bg-slate-950 border border-white/15 focus:border-blue-500 outline-none px-3 py-2.5 text-sm text-white placeholder-slate-500"
+                />
+                <label htmlFor="signin-password" className="block text-sm text-slate-300">
+                  Password
+                </label>
+                <input
+                  id="signin-password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl bg-slate-950 border border-white/15 focus:border-blue-500 outline-none px-3 py-2.5 text-sm text-white"
+                />
+                <button type="submit" disabled={busy === "password"} className="btn-primary w-full">
+                  {busy === "password" && <Loader2 className="w-4 h-4 animate-spin" />} Sign in
+                </button>
+                {providers?.emailOtp && (
+                  <button type="button" onClick={() => setStep("email")} className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5" /> Email me a sign-in code instead
+                  </button>
+                )}
+              </form>
+            ) : step === "email" ? (
               <form onSubmit={sendCode} className="space-y-2.5">
                 <label htmlFor="signin-email" className="block text-sm text-slate-300">
-                  Students & parents: email me a sign-in code
+                  Email me a sign-in code
                 </label>
                 <input
                   id="signin-email"
@@ -153,6 +221,9 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
                 />
                 <button type="submit" disabled={busy === "email"} className="btn-primary w-full">
                   {busy === "email" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />} Send code
+                </button>
+                <button type="button" onClick={() => setStep("password")} className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Use my password
                 </button>
               </form>
             ) : (
@@ -180,16 +251,42 @@ export const SignInScreen: React.FC<Props> = ({ onSignedIn, error, classContext 
             )}
 
             <p className="text-2xs text-slate-500 flex gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 shrink-0" /> Staff sign in with their school Google Workspace account.
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" /> Forgot your password, or don't have one yet? Ask your school office: they can give you a new one.
             </p>
           </div>
+
+          {providers?.dev && providers.devPasscode && !passcodeOk && (
+            <form onSubmit={unlockTestAccounts} className="rounded-3xl border border-amber-500/30 bg-amber-500/[0.06] p-5 space-y-3">
+              <div className="flex items-center gap-2 text-amber-200">
+                <FlaskConical className="w-4 h-4" />
+                <span className="text-sm font-semibold">Test accounts</span>
+                <span className="text-2xs text-amber-200/70">staging only</span>
+              </div>
+              <label className="block text-xs text-slate-300" htmlFor="dev-passcode">
+                Testing passcode
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="dev-passcode"
+                  type="password"
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  autoComplete="off"
+                  className="flex-1 min-w-0 h-11 rounded-xl bg-slate-950 border border-white/15 focus:border-amber-400 outline-none px-3 text-sm text-white"
+                />
+                <button type="submit" disabled={!passcode || busy === "passcode"} className="h-11 px-4 rounded-xl bg-amber-500 text-slate-950 text-sm font-semibold disabled:opacity-60 inline-flex items-center gap-1.5">
+                  {busy === "passcode" && <Loader2 className="w-4 h-4 animate-spin" />} Unlock
+                </button>
+              </div>
+            </form>
+          )}
 
           {providers?.dev && grouped.length > 0 && (
             <div className="rounded-3xl border border-amber-500/30 bg-amber-500/[0.06] p-5 space-y-3">
               <div className="flex items-center gap-2 text-amber-200">
                 <FlaskConical className="w-4 h-4" />
                 <span className="text-sm font-semibold">Test accounts</span>
-                <span className="text-2xs text-amber-200/70">dummy sign-in · disabled in production</span>
+                <span className="text-2xs text-amber-200/70">{providers.devPasscode ? "staging only" : "dummy sign-in · off in production"}</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {QUICK.filter((q) => accounts.some((a) => a.id === q.id)).map(({ id, label, Icon, tone }) => {

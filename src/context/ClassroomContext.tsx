@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
+import { toast } from "../components/ui/Feedback";
 import {
   UserRole,
   LanguageCode,
@@ -40,7 +41,7 @@ import {
   TileAspectRatio,
   LiveClassStatus,
 } from "../types";
-import { translateDualCaption } from "../services/geminiService";
+import { translateDualCaption } from "../services/aiService";
 import { getParticipantsForRatio, FULL_24_STUDENT_POOL } from "../services/participantPool";
 import {
   INITIAL_ATTENTION_AUDITS,
@@ -64,7 +65,9 @@ import {
   buildShortMeetingUrl,
 } from "../services/domainService";
 import { webRtcMeshService } from "../services/webRtcMeshService";
-import { classroomTransport, DeviceBlockedError, TransportState } from "../services/media/classroomTransport";
+import { classroomTransport, DeviceBlockedError, RoomAccessError, TransportState } from "../services/media/classroomTransport";
+import { attachClassContent, breakoutsStore, useStore } from "../services/classSlides";
+import { demoFeaturesOn, setDemoFeatures } from "../routing/viewRegistry";
 import { captureDeviceSnapshot } from "../services/deviceAccessClient";
 import { whiteboardStore } from "../services/whiteboard/whiteboardStore";
 import { engagementRunner } from "../services/engagement/engagementRunner";
@@ -98,6 +101,8 @@ export type ClassroomView =
   | "device_audit"
   | "recordings"
   | "parent_home"
+  | "people"
+  | "support"
   | "docs";
 
 export interface ClassRecordingState {
@@ -121,9 +126,6 @@ export interface ClassroomContextType {
   setRoomId: (id: string) => void;
   setRoomTitle: (title: string) => void;
   roomLink: string;
-  isE2eeSecured: boolean;
-  encryptionFingerprint: string;
-  latencyMs: number;
   streamingQuality: "1080p 60fps" | "720p 30fps" | "Low Bandwidth";
   setStreamingQuality: (q: "1080p 60fps" | "720p 30fps" | "Low Bandwidth") => void;
   roomRatio: RoomRatio;
@@ -134,12 +136,32 @@ export interface ClassroomContextType {
   joinProductionMeetingUrl: (urlOrCode: string) => NormalizedProductionMeeting;
   leaveProductionMeeting: () => void;
 
-  // Live Class Session Lifecycle (Zoom & Google Meet style)
+  // Live Class Session Lifecycle 
   classStatus: LiveClassStatus;
   setClassStatus: (status: LiveClassStatus) => void;
   classDurationSeconds: number;
-  startClass: () => void;
-  endClass: () => void;
+  /** Host only. Pass the room explicitly when it was just changed (e.g. the scheduler's "Launch"). */
+  startClass: (roomSlug?: string) => Promise<boolean>;
+  endClass: () => Promise<boolean>;
+  /** In the class (camera, video room, presence): opened the class page, or still in a live class */
+  inClass: boolean;
+  /** Illustrative demo features are on for this server (SHOW_DEMO_FEATURES; development by default) */
+  demoFeatures: boolean;
+  /** The video room this device is in: the class, or a breakout group's room */
+  mediaRoom: string;
+  /** Host: visit a breakout group (null = back to the main room) */
+  visitBreakout: (room: string | null) => void;
+  /** From the server: can this account start/end this class, and who hosts it */
+  classHost: { isHost: boolean; hostName: string | null } | null;
+  /** "start" / "end" while the request is in flight */
+  sessionBusy: "start" | "end" | null;
+  /** The class server can't be reached (shown after a few failed checks) */
+  sessionSyncError: string | null;
+  /** Not on this class's list (from the server) */
+  classAccessError: string | null;
+  dismissClassSessionError: () => void;
+  /** Connection banner: "Try again now" */
+  retryConnection: () => void;
   /** Audio + slides only (remote cameras off, own camera off, screen share at its low layer) */
   setLowBandwidth: (on: boolean) => void;
   dismissLowBandwidthSuggestion: () => void;
@@ -168,21 +190,15 @@ export interface ClassroomContextType {
   participants: Participant[];
   handRaised: boolean;
   toggleHandRaise: () => void;
-  muteAllParticipants: () => void;
-  removeParticipant: (id: string) => void;
 
   // Waiting Lobby
+  /** Learners waiting to be admitted (from the server, in both video modes) */
   waitingList: WaitingParticipant[];
-  admitParticipant: (id: string) => void;
-  rejectParticipant: (id: string) => void;
-  admitAllWaiting: () => void;
+  admitParticipant: (id: string) => Promise<string | null>;
+  rejectParticipant: (id: string) => Promise<string | null>;
+  admitAllWaiting: () => Promise<string | null>;
 
   // Breakout Rooms
-  breakoutRooms: BreakoutRoom[];
-  createBreakoutRoom: (name: string, topic: string) => void;
-  assignStudentToBreakout: (studentId: string, breakoutId: string | null) => void;
-  broadcastToAllBreakouts: (message: string) => void;
-  closeAllBreakouts: () => void;
 
   // Recording
   isRecording: boolean;
@@ -366,8 +382,6 @@ export interface ClassroomContextType {
   // -------------------------------------------------------------
   roomBreak: RoomBreakSession;
   startRoomBreak: (durationMinutes: number, reason?: string, activity?: string) => void;
-  pauseRoomBreak: () => void;
-  resumeRoomBreak: () => void;
   endRoomBreak: () => void;
 
   // -------------------------------------------------------------
@@ -451,37 +465,7 @@ export interface ClassroomContextType {
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
 const INITIAL_PARTICIPANTS: Participant[] = [];
-const INITIAL_WAITING: WaitingParticipant[] = [];
-const INITIAL_BREAKOUTS: BreakoutRoom[] = [];
-const INITIAL_TRANSCRIPT: TranscriptLine[] = [
-  {
-    id: "t-init-1",
-    speakerId: "host-1",
-    speakerName: "Prof. Vance (Teacher)",
-    timestamp: "10:14:02 AM",
-    text: "आज हम fractions के बारे में सीखेंगे।",
-    translatedText: "Hoy aprenderemos sobre las fracciones.",
-    language: "es",
-  },
-  {
-    id: "t-init-2",
-    speakerId: "stu-1",
-    speakerName: "Sofia (Student)",
-    timestamp: "10:14:18 AM",
-    text: "No entiendo esta parte.",
-    translatedText: "मुझे यह हिस्सा समझ नहीं आया।",
-    language: "hi",
-  },
-  {
-    id: "t-init-3",
-    speakerId: "host-1",
-    speakerName: "Prof. Vance (Teacher)",
-    timestamp: "10:14:35 AM",
-    text: "Take the square root of 16 to find the common denominator.",
-    translatedText: "Tomen la raíz cuadrada de 16 para encontrar el común denominador.",
-    language: "es",
-  },
-];
+const INITIAL_TRANSCRIPT: TranscriptLine[] = [];
 const INITIAL_POLLS: Poll[] = [];
 
 const INITIAL_MATERIALS: StudyMaterial[] = [
@@ -805,6 +789,18 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Signed-in user comes from the server session (HttpOnly cookie). Nothing about identity is read
   // from localStorage or the URL any more, so a role can't be faked from the browser.
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
+  // Server settings the app needs before sign-in (demo pages on or off)
+  const [demoFeatures, setDemoFeaturesState] = useState(demoFeaturesOn());
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c) => {
+        if (!c) return;
+        setDemoFeatures(Boolean(c.demoFeatures));
+        setDemoFeaturesState(Boolean(c.demoFeatures));
+      })
+      .catch(() => {});
+  }, []);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -839,6 +835,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     return "dronacharya-gr10-phy";
   });
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
   const [roomTitle, setRoomTitle] = useState("Live class");
   const [roomLink, setRoomLink] = useState(() => {
     if (typeof window !== "undefined") {
@@ -850,10 +848,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     return buildMeetingUrl("dronacharya-gr10-phy");
   });
+  // The class link always follows the room on screen (rooms are switched from many places)
+  useEffect(() => {
+    setRoomLink(buildMeetingUrl(roomId));
+  }, [roomId]);
   const [activeProductionMeeting, setActiveProductionMeeting] = useState<NormalizedProductionMeeting | null>(null);
-  const [isE2eeSecured] = useState(true);
-  const [encryptionFingerprint] = useState("0x21K-Dronacharya · AES-256-GCM · ECDH Key Exchange");
-  const [latencyMs, setLatencyMs] = useState(18);
   const [streamingQuality, setStreamingQuality] = useState<"1080p 60fps" | "720p 30fps" | "Low Bandwidth">("1080p 60fps");
   const [roomRatio, setRoomRatioState] = useState<RoomRatio>("1:4");
 
@@ -869,6 +868,18 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [classSessionError, setClassSessionError] = useState<string | null>(null);
   const classStatusRef = useRef<LiveClassStatus>("waiting");
   classStatusRef.current = classStatus;
+
+  // You're in a class (camera, microphone, the video room and the room's presence list) only after
+  // opening it, and you stay in while it's live if you glance at another page, like a call that
+  // keeps going. Anywhere else there's no camera and nobody sees you in the class.
+  const [classJoinedRoom, setClassJoinedRoom] = useState<string | null>(null);
+  useEffect(() => {
+    // Parents never join a live class (they follow it from the parent portal)
+    if (activeView === "classroom" && authenticatedUser && authenticatedUser.role !== "parent") setClassJoinedRoom(roomId);
+    else if (classJoinedRoom && (classJoinedRoom !== roomId || classStatus !== "in_progress")) setClassJoinedRoom(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, roomId, authenticatedUser?.id, classStatus]);
+  const inClass = Boolean(authenticatedUser) && classJoinedRoom === roomId;
   const authUserIdRef = useRef<string | null>(null);
   authUserIdRef.current = authenticatedUser?.id || null;
 
@@ -922,53 +933,97 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setEnteredBeforeStart(false);
   }, [roomId]);
 
+  const [classHost, setClassHost] = useState<{ isHost: boolean; hostName: string | null } | null>(null);
+  const [sessionBusy, setSessionBusy] = useState<"start" | "end" | null>(null);
+  const [sessionSyncError, setSessionSyncError] = useState<string | null>(null);
+  const [classAccessError, setClassAccessError] = useState<string | null>(null);
+  const sessionFailures = useRef(0);
+  const [sessionRefresh, setSessionRefresh] = useState(0);
+  const refreshSession = () => setSessionRefresh((n) => n + 1);
+
   useEffect(() => {
-    if (!authenticatedUser || !roomId) return;
+    setClassHost(null);
+    setClassAccessError(null);
+    setSessionSyncError(null);
+    setClassSessionError(null);
+    sessionFailures.current = 0;
+  }, [roomId, authenticatedUser?.id]);
+
+  useEffect(() => {
+    if (!authenticatedUser || !roomId || authenticatedUser.role === "parent") return;
     let cancelled = false;
     const load = async () => {
       try {
         const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/session`);
-        if (!res.ok || cancelled) return;
-        const body = await res.json();
+        const isJson = (res.headers.get("content-type") || "").includes("application/json");
+        const body = isJson ? await res.json().catch(() => null) : null;
         if (cancelled) return;
+        if (res.status === 403 && body) {
+          setClassAccessError(body.error || "You're not on this class's list.");
+          return;
+        }
+        // An HTML page here means the address doesn't reach the class server (e.g. a static-only host)
+        if (!res.ok || !body?.session) throw new Error(isJson ? body?.error || `status ${res.status}` : "not the class server");
+        sessionFailures.current = 0;
+        setSessionSyncError(null);
+        setClassAccessError(null);
         applySession(body.session);
         setRecordingExcludedMe(Boolean(body.me?.recordingExcluded));
-      } catch {}
+        setClassHost({ isHost: Boolean(body.me?.isHost), hostName: body.host?.name || null });
+      } catch {
+        if (cancelled) return;
+        // One missed check is normal (network blip); keep quiet until it keeps failing
+        if (++sessionFailures.current >= 3) setSessionSyncError("Can't reach the class server. Class updates may be late; we keep trying.");
+      }
     };
     load();
-    // Lobby: check often so learners move in as soon as the class starts; in class: a slow safety net
-    const interval = setInterval(load, classStatus === "in_progress" ? 20000 : 4000);
+    // Lobby: check often so learners move in as soon as the class starts; in class: a safety net
+    // under the live updates (the media server and the room socket)
+    const interval = setInterval(load, classStatus === "in_progress" ? 10000 : 4000);
     const unbindData = classroomTransport.onData("class_status", (payload) => applySession(payload));
+    // Back from a background tab, sleep or a network drop: catch up straight away
+    const onVisible = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", load);
     return () => {
       cancelled = true;
       clearInterval(interval);
       unbindData();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", load);
     };
-  }, [roomId, authenticatedUser?.id, classStatus]);
+  }, [roomId, authenticatedUser?.id, classStatus, sessionRefresh]);
 
-  const sessionAction = async (action: "start" | "end") => {
+  const sessionAction = async (action: "start" | "end", slug: string) => {
     setClassSessionError(null);
+    setSessionBusy(action);
     try {
-      const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/session/${action}`, { method: "POST" });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || `Couldn't ${action} the class`);
-      applySession(body.session);
+      const res = await fetch(`/api/rooms/${encodeURIComponent(slug)}/session/${action}`, { method: "POST" });
+      const isJson = (res.headers.get("content-type") || "").includes("application/json");
+      const body = isJson ? await res.json().catch(() => ({})) : {};
+      if (!res.ok || !isJson) {
+        throw new Error(
+          body.error ||
+            (isJson ? `Couldn't ${action} the class (${res.status}).` : `Couldn't ${action} the class: this address doesn't reach the class server.`)
+        );
+      }
+      if (slug === roomIdRef.current) applySession(body.session);
+      return true;
     } catch (err: any) {
-      setClassSessionError(err.message);
+      setClassSessionError(err?.message || `Couldn't ${action} the class. Check your connection and try again.`);
+      return false;
+    } finally {
+      setSessionBusy(null);
     }
   };
 
-  const isHostAccount = ["instructor", "admin", "sales_rep"].includes(authenticatedUser?.role || "");
-
   /** Host only: starts the class for everyone (and its recording). */
-  const startClass = () => {
-    if (isHostAccount) sessionAction("start");
-  };
+  const startClass = (slug?: string) => sessionAction("start", slug || roomIdRef.current);
 
   /** Host only: ends the class for everyone (recording stops, notes are prepared). */
-  const endClass = () => {
-    if (isHostAccount) sessionAction("end");
-  };
+  const endClass = () => sessionAction("end", roomIdRef.current);
+
+  const dismissClassSessionError = () => setClassSessionError(null);
 
   /** Learner: go from the lobby into the class before it starts (they wait to be admitted). */
   const enterClassroom = () => setEnteredBeforeStart(true);
@@ -989,8 +1044,19 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Participants & Breakouts
   const [participants, setParticipants] = useState<Participant[]>(INITIAL_PARTICIPANTS);
   const [handRaised, setHandRaised] = useState(false);
-  const [waitingList, setWaitingList] = useState<WaitingParticipant[]>(INITIAL_WAITING);
-  const [breakoutRooms, setBreakoutRooms] = useState<BreakoutRoom[]>(INITIAL_BREAKOUTS);
+  /** Who's in this room on the realtime socket (incl. the lobby), as the server sees it */
+  const [socketRoster, setSocketRoster] = useState<Array<{ id: string; name: string; role: UserRole; joinedAtMs?: number; waiting?: boolean }>>([]);
+  useEffect(() => {
+    const upsert = (p: any) => p?.id && setSocketRoster((prev) => [...prev.filter((x) => x.id !== p.id), p]);
+    const offs = [
+      realtimeSocket.on("ROOM_STATE_SYNC", (d: any) => setSocketRoster(Array.isArray(d.participants) ? d.participants : [])),
+      realtimeSocket.on("PARTICIPANT_JOINED", (d: any) => upsert(d.participant)),
+      realtimeSocket.on("PARTICIPANT_UPDATED", (d: any) => upsert(d.participant)),
+      realtimeSocket.on("PARTICIPANT_LEFT", (d: any) => d?.userId && setSocketRoster((prev) => prev.filter((x) => x.id !== d.userId))),
+      realtimeSocket.on("join_state", (js: any) => js.status !== "joined" && setSocketRoster([])),
+    ];
+    return () => offs.forEach((off) => off());
+  }, []);
 
   // Recording
   const [isRecording, setIsRecording] = useState(false);
@@ -1303,7 +1369,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Local camera/mic: only once signed in, and only for people who speak in class
   // (never on the sign-in screen; parents and silent auditors don't need it)
-  const needsLocalMedia = Boolean(authenticatedUser) && !["parent", "auditor"].includes(authenticatedUser?.role || "");
+  const needsLocalMedia = inClass && !["parent", "auditor"].includes(authenticatedUser?.role || "");
   useEffect(() => {
     if (!needsLocalMedia) return;
     let activeStream: MediaStream | null = null;
@@ -1335,19 +1401,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Real Full-Stack WebSocket & Room Bomber Synchronization
   // -------------------------------------------------------------
   useEffect(() => {
-    const userPayload = authenticatedUser
-      ? {
-          id: authenticatedUser.id,
-          name: authenticatedUser.name,
-          role: authenticatedUser.role,
-        }
-      : {
-          id: currentUser?.id || "guest-user-1",
-          name: currentUser?.name || "Guest User",
-          role: currentRole || "instructor",
-        };
-
-    realtimeSocket.connect(userPayload, roomId);
+    // The room socket joins as the signed-in user only (parents never join a live room); a room
+    // change re-joins, so chat, captions and class messages always follow the room on screen
+    if (authenticatedUser && authenticatedUser.role !== "parent" && roomId && inClass) realtimeSocket.joinRoom(authenticatedUser, roomId);
+    else realtimeSocket.disconnect();
 
     const unbindGridSync = realtimeSocket.on("ROOM_BOMBER_GRID_SYNC", (data: any) => {
       setIsRoomBomberActive(!!data.active);
@@ -1450,7 +1507,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
-    const handleRemoteCaption = (data: any) => {
+    // From the media server (fromId = the verified sender) or the room socket (the server sets speakerId)
+    const handleRemoteCaption = (data: any, fromId?: string) => {
       const caption = data.caption;
       if (caption) {
         setCurrentLiveCaption({
@@ -1464,9 +1522,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (caption.isFinal) {
           const newLine: TranscriptLine = {
             id: caption.id || `t-${Date.now()}`,
-            speakerId: "remote-peer",
-            speakerName: caption.speaker,
+            speakerId: (fromId && fromId !== "server" ? fromId : caption.speakerId) || "remote-peer",
+            speakerName: caption.speakerName || caption.speaker,
             timestamp: caption.timestamp,
+            atMs: Date.now(),
             text: caption.text,
             translatedText: caption.translatedText,
             language: caption.targetLanguage,
@@ -1498,15 +1557,6 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
-    // Fetch initial status of Room Bomber from REST
-    fetch("/api/room-bomber/status")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.pitchRooms && d.pitchRooms.length > 0) setPitchRooms(d.pitchRooms);
-        if (d.active !== undefined) setIsRoomBomberActive(d.active);
-      })
-      .catch(() => {});
-
     return () => {
       unbindGridSync();
       unbindDispatch();
@@ -1521,7 +1571,20 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unbindSpeechCaption();
       unbindDeviceAudit();
     };
-  }, [authenticatedUser, currentRole, roomId]);
+  }, [authenticatedUser?.id, authenticatedUser?.role, roomId, inClass]);
+
+  // Pitch rooms (admissions demo, off in production): admissions staff only
+  useEffect(() => {
+    if (!demoFeatures || !(authenticatedUser?.role === "admin" || authenticatedUser?.role === "sales_rep")) return;
+    fetch("/api/room-bomber/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        if (d.pitchRooms && d.pitchRooms.length > 0) setPitchRooms(d.pitchRooms);
+        if (d.active !== undefined) setIsRoomBomberActive(d.active);
+      })
+      .catch(() => {});
+  }, [authenticatedUser?.id, authenticatedUser?.role, demoFeatures]);
 
   const triggerRoomBomber = (config?: any) => {
     realtimeSocket.triggerRoomBomber(config);
@@ -1566,7 +1629,6 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const loginUser = (user: AuthUser, customRoomId?: string) => {
     setAuthenticatedUser(user);
     setCurrentRole(user.role);
-    const targetRoom = customRoomId || roomId;
     if (customRoomId) {
       setRoomId(customRoomId);
       setRoomLink(buildMeetingUrl(customRoomId));
@@ -1598,12 +1660,12 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return [localParticipant, ...others];
     });
 
-    // Media/data transport is joined by the effect below once user + room are set
-    realtimeSocket.joinRoom(user, targetRoom);
+    // Media/data transport and the room socket are joined by effects once user + room are set
   };
 
   const logoutUser = () => {
     classroomTransport.leave();
+    realtimeSocket.disconnect();
     fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     setAuthenticatedUser(null);
     setParticipants([]);
@@ -1648,10 +1710,11 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Remote participants come from the classroom transport (LiveKit or peer-to-peer fallback)
+  // Remote participants come from the classroom transport (media server or peer-to-peer fallback)
   const [transportState, setTransportState] = useState<TransportState>(classroomTransport.getState());
   const [hasLeftClass, setHasLeftClass] = useState(false);
   const [mediaJoinError, setMediaJoinError] = useState<string | null>(null);
+  if (import.meta.env.DEV && typeof window !== "undefined") (window as any).__participants = participants;
   useEffect(() => {
     const unbindPeers = classroomTransport.onPeers((peers) => {
       setParticipants((prev) => {
@@ -1667,6 +1730,16 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unbindHand();
     };
   }, []);
+
+  // Media reconnected (media server or direct): re-read the class state in case a message was missed
+  const lastTransportStatus = useRef<string>("idle");
+  useEffect(() => {
+    const prev = lastTransportStatus.current;
+    lastTransportStatus.current = transportState.status;
+    if (transportState.status === "connected" && prev !== "connected") refreshSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transportState.status]);
+
 
   // Keep authenticated user updated in participants list when media state changes
   useEffect(() => {
@@ -1702,9 +1775,30 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [authenticatedUser, isAudioMuted, isVideoOff, isScreenSharing, handRaised, localStream]);
 
+  // Breakout rooms: learners are moved to their group's video room; hosts can visit a group.
+  // Everything else (class status, recording, chat socket) stays with the main room.
+  const breakouts = useStore(breakoutsStore);
+  const [visitingRoom, setVisitingRoom] = useState<string | null>(null);
+  const myGroup = breakouts.active ? breakouts.groups.find((g) => g.members.some((m) => m.id === authenticatedUser?.id)) || null : null;
+  const visitStillValid = Boolean(visitingRoom && breakouts.active && breakouts.groups.some((g) => g.room === visitingRoom));
+  useEffect(() => {
+    if (visitingRoom && !visitStillValid) setVisitingRoom(null);
+  }, [visitingRoom, visitStillValid]);
+  const mediaRoom = authenticatedUser?.role === "student" ? myGroup?.room || roomId : visitStillValid ? visitingRoom! : roomId;
+  const mediaRoomRef = useRef(mediaRoom);
+  mediaRoomRef.current = mediaRoom;
+  useEffect(() => {
+    attachClassContent(inClass ? roomId : "");
+  }, [roomId, inClass]);
+
   // Join the class media room whenever the signed-in user or room changes
   useEffect(() => {
     if (!authenticatedUser || !roomId || hasLeftClass || authenticatedUser.role === "parent") return;
+    if (!inClass) {
+      // Left the class page (and no class is live): hang up
+      if (classroomTransport.getState().mode !== "none" || classroomTransport.getState().status === "reconnecting") classroomTransport.reset();
+      return;
+    }
     let cancelled = false;
     (async () => {
       const device = await captureDeviceSnapshot().catch(() => undefined);
@@ -1712,7 +1806,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         setMediaJoinError(null);
         await classroomTransport.join({
-          roomSlug: roomId,
+          roomSlug: mediaRoom,
           user: {
             id: authenticatedUser.id,
             name: authenticatedUser.name,
@@ -1728,7 +1822,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           videoEnabled: !isVideoOff,
         });
       } catch (err) {
-        if (!cancelled) setMediaJoinError(err instanceof DeviceBlockedError ? "device_blocked" : "join_failed");
+        if (!cancelled) setMediaJoinError(err instanceof DeviceBlockedError ? "device_blocked" : err instanceof RoomAccessError ? err.reason : "join_failed");
       }
     })();
     return () => {
@@ -1736,7 +1830,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     // localStream is published separately below; rejoining on every stream change would drop the call
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticatedUser?.id, roomId, hasLeftClass]);
+  }, [authenticatedUser?.id, roomId, mediaRoom, hasLeftClass, inClass]);
 
   // Publish the local camera/mic whenever the stream changes (first permission grant, device switch)
   useEffect(() => {
@@ -1745,7 +1839,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Whiteboard presented on the main stage (teacher-controlled, synced to everyone)
   const [isWhiteboardPresenting, setIsWhiteboardPresenting] = useState(false);
-  const isHostRole = currentRole === "instructor" || currentRole === "admin";
+  // The class host (from the server): stage changes, breaks, whiteboard snapshots
+  const isHostRole = Boolean(classHost?.isHost);
   const isHostRef = useRef(isHostRole);
   isHostRef.current = isHostRole;
   const setWhiteboardPresenting = (presenting: boolean) => {
@@ -1818,7 +1913,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     for (const identity of identities) {
       const r =
         action === "mute" || action === "stop_video"
-          ? await postJson(`${base}/mute`, { identity, kind: action === "mute" ? "audio" : "video" })
+          ? // Muting acts in the video room you're in (a breakout group when visiting one)
+            await postJson(`/api/rooms/${encodeURIComponent(mediaRoomRef.current)}/mute`, { identity, kind: action === "mute" ? "audio" : "video" })
           : await postJson(`${base}/${action}`, { identity });
       if (!r.ok) return r.error;
     }
@@ -1895,7 +1991,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Run the analyzer only with consent, while connected to a class, on the user's own camera
   useEffect(() => {
-    if (analyticsConsent !== "granted" || !analyzedRole || !authenticatedUser || !localStream || hasLeftClass || transportState.status !== "connected") {
+    if (analyticsConsent !== "granted" || !analyzedRole || !authenticatedUser || !localStream || hasLeftClass || transportState.status !== "connected" || transportState.waiting) {
       engagementRunner.stop();
       return;
     }
@@ -1907,7 +2003,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       isSpeaking: () => Boolean(classroomTransport.localStatus().isSpeaking),
     });
     return () => engagementRunner.stop();
-  }, [analyticsConsent, analyzedRole, authenticatedUser?.id, localStream, hasLeftClass, transportState.status, roomId]);
+  }, [analyticsConsent, analyzedRole, authenticatedUser?.id, localStream, hasLeftClass, transportState.status, transportState.waiting, roomId]);
 
   const leaveClass = async () => {
     await classroomTransport.leave();
@@ -1915,6 +2011,13 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const rejoinClass = () => setHasLeftClass(false);
+  /** "Try again now": media, the room socket and the class state */
+  const retryConnection = () => {
+    setMediaJoinError(null);
+    classroomTransport.retryNow();
+    realtimeSocket.retryJoin();
+    refreshSession();
+  };
 
   const startAudioPlayback = () => classroomTransport.startAudio();
 
@@ -2001,7 +2104,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
       // Phones/tablets can't share a screen from the browser
-      alert("Screen sharing isn't supported on this device. Use a laptop or desktop browser to share your screen.");
+      toast("Screen sharing isn't supported on this device. Use a laptop or desktop browser to share your screen.", "critical");
       return;
     }
     try {
@@ -2031,82 +2134,30 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
-  const muteAllParticipants = () => {
-    setParticipants((prev) =>
-      prev.map((p) => (p.isLocal ? p : { ...p, audioEnabled: false, audioLevel: 0 }))
-    );
-  };
+  // The waiting room, from the server's view of the room socket (works in both video modes) and
+  // the media server.s (a learner connected there whose socket hasn.t joined yet). The socket list wins when both
+  // know someone: it follows the server's admitted list directly.
+  const waitingList: WaitingParticipant[] = useMemo(() => {
+    const me = authenticatedUser?.id;
+    const out = new Map<string, WaitingParticipant>();
+    const onSocket = new Map(socketRoster.map((r) => [r.id, r]));
+    for (const p of participants) {
+      if (p.isLocal || p.id === me || !p.waiting) continue;
+      if (onSocket.has(p.id) && !onSocket.get(p.id)!.waiting) continue;
+      out.set(p.id, { id: p.id, name: p.name, role: p.role, avatarColor: p.avatarColor, requestedAt: p.joinedAt || "", cameraReady: false, micReady: false });
+    }
+    for (const r of socketRoster) {
+      if (!r.waiting || r.id === me) continue;
+      const at = r.joinedAtMs ? new Date(r.joinedAtMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+      out.set(r.id, { id: r.id, name: r.name, role: r.role, avatarColor: out.get(r.id)?.avatarColor, requestedAt: at, cameraReady: false, micReady: false });
+    }
+    return [...out.values()];
+  }, [participants, socketRoster, authenticatedUser?.id]);
 
-  const removeParticipant = (id: string) => {
-    setParticipants((prev) => prev.filter((p) => p.id !== id));
-  };
+  const admitParticipant = (id: string) => hostAction("admit", [id]);
+  const rejectParticipant = (id: string) => hostAction("deny", [id]);
+  const admitAllWaiting = () => (waitingList.length ? hostAction("admit", waitingList.map((w) => w.id)) : Promise.resolve(null));
 
-  const admitParticipant = (id: string) => {
-    const target = waitingList.find((w) => w.id === id);
-    if (!target) return;
-    setWaitingList((prev) => prev.filter((w) => w.id !== id));
-    setParticipants((prev) => [
-      ...prev,
-      {
-        id: target.id,
-        name: target.name,
-        role: target.role,
-        avatarColor: "#00C2E0",
-        audioEnabled: target.micReady,
-        videoEnabled: target.cameraReady,
-        screenSharing: false,
-        handRaised: false,
-        audioLevel: 10,
-        attendanceStatus: "present",
-        joinedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        parentEmail: `${target.name.toLowerCase().replace(" ", ".")}@21k.family`,
-        xpPoints: 1200,
-      },
-    ]);
-  };
-
-  const rejectParticipant = (id: string) => {
-    setWaitingList((prev) => prev.filter((w) => w.id !== id));
-  };
-
-  const admitAllWaiting = () => {
-    waitingList.forEach((w) => admitParticipant(w.id));
-  };
-
-  const createBreakoutRoom = (name: string, topic: string) => {
-    const newRoom: BreakoutRoom = {
-      id: `bo-${Date.now()}`,
-      name,
-      topic,
-      participantIds: [],
-      isActive: true,
-    };
-    setBreakoutRooms((prev) => [...prev, newRoom]);
-  };
-
-  const assignStudentToBreakout = (studentId: string, breakoutId: string | null) => {
-    setBreakoutRooms((prev) =>
-      prev.map((room) => {
-        const filtered = room.participantIds.filter((id) => id !== studentId);
-        if (room.id === breakoutId) {
-          return { ...room, participantIds: [...filtered, studentId] };
-        }
-        return { ...room, participantIds: filtered };
-      })
-    );
-    setParticipants((prev) =>
-      prev.map((p) => (p.id === studentId ? { ...p, breakoutRoomId: breakoutId } : p))
-    );
-  };
-
-  const broadcastToAllBreakouts = (message: string) => {
-    sendAnnouncement("Facilitator Broadcast to All Breakouts", message, "urgent");
-  };
-
-  const closeAllBreakouts = () => {
-    setBreakoutRooms((prev) => prev.map((r) => ({ ...r, isActive: false, participantIds: [] })));
-    setParticipants((prev) => prev.map((p) => ({ ...p, breakoutRoomId: null })));
-  };
 
   // Recording
   const startRecording = () => {
@@ -2192,6 +2243,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           speakerId: authUserIdRef.current || "me",
           speakerName: event.speaker,
           timestamp: event.timestamp,
+          atMs: Date.now(),
           text: event.text,
           translatedText: event.translatedText,
           language: event.targetLanguage,
@@ -2204,7 +2256,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return [...prev, newLine];
         });
 
-        // Broadcast to other participants: LiveKit data channel (works everywhere media works),
+        // Broadcast to other participants: the media server (works everywhere media works),
         // plus the realtime server when it's available
         classroomTransport.sendData("caption", { caption: event });
         try {
@@ -2238,6 +2290,7 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           speakerId: chunk.speakerId || "stu-user",
           speakerName: chunk.speakerName,
           timestamp: chunk.timestamp,
+          atMs: Date.now(),
           text: chunk.sourceText,
           translatedText: chunk.translatedText,
           language: chunk.targetLanguage,
@@ -2274,7 +2327,8 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     !isAudioMuted &&
     transportState.status === "connected" &&
     !transportState.waiting;
-  const autoTranscribe = isHostAccount && classStatus === "in_progress";
+  // The class's host is always transcribed while it runs (other teachers who drop in are not)
+  const autoTranscribe = Boolean(classHost?.isHost) && authenticatedUser?.role !== "auditor" && classStatus === "in_progress";
   useEffect(() => {
     if (mayCaptionMe && (isLiveSubtitlesActive || autoTranscribe)) {
       const activeSpeaker = authenticatedUser ? authenticatedUser.name : "Participant";
@@ -3113,52 +3167,68 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     soundAlertEnabled: true,
   });
 
-  const startRoomBreak = (durationMinutes: number = 5, reason?: string, activity?: string) => {
+  // Breaks are the host's: everyone sees the same countdown (an absolute end time, sent as a
+  // host-only stage message and re-sent to people who join during the break)
+  const applyBreak = (b: { endsAt: number; durationMinutes: number; reason: string; activity: string } | null) => {
+    if (!b) return setRoomBreak((prev) => ({ ...prev, isActive: false, remainingSeconds: 0, endsAt: undefined }));
     setRoomBreak({
-      isActive: true,
-      durationMinutes,
-      remainingSeconds: durationMinutes * 60,
-      reason: reason || "Scheduled Classroom Decompression Break",
-      mindfulnessActivity: activity || "4-7-8 Breathing & Gentle Neck Relaxation",
+      isActive: b.endsAt > Date.now(),
+      durationMinutes: b.durationMinutes,
+      remainingSeconds: Math.max(0, Math.round((b.endsAt - Date.now()) / 1000)),
+      reason: b.reason,
+      mindfulnessActivity: b.activity,
       soundAlertEnabled: true,
-      startedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      startedAt: new Date(b.endsAt - b.durationMinutes * 60_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      endsAt: b.endsAt,
     });
   };
 
-  const pauseRoomBreak = () => {
-    setRoomBreak((prev) => ({ ...prev, isActive: false }));
-  };
-
-  const resumeRoomBreak = () => {
-    setRoomBreak((prev) => ({ ...prev, isActive: true }));
+  const startRoomBreak = (durationMinutes: number = 5, reason?: string, activity?: string) => {
+    if (!isHostRef.current) return;
+    const b = {
+      endsAt: Date.now() + durationMinutes * 60_000,
+      durationMinutes,
+      reason: reason || "Short break",
+      activity: activity || "Stand up, stretch, and rest your eyes by looking at something far away.",
+    };
+    applyBreak(b);
+    classroomTransport.sendData("stage", { break: b });
   };
 
   const endRoomBreak = () => {
-    setRoomBreak((prev) => ({ ...prev, isActive: false, remainingSeconds: 0 }));
+    if (!isHostRef.current) return;
+    applyBreak(null);
+    classroomTransport.sendData("stage", { break: null });
   };
 
-  // Break countdown timer
-  useEffect(() => {
-    if (!roomBreak.isActive) return;
-    const interval = setInterval(() => {
-      setRoomBreak((prev) => {
-        if (!prev.isActive) return prev;
-        if (prev.remainingSeconds <= 1) {
-          return {
-            ...prev,
-            isActive: false,
-            remainingSeconds: 0,
-          };
-        }
-        return {
-          ...prev,
-          remainingSeconds: prev.remainingSeconds - 1,
-        };
-      });
-    }, 1000);
+  useEffect(
+    () =>
+      classroomTransport.onData("stage", (p) => {
+        if (p && "break" in p) applyBreak(p.break && typeof p.break.endsAt === "number" ? p.break : null);
+      }),
+    []
+  );
 
+  // Late joiners get the running break from the host
+  const remotePeople = participants.filter((p) => !p.isLocal).length;
+  useEffect(() => {
+    if (!isHostRef.current || !roomBreak.isActive || !roomBreak.endsAt || remotePeople === 0) return;
+    classroomTransport.sendData("stage", {
+      break: { endsAt: roomBreak.endsAt, durationMinutes: roomBreak.durationMinutes, reason: roomBreak.reason, activity: roomBreak.mindfulnessActivity },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remotePeople]);
+
+  // Countdown from the shared end time
+  useEffect(() => {
+    if (!roomBreak.isActive || !roomBreak.endsAt) return;
+    const endsAt = roomBreak.endsAt;
+    const interval = setInterval(() => {
+      const left = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+      setRoomBreak((prev) => (prev.endsAt !== endsAt ? prev : { ...prev, remainingSeconds: left, isActive: left > 0 }));
+    }, 1000);
     return () => clearInterval(interval);
-  }, [roomBreak.isActive]);
+  }, [roomBreak.isActive, roomBreak.endsAt]);
 
   // -------------------------------------------------------------
   // Parent & Customer Experience (CX) Escalations
@@ -3289,9 +3359,6 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         roomTitle,
         setRoomTitle,
         roomLink,
-        isE2eeSecured,
-        encryptionFingerprint,
-        latencyMs,
         streamingQuality,
         setStreamingQuality,
         roomRatio,
@@ -3301,6 +3368,16 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         classDurationSeconds,
         startClass,
         endClass,
+        inClass,
+        demoFeatures,
+        mediaRoom,
+        visitBreakout: setVisitingRoom,
+        classHost,
+        sessionBusy,
+        sessionSyncError,
+        classAccessError,
+        dismissClassSessionError,
+        retryConnection,
         setLowBandwidth,
         dismissLowBandwidthSuggestion,
         enterClassroom,
@@ -3322,17 +3399,10 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         participants,
         handRaised,
         toggleHandRaise,
-        muteAllParticipants,
-        removeParticipant,
         waitingList,
         admitParticipant,
         rejectParticipant,
         admitAllWaiting,
-        breakoutRooms,
-        createBreakoutRoom,
-        assignStudentToBreakout,
-        broadcastToAllBreakouts,
-        closeAllBreakouts,
         isRecording,
         recordingSeconds,
         startRecording,
@@ -3471,8 +3541,6 @@ export const ClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Room Break
         roomBreak,
         startRoomBreak,
-        pauseRoomBreak,
-        resumeRoomBreak,
         endRoomBreak,
         // Help Escalations
         escalationTickets,

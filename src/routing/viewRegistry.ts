@@ -19,6 +19,8 @@ import {
   NotebookPen,
   Server,
   ShieldCheck,
+  LifeBuoy,
+  UserCog,
   Users,
   Video,
   Zap,
@@ -48,7 +50,19 @@ export interface ViewDef {
   classContent?: boolean;
   /** Same page, different job for a role (e.g. auditors observe the live class) */
   roleLabel?: Partial<Record<Role, string>>;
+  /** Illustrative demo on sample data: hidden unless the server turns demos on (SHOW_DEMO_FEATURES) */
+  demo?: boolean;
 }
+
+/**
+ * Demo pages are off until the server says otherwise (/api/config). Development builds start with
+ * them on so the sign-in screen doesn't flash a shorter menu.
+ */
+let demosOn = Boolean((import.meta as any).env?.DEV);
+export function setDemoFeatures(on: boolean) {
+  demosOn = on;
+}
+export const demoFeaturesOn = () => demosOn;
 
 const STAFF: Role[] = ["instructor", "auditor", "sales_rep", "admin"];
 
@@ -111,7 +125,7 @@ export const VIEWS: ViewDef[] = [
     id: "facilitators",
     label: "Teaching schedule",
     short: "Schedule",
-    description: "Teachers, their classes and availability",
+    description: "Your classes, with Join and class links",
     icon: CalendarDays,
     group: "Class",
     roles: ["instructor", "sales_rep", "admin"],
@@ -121,10 +135,10 @@ export const VIEWS: ViewDef[] = [
     id: "materials",
     label: "Library",
     short: "Library",
-    description: "Course materials, available offline",
+    description: "Documents and images shared with your classes",
     icon: BookOpen,
     group: "Learning",
-    roles: ["student", "instructor", "admin"],
+    roles: ["student", "instructor", "admin", "parent", "auditor", "sales_rep"],
     tab: { student: 4 },
     classContent: true,
   },
@@ -146,6 +160,7 @@ export const VIEWS: ViewDef[] = [
     icon: Award,
     group: "Learning",
     roles: ["student", "auditor", "admin"],
+    demo: true,
   },
   {
     id: "analytics",
@@ -171,7 +186,7 @@ export const VIEWS: ViewDef[] = [
     id: "sales_hub",
     label: "Admissions hub",
     short: "Admissions",
-    description: "Leads, demo bookings and follow-ups",
+    description: "Demo, admission and counselling sessions",
     icon: Zap,
     group: "Admissions",
     roles: ["sales_rep", "admin"],
@@ -185,6 +200,7 @@ export const VIEWS: ViewDef[] = [
     icon: Flame,
     group: "Admissions",
     roles: ["sales_rep", "admin"],
+    demo: true,
     tab: { sales_rep: 2 },
   },
   {
@@ -195,7 +211,26 @@ export const VIEWS: ViewDef[] = [
     icon: Database,
     group: "Admissions",
     roles: ["sales_rep", "admin"],
+    demo: true,
     tab: { sales_rep: 3 },
+  },
+  {
+    id: "people",
+    label: "People",
+    short: "People",
+    description: "Add and manage staff, learners and parents",
+    icon: UserCog,
+    group: "Operations",
+    roles: ["admin"],
+  },
+  {
+    id: "support",
+    label: "Help requests",
+    short: "Help",
+    description: "Tech help sent from classes",
+    icon: LifeBuoy,
+    group: "Operations",
+    roles: ["admin"],
   },
   {
     id: "remote_access",
@@ -205,6 +240,7 @@ export const VIEWS: ViewDef[] = [
     icon: Laptop,
     group: "Operations",
     roles: ["instructor", "admin"],
+    demo: true,
   },
   {
     id: "admin",
@@ -214,6 +250,7 @@ export const VIEWS: ViewDef[] = [
     icon: Layers,
     group: "Operations",
     roles: ["admin"],
+    demo: true,
   },
   {
     id: "selfhosted",
@@ -223,10 +260,18 @@ export const VIEWS: ViewDef[] = [
     icon: Server,
     group: "Operations",
     roles: ["admin"],
+    demo: true,
   },
 ];
 
-const BY_ID = new Map(VIEWS.map((v) => [v.id, v]));
+const ALL_BY_ID = new Map(VIEWS.map((v) => [v.id, v]));
+/** A view by id; demo pages don't exist while demos are off */
+const BY_ID = {
+  get: (id: ViewId) => {
+    const v = ALL_BY_ID.get(id);
+    return v && (!v.demo || demosOn) ? v : undefined;
+  },
+};
 const GROUP_ORDER: ViewGroup[] = ["Family", "Insights", "Class", "Learning", "Admissions", "Operations"];
 
 export const viewDef = (id: string) => BY_ID.get(id as ViewId);
@@ -242,7 +287,7 @@ export function canOpen(role: string, id: string) {
 }
 
 export function viewsFor(role: string) {
-  return VIEWS.filter((v) => v.roles.includes(role as Role));
+  return VIEWS.filter((v) => v.roles.includes(role as Role) && (!v.demo || demosOn));
 }
 
 /** Where a role lands after sign-in (and when they open a page they can't use). */

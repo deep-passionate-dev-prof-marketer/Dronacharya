@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { copyText } from "../ui/Feedback";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   X,
@@ -27,7 +28,6 @@ import {
   demoClassService,
   DemoBookingLead,
   generateStudentId,
-  generatePassword,
   generateDemoMeetingUrl,
 } from "../../services/demoClassService";
 import { RoomRatio } from "../../types";
@@ -46,6 +46,7 @@ export const ScheduleMeetingModal: React.FC = () => {
     setActiveView,
     startClass,
     currentRole,
+    demoFeatures,
   } = useClassroom();
 
   // Role Authorization Check: Only Certified Instructors, Admins, and Admissions reps can manually provision rooms/links
@@ -55,18 +56,17 @@ export const ScheduleMeetingModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"manual_builder" | "crm_leads" | "custom_schedule">("manual_builder");
 
   // Manual Room & Link Builder Form States
-  const [manualStudentName, setManualStudentName] = useState("Lucas Vance");
+  const [manualStudentName, setManualStudentName] = useState("");
   const [manualGrade, setManualGrade] = useState<number>(10);
   const [manualStudentId, setManualStudentId] = useState(() => generateStudentId(10));
-  const [manualPassword, setManualPassword] = useState(() => generatePassword(manualStudentId));
-  const [manualParentName, setManualParentName] = useState("Eleanor Vance");
-  const [manualParentEmail, setManualParentEmail] = useState("parent.vance@21k.family");
-  const [manualCourse, setManualCourse] = useState("Quantum Physics & Mechanics");
+  const [manualParentName, setManualParentName] = useState("");
+  const [manualParentEmail, setManualParentEmail] = useState("");
+  const [manualCourse, setManualCourse] = useState("");
   const [manualCountry, setManualCountry] = useState("US");
   const [manualLanguage, setManualLanguage] = useState("en");
   const [manualRatio, setManualRatio] = useState<RoomRatio>("1:4");
-  const [manualTeacher, setManualTeacher] = useState("Dr. Evelyn Vance");
-  const [manualRoomCode, setManualRoomCode] = useState("dronacharya-gr10-phy");
+  const [manualTeacher, setManualTeacher] = useState("");
+  const [manualRoomCode, setManualRoomCode] = useState("");
   // Matching: class time (local) + teacher picked from eligible matches
   const [manualStartLocal, setManualStartLocal] = useState(() => {
     const d = new Date(Date.now() + 30 * 60000);
@@ -96,8 +96,21 @@ export const ScheduleMeetingModal: React.FC = () => {
     studentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
 
+  /**
+   * One booking per filled-in form: Copy link, Copy invitation and Launch all reuse it (changing the
+   * form makes a new booking). Each used to book again, creating duplicate classes.
+   */
+  const bookingKey = JSON.stringify([matchRequest, matchedTeacher?.id, manualStudentId, manualStudentName, manualParentEmail, manualParentName, classKind, classTopic, classCohort, manualCourse]);
+  const [booking, setBooking] = useState<{ key: string; roomSlug: string; inviteUrl: string | null; teacherId: string | null } | null>(null);
+
   /** Books through the server matcher (no hard-coded teacher), then records the lead with the real assignment. */
-  const bookMatchedClass = async (): Promise<{ roomSlug: string; inviteUrl: string | null } | null> => {
+  const bookMatchedClass = async (): Promise<{ roomSlug: string; inviteUrl: string | null; teacherId: string | null } | null> => {
+    if (booking && booking.key === bookingKey) return booking;
+    if (isBooking) return null;
+    if (!manualStudentName.trim() || !manualCourse.trim()) {
+      setBookingError("Enter the learner's name and the course first.");
+      return null;
+    }
     setInviteUrl(null);
     setIsBooking(true);
     setBookingError(null);
@@ -136,7 +149,9 @@ export const ScheduleMeetingModal: React.FC = () => {
         crmSource: "Website Booking",
       });
       setInviteUrl(body.inviteUrl || null);
-      return { roomSlug: body.booking.roomSlug as string, inviteUrl: body.inviteUrl || null };
+      const made = { key: bookingKey, roomSlug: body.booking.roomSlug as string, inviteUrl: (body.inviteUrl as string) || null, teacherId: (body.booking.teacherId as string) || null };
+      setBooking(made);
+      return made;
     } catch (err: any) {
       setBookingError(err?.message || "Booking failed");
       return null;
@@ -151,13 +166,11 @@ export const ScheduleMeetingModal: React.FC = () => {
   const handleStudentIdChange = (newId: string) => {
     const clean = newId.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 10);
     setManualStudentId(clean);
-    setManualPassword(generatePassword(clean));
   };
 
   const handleRegenerateStudentId = () => {
     const freshId = generateStudentId(manualGrade);
     setManualStudentId(freshId);
-    setManualPassword(generatePassword(freshId));
   };
 
   // Live generated dynamic URL
@@ -193,7 +206,7 @@ export const ScheduleMeetingModal: React.FC = () => {
 
   const handleCopyManualInvitation = async () => {
     // Book first so the invitation carries a real, signed sign-in link for this learner
-    const booked = inviteUrl ? { inviteUrl } : await bookMatchedClass();
+    const booked = await bookMatchedClass();
     if (!booked) return;
     const when = new Date(manualStartLocal).toLocaleString([], { weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     const inviteText = `21K School: ${KIND_LABEL[classKind]}
@@ -219,12 +232,17 @@ Please join from a laptop or desktop.`;
     setRoomId(booked.roomSlug);
     setActiveView("classroom");
     setIsScheduleModalOpen(false);
-    startClass();
+    // Start the class that was just booked (passed explicitly: the room switch above hasn't
+    // re-rendered yet). If it's another teacher's class, the room shows "Hosted by …" instead.
+    const role = authenticatedUser?.role;
+    const mayHost = role === "admin" || booked.teacherId === authenticatedUser?.id || (role === "sales_rep" && classKind !== "enrolled" && classKind !== "doubt_clearing");
+    if (mayHost) startClass(booked.roomSlug);
   };
 
-  const [sessionName, setSessionName] = useState("Quantum Physics Lab: Entanglement & Bell Tests");
-  const [sessionDate, setSessionDate] = useState("2026-10-12");
-  const [sessionTime, setSessionTime] = useState("10:00");
+  const [sessionName, setSessionName] = useState("");
+  // Defaults: today, at the next full hour (local time)
+  const [sessionDate, setSessionDate] = useState(() => new Date(Date.now() + 3600_000).toLocaleDateString("en-CA"));
+  const [sessionTime, setSessionTime] = useState(() => `${String(new Date(Date.now() + 3600_000).getHours()).padStart(2, "0")}:00`);
   const [durationMins, setDurationMins] = useState(60);
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [roomCategory, setRoomCategory] = useState<"21K School" | "21K Learning Floww">("21K School");
@@ -233,36 +251,31 @@ Please join from a laptop or desktop.`;
 
   if (!isScheduleModalOpen) return null;
 
-  // Google Calendar URL generation
-  const handleOpenGoogleCalendar = () => {
-    const startIso = sessionDate.replace(/-/g, "") + "T" + sessionTime.replace(/:/g, "") + "00Z";
-    const endHour = (parseInt(sessionTime.split(":")[0], 10) + 1).toString().padStart(2, "0");
-    const endIso = sessionDate.replace(/-/g, "") + "T" + endHour + sessionTime.split(":")[1] + "00Z";
-    const title = encodeURIComponent(`[${subCategoryCode}] ${sessionName} (${capacityRatio})`);
-    const details = encodeURIComponent(
-      `Join the 21K School Dronacharya Live online classroom session:\nCategory: ${roomCategory}\nSubcategory: ${subCategoryCode}\nCapacity: ${capacityRatio}\nRoom Link: ${roomLink}\nEdge Routing: Netflix Open Connect Mesh (<20ms SLA)\nEncrypted WebRTC AES-256.`
-    );
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startIso}/${endIso}&details=${details}&location=${encodeURIComponent(
-      roomLink
-    )}`;
-    window.open(url, "_blank");
-  };
+  /** The chosen date and time are the organiser's local time; calendars get the exact UTC instant */
+  const calStamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const sessionStart = () => new Date(`${sessionDate}T${sessionTime || "00:00"}`);
+  const sessionEnd = () => new Date(sessionStart().getTime() + durationMins * 60_000);
+  const title = () => `${sessionName.trim() || "21K School class"} (${capacityRatio})`;
 
   // .ICS file download
   const handleDownloadIcs = () => {
-    const startIso = sessionDate.replace(/-/g, "") + "T" + sessionTime.replace(/:/g, "") + "00Z";
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//21K School//Dronacharya Classroom//EN
-BEGIN:VEVENT
-SUMMARY:[${subCategoryCode}] ${sessionName}
-DESCRIPTION:Join 21K School live video class: ${roomLink} (${roomCategory} - ${capacityRatio})
-LOCATION:${roomLink}
-DTSTART:${startIso}
-DURATION:PT${durationMins}M
-STATUS:CONFIRMED
-END:VEVENT
-END:VCALENDAR`;
+    const esc = (v: string) => v.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//21K School//Dronacharya Classroom//EN",
+      "BEGIN:VEVENT",
+      `UID:${crypto.randomUUID()}@21k.school`,
+      `DTSTAMP:${calStamp(new Date())}`,
+      `DTSTART:${calStamp(sessionStart())}`,
+      `DTEND:${calStamp(sessionEnd())}`,
+      `SUMMARY:${esc(title())}`,
+      `DESCRIPTION:${esc(`Join the 21K School live class: ${roomLink}`)}`,
+      `LOCATION:${esc(roomLink)}`,
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
 
     const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -271,17 +284,17 @@ END:VCALENDAR`;
     a.download = `21k-school-${subCategoryCode.toLowerCase()}-${sessionDate}.ics`;
     document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   };
 
   const handleCopyInvite = () => {
-    const text = `Join 21K School Dronacharya Live Online Classroom:
-Topic: [${subCategoryCode}] ${sessionName}
-Category: ${roomCategory} (${capacityRatio} Capacity)
-Date: ${sessionDate} at ${sessionTime} UTC
-Direct Room Link: ${roomLink}
-Edge Infrastructure: Netflix Open Connect Mesh (<20ms SLA)
-Security: Hardware-Accelerated AES-256-GCM`;
+    const when = sessionStart().toLocaleString([], { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+    const text = `21K School live class: ${title()}
+When: ${when} (${durationMins} minutes)
+Join: ${roomLink}
+
+Sign in with your school account. Learners wait in the lobby until the teacher lets them in.`;
     navigator.clipboard.writeText(text);
     setCopiedInvite(true);
     setTimeout(() => setCopiedInvite(false), 2000);
@@ -314,9 +327,9 @@ Security: Hardware-Accelerated AES-256-GCM`;
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-brand-yellow" />
-            <span>Manual Link & Room Builder</span>
+            <span>Book a class</span>
           </button>
-          <button
+          {demoFeatures && <button
             onClick={() => setActiveTab("crm_leads")}
             className={`flex-1 py-1.5 px-2.5 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === "crm_leads"
@@ -325,8 +338,8 @@ Security: Hardware-Accelerated AES-256-GCM`;
             }`}
           >
             <UserCheck className="w-3.5 h-3.5" />
-            <span>CRM Leads (Optional)</span>
-          </button>
+            <span>Sample CRM leads</span>
+          </button>}
           <button
             onClick={() => setActiveTab("custom_schedule")}
             className={`flex-1 py-1.5 px-2.5 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -336,7 +349,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Calendar (.ICS/Google)</span>
+            <span>Calendar invite</span>
           </button>
         </div>
 
@@ -358,7 +371,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
               <div className="text-2xs text-slate-300 leading-relaxed bg-blue-950/50 p-3 rounded-xl border border-blue-500/30 flex items-start gap-2.5">
                 <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-cyan-300">CRM is Optional:</strong> You have full authorization to manually generate custom meeting links and provision classroom rooms on-demand. Unique Student IDs (<code className="text-emerald-300 font-mono">2-Digit Numeric + 8-Char Alpha</code>) and auto-filled passwords will be provisioned instantly.
+                  Book a class for a learner: the matcher picks an available teacher, the learner (and parent, if given) get accounts if they're new, and you get a sign-in link that takes them straight into the class.
                 </div>
               </div>
 
@@ -371,7 +384,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                     type="text"
                     value={manualStudentName}
                     onChange={(e) => setManualStudentName(e.target.value)}
-                    placeholder="e.g. Lucas Vance"
+                    placeholder="Learner's full name"
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -386,7 +399,6 @@ Security: Hardware-Accelerated AES-256-GCM`;
                       setManualGrade(g);
                       const fresh = generateStudentId(g);
                       setManualStudentId(fresh);
-                      setManualPassword(generatePassword(fresh));
                     }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                   >
@@ -401,7 +413,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                 {/* Student ID (Auto-generated with Regenerate button) */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-2xs text-slate-400 font-semibold">Student ID (2-Digit + 8-Alpha)</label>
+                    <label className="text-2xs text-slate-400 font-semibold" title="An existing learner's code, or a new one for a new learner">Student code</label>
                     <button
                       type="button"
                       onClick={handleRegenerateStudentId}
@@ -420,23 +432,6 @@ Security: Hardware-Accelerated AES-256-GCM`;
                   />
                 </div>
 
-                {/* Password (Auto-extracted last 4 chars) */}
-                <div>
-                  <label className="text-2xs text-slate-400 block mb-1 font-semibold flex items-center justify-between">
-                    <span>Auto-filled Password</span>
-                    <span className="text-2xs text-emerald-400 font-mono">Last 4 chars of ID</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={manualPassword}
-                      readOnly
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-cyan-300 font-mono font-bold tracking-widest cursor-default"
-                    />
-                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute right-3 top-2.5" />
-                  </div>
-                </div>
-
                 {/* Course / Subject */}
                 <div>
                   <label className="text-2xs text-slate-400 block mb-1 font-semibold">Course / Subject</label>
@@ -445,6 +440,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                     onChange={(e) => setManualCourse(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                   >
+                    <option value="">Choose a course…</option>
                     <option value="Quantum Physics & Mechanics">Quantum Physics & Mechanics</option>
                     <option value="Robotics & Autonomous AI Systems">Robotics & Autonomous AI Systems</option>
                     <option value="Applied Calculus & Linear Algebra">Applied Calculus & Linear Algebra</option>
@@ -686,8 +682,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(lead.meetingUrl);
-                      alert(`Meeting link copied for student ${lead.studentName}:\n${lead.meetingUrl}`);
+                      copyText(lead.meetingUrl, `Link copied for ${lead.studentName}`);
                     }}
                     className="flex-1 py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-white/10 transition-colors"
                   >
@@ -700,7 +695,7 @@ Security: Hardware-Accelerated AES-256-GCM`;
                       setRoomId(lead.roomCode);
                       setActiveView("classroom");
                       setIsScheduleModalOpen(false);
-                      startClass();
+                      startClass(lead.roomCode);
                     }}
                     className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                   >
@@ -815,13 +810,6 @@ Security: Hardware-Accelerated AES-256-GCM`;
             {/* Integration Buttons */}
             <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleOpenGoogleCalendar}
-                  className="flex-1 py-2 rounded-lg bg-brand-navy hover:bg-brand-navy-ink text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-brand-yellow" />
-                  <span>Add to Google Calendar</span>
-                </button>
                 <button
                   onClick={handleDownloadIcs}
                   className="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"

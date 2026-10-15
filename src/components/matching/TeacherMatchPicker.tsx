@@ -25,9 +25,19 @@ export const TeacherMatchPicker: React.FC<Props> = ({ request, value, onChange }
   const [error, setError] = useState<string | null>(null);
   const [showWhyNot, setShowWhyNot] = useState(false);
   const key = JSON.stringify(request);
+  // Nothing to match until the form has a subject and a valid time
+  const incomplete = !request.subject?.trim() || isNaN(new Date(request.startUtc).getTime());
 
   useEffect(() => {
     let cancelled = false;
+    if (incomplete) {
+      setRanked([]);
+      setExcluded([]);
+      setOpenSection(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const t = setTimeout(async () => {
       try {
@@ -81,7 +91,9 @@ export const TeacherMatchPicker: React.FC<Props> = ({ request, value, onChange }
         </p>
       )}
 
-      {!error && !loading && ranked.length === 0 && (
+      {incomplete && <p className="text-xs text-slate-400">Choose a subject and time to see which teachers can take this class.</p>}
+
+      {!incomplete && !error && !loading && ranked.length === 0 && (
         <p className="text-xs text-amber-200 flex gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /> No teacher can take this class at this time. Try another time, language or class size.
         </p>

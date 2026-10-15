@@ -27,7 +27,9 @@ export type AppPage =
   | "remote_access"
   | "device_audit"
   | "recordings"
-  | "parent_home";
+  | "parent_home"
+  | "people"
+  | "support";
 
 const ROLE_SEGMENT: Record<string, string> = {
   instructor: "facilitator",
@@ -65,6 +67,8 @@ const PAGE_SLUG: Record<AppPage, string> = {
   device_audit: "device-access",
   recordings: "recordings",
   parent_home: "my-children",
+  people: "people",
+  support: "help-requests",
 };
 const SLUG_PAGE = Object.fromEntries(Object.entries(PAGE_SLUG).map(([k, v]) => [v, k])) as Record<string, AppPage>;
 

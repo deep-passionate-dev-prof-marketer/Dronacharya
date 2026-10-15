@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "../ui/Feedback";
 import { SampleNotice } from "../ui";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
@@ -431,7 +432,7 @@ export const DronacharyaAdminHub: React.FC = () => {
               </div>
 
               <button
-                onClick={() => alert("CSV student cohort bulk import simulator triggered.")}
+                onClick={() => toast("Sample page: bulk import isn't connected. Add people on the People page.", "neutral")}
                 className="px-4 py-2 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy-ink shadow-sm"
               >
                 + Import Cohort CSV

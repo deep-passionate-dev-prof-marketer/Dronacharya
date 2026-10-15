@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { ChangePassword } from "../auth/ChangePassword";
+import { copyText } from "../ui/Feedback";
+import { NotificationBell } from "./NotificationBell";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   Search,
@@ -23,7 +26,6 @@ import {
 import { DeviceAccessInbox } from "../access/DeviceAccessInbox";
 import { UserRole } from "../../types";
 import { SchoolLogo } from "../brand/SchoolLogo";
-import { EdgeMeshLatencyHUD } from "../classroom/EdgeMeshLatencyHUD";
 import { RoomLinkManagerModal } from "../links/RoomLinkManagerModal";
 import { JoinMeetingModal } from "../modals/JoinMeetingModal";
 import { homeView, viewLabel, viewsFor } from "../../routing/viewRegistry";
@@ -42,8 +44,6 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
     roomId,
     roomTitle,
     roomLink,
-    isOfflineMode,
-    toggleOfflineMode,
     activeRoomFlow,
     roomBreak,
     setIsDocsModalOpen,
@@ -60,6 +60,19 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  // Real connection state for the account badge (no pretend "offline mode")
+  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
   const [isJoinMeetingModalOpen, setIsJoinMeetingModalOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -71,13 +84,12 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const handleCopyStudentLink = () => {
-    const studentUrl = typeof window !== "undefined"
-      ? `${window.location.origin}/?room=${encodeURIComponent(roomId)}&role=student`
-      : roomLink;
-    navigator.clipboard.writeText(studentUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
+  /** The class's own link: learners on the class list sign in and wait in the lobby (per-learner sign-in links are on People and the schedule) */
+  const handleCopyStudentLink = async () => {
+    if (await copyText(roomLink, "Class link copied")) {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
   };
 
   const formatBreakTime = (seconds: number) => {
@@ -107,7 +119,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
     ...(currentRole !== "parent" ? [{ label: "Switch class room", hint: "Open another class by link or code", category: "Actions" as const, action: () => setIsJoinMeetingModalOpen(true), icon: Video }] : []),
     ...(["instructor", "sales_rep", "admin"].includes(currentRole) ? [{ label: "Class links", hint: "Share links and device rules for a room", category: "Actions" as const, action: () => setIsLinkModalOpen(true), icon: Link2 }] : []),
     ...(["instructor", "admin"].includes(currentRole) ? [{ label: "Schedule a class", hint: "Book a class with the best-matched teacher", category: "Actions" as const, action: () => setIsScheduleModalOpen(true), icon: Calendar }] : []),
-    { label: "Platform documentation", hint: "How the platform works", category: "Actions" as const, action: () => setIsDocsModalOpen(true), icon: BookOpen },
+    ...(["admin", "auditor", "instructor", "sales_rep"].includes(currentRole) ? [{ label: "Platform documentation", hint: "How the platform works", category: "Actions" as const, action: () => setIsDocsModalOpen(true), icon: BookOpen }] : []),
   ];
 
   const filteredCommands = ALL_COMMAND_ITEMS.filter((c) => {
@@ -215,11 +227,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
           <Globe className="w-4 h-4" />
         </button>}
 
+        <NotificationBell />
+
         <DeviceAccessInbox />
 
-        <div className="hidden 2xl:block">
-          <EdgeMeshLatencyHUD />
-        </div>
 
         {/* Account menu */}
         <div className="relative">
@@ -232,7 +243,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
           >
             <span className="relative w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
               {authenticatedUser ? authenticatedUser.name.charAt(0) : "21"}
-              <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${isOfflineMode ? "bg-amber-400" : "bg-emerald-400"}`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${online ? "bg-emerald-400" : "bg-amber-400"}`} title={online ? "Online" : "Offline"} />
             </span>
             <span className="hidden lg:inline text-2xs font-bold uppercase tracking-wider text-slate-300">{roleLabel}</span>
             <ChevronDown className="hidden sm:block w-3 h-3 text-slate-400" />
@@ -258,10 +269,12 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
                 </div>
 
                 <div className="space-y-0.5">
-                  <button className="menu-item" onClick={menuAction(() => setIsJoinMeetingModalOpen(true))}>
-                    <Video className="w-4 h-4 text-cyan-400" /> Switch room
-                  </button>
-                  {currentRole !== "student" && (
+                  {currentRole !== "parent" && (
+                    <button className="menu-item" onClick={menuAction(() => setIsJoinMeetingModalOpen(true))}>
+                      <Video className="w-4 h-4 text-cyan-400" /> Switch room
+                    </button>
+                  )}
+                  {["instructor", "admin", "sales_rep"].includes(currentRole) && (
                     <button className="menu-item" onClick={menuAction(() => setIsLinkModalOpen(true))}>
                       <Link2 className="w-4 h-4 text-blue-400" /> Room links & device rules
                     </button>
@@ -277,20 +290,18 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
                       <Calendar className="w-4 h-4 text-emerald-400" /> Schedule class
                     </button>
                   )}
-                  <button className="menu-item" onClick={toggleOfflineMode} role="menuitemcheckbox" aria-checked={isOfflineMode}>
-                    {isOfflineMode ? <WifiOff className="w-4 h-4 text-amber-400" /> : <Wifi className="w-4 h-4 text-emerald-400" />}
-                    <span className="flex-1">Offline cached mode</span>
-                    <span className={`w-9 h-5 rounded-full p-0.5 transition-colors ${isOfflineMode ? "bg-amber-500" : "bg-white/15"}`}>
-                      <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${isOfflineMode ? "translate-x-4" : ""}`} />
-                    </span>
-                  </button>
                   {(currentRole === "student" || currentRole === "instructor" || currentRole === "sales_rep") && (
                     <button className="menu-item" onClick={menuAction(() => setIsAnalyticsConsentOpen(true))}>
                       <ShieldCheck className="w-4 h-4 text-violet-300" /> Engagement analytics choice
                     </button>
                   )}
-                  <button className="menu-item" onClick={menuAction(() => setIsDocsModalOpen(true))}>
-                    <BookOpen className="w-4 h-4 text-blue-400" /> Platform docs
+                  {["admin", "auditor", "instructor", "sales_rep"].includes(currentRole) && (
+                    <button className="menu-item" onClick={menuAction(() => setIsDocsModalOpen(true))}>
+                      <BookOpen className="w-4 h-4 text-blue-400" /> Platform docs
+                    </button>
+                  )}
+                  <button className="menu-item" onClick={menuAction(() => setChangingPassword(true))}>
+                    <KeyRound className="w-4 h-4 text-blue-300" /> Change password
                   </button>
                   {currentRole === "admin" && (
                     <button className="menu-item" onClick={menuAction(logoutUser)}>
@@ -387,6 +398,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileNav }) => {
       )}
 
       {/* Embedded Link Manager Modal */}
+      {changingPassword && <ChangePassword mode="dialog" onDone={() => setChangingPassword(false)} onCancel={() => setChangingPassword(false)} />}
       <RoomLinkManagerModal
         isOpen={isLinkModalOpen}
         onClose={() => setIsLinkModalOpen(false)}

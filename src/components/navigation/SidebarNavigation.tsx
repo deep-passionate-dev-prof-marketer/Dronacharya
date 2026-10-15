@@ -37,9 +37,9 @@ export const SidebarNavigation: React.FC<SidebarProps> = ({
 }) => {
   // The mobile drawer always shows labels
   const isCollapsed = isMobile ? false : isCollapsedProp;
-  const { activeView, setActiveView, currentRole, waitingList } = useClassroom();
+  const { activeView, setActiveView, currentRole, waitingList, classHost } = useClassroom();
   const sections = navSections(currentRole);
-  const canHost = ["instructor", "admin"].includes(currentRole);
+  const canHost = Boolean(classHost?.isHost);
   const badgeFor = (id: string) => (id === "classroom" && canHost && waitingList.length ? { value: String(waitingList.length), label: `${waitingList.length} waiting to be admitted` } : null);
 
   if (isMobile && !isMobileOpen) return null;

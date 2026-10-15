@@ -102,14 +102,11 @@ export const DocumentationModal: React.FC<Props> = ({
     setLoading(true);
     try {
       const res = await fetch(`/api/docs/${docId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setContent(data.content);
-      } else {
-        setContent(`### Documentation for ${docId}\n\nLoading documentation from /docs/${docId}.md...`);
-      }
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.content) setContent(data.content);
+      else setContent(`### Couldn't open this document\n\n${data?.error || (res.status === 403 ? "Platform documentation is for school staff." : `The server answered ${res.status}.`)}`);
     } catch {
-      setContent(`### Error loading documentation file: /docs/${docId}.md`);
+      setContent("### Couldn't open this document\n\nThe server can't be reached. Check your connection and try again.");
     } finally {
       setLoading(false);
     }

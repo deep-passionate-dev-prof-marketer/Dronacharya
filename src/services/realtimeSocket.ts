@@ -2,75 +2,95 @@ import { Participant, RemoteAccessSession, PitchRoomStatus, UserRole } from "../
 
 export type RealtimeEventHandler = (data: any) => void;
 
+export interface RoomJoinState {
+  roomId: string;
+  status: "idle" | "joining" | "joined" | "denied" | "signed_out";
+  isHost?: boolean;
+  waiting?: boolean;
+  reason?: string;
+}
+
+/**
+ * The room WebSocket (chat, whiteboard, captions, peer-to-peer signalling, server class messages).
+ * It joins only as the signed-in user (the server checks the session and the class list), re-joins
+ * after reconnects and room changes, and stops retrying when the server refuses the room.
+ */
 class RealtimeSocketClient {
   private socket: WebSocket | null = null;
   private listeners: Map<string, Set<RealtimeEventHandler>> = new Map();
   private isConnected = false;
   private reconnectTimer: any = null;
-  private currentRoomId = "default-room";
-  private currentUser: any = null;
-  private broadcastChannel: BroadcastChannel | null = null;
+  private reconnectAttempts = 0;
+  private currentRoomId = "";
+  private currentUser: { id: string } | null = null;
+  /** False after sign-out, a refused room, or disconnect(): no automatic reconnects */
+  private wanted = false;
+  private joinState: RoomJoinState = { roomId: "", status: "idle" };
 
   constructor() {
-    if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {
-      try {
-        this.broadcastChannel = new BroadcastChannel("dronacharya_realtime_mesh_bus");
-        this.broadcastChannel.onmessage = (event) => {
-          try {
-            const data = event.data;
-            if (data && data.type) {
-              this.emitLocal(data.type, data.payload || data);
-            }
-          } catch {}
-        };
-      } catch {}
-    }
+    this.on("ROOM_STATE_SYNC", (d) => {
+      this.reconnectAttempts = 0;
+      this.setJoinState({ roomId: d.roomId, status: "joined", isHost: Boolean(d.you?.isHost), waiting: Boolean(d.you?.waiting) });
+    });
+    this.on("ROOM_ACCESS_DENIED", (d) => {
+      this.wanted = false;
+      this.setJoinState({ roomId: d.roomId || this.currentRoomId, status: "denied", reason: d.reason });
+    });
+    this.on("AUTH_REQUIRED", () => {
+      this.wanted = false;
+      this.setJoinState({ roomId: this.currentRoomId, status: "signed_out" });
+    });
+    this.on("PARTICIPANT_UPDATED", (d) => {
+      if (d.participant?.id && d.participant.id === this.currentUser?.id && this.joinState.status === "joined") {
+        this.setJoinState({ ...this.joinState, waiting: Boolean(d.participant.waiting) });
+      }
+    });
   }
 
-  public connect(user?: any, roomId: string = "default-room") {
-    if (user) this.currentUser = user;
-    if (roomId) this.currentRoomId = roomId;
+  private setJoinState(s: RoomJoinState) {
+    this.joinState = s;
+    this.emitLocal("join_state", s);
+  }
 
-    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
+  public getJoinState() {
+    return this.joinState;
+  }
 
+  /** @deprecated use joinRoom(user, roomId): the socket only opens for a signed-in user */
+  public connect(user?: any, roomId?: string) {
+    if (user && roomId) this.joinRoom(user, roomId);
+  }
+
+  private open() {
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}`;
-
     try {
-      this.socket = new WebSocket(wsUrl);
-
-      this.socket.onopen = () => {
+      const socket = new WebSocket(`${protocol}//${window.location.host}`);
+      this.socket = socket;
+      socket.onopen = () => {
         this.isConnected = true;
         this.emitLocal("connection_status", { status: "connected" });
-
-        // Auto join room with authenticated user identity
-        if (this.currentUser) {
-          this.authJoin();
-        }
+        if (this.wanted && this.currentUser && this.currentRoomId) this.authJoin();
       };
-
-      this.socket.onmessage = (event) => {
+      socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          if (message.type) {
-            this.emitLocal(message.type, message);
-          }
+          if (message && typeof message.type === "string") this.emitLocal(message.type, message);
         } catch (e) {
           console.error("[RealtimeSocket] Error parsing message:", e);
         }
       };
-
-      this.socket.onclose = () => {
+      socket.onclose = (ev) => {
+        if (this.socket !== socket) return;
+        this.socket = null;
         this.isConnected = false;
         this.emitLocal("connection_status", { status: "disconnected" });
+        // 4001: the server closed a socket that never joined (signed out or refused): don't loop
+        if (ev.code === 4001) this.wanted = false;
+        if (this.joinState.status === "joined" || this.joinState.status === "joining") this.setJoinState({ ...this.joinState, status: "joining" });
         this.scheduleReconnect();
       };
-
-      this.socket.onerror = (err) => {
-        console.warn("[RealtimeSocket] WebSocket error:", err);
-      };
+      socket.onerror = () => {};
     } catch (e) {
       console.error("[RealtimeSocket] Connection initiation error:", e);
       this.scheduleReconnect();
@@ -79,18 +99,20 @@ class RealtimeSocketClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = setTimeout(() => {
-      this.connect();
-    }, 2500);
+    if (!this.wanted) return;
+    const delay = Math.min(1000 * 2 ** this.reconnectAttempts++, 15000);
+    this.reconnectTimer = setTimeout(() => this.open(), delay);
   }
 
   public disconnect() {
+    this.wanted = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-    }
+    const socket = this.socket;
+    this.socket = null;
+    socket?.close();
     this.isConnected = false;
+    this.currentRoomId = "";
+    this.setJoinState({ roomId: "", status: "idle" });
   }
 
   public on(eventType: string, handler: RealtimeEventHandler) {
@@ -113,40 +135,43 @@ class RealtimeSocketClient {
   private emitLocal(eventType: string, data: any) {
     const handlers = this.listeners.get(eventType);
     if (handlers) {
-      handlers.forEach((handler) => handler(data));
+      handlers.forEach((handler) => {
+        try {
+          handler(data);
+        } catch (err) {
+          console.warn(`[RealtimeSocket] ${eventType} handler error`, err);
+        }
+      });
     }
   }
 
   public send(type: string, payload: any) {
-    const message = {
-      type,
-      payload,
-      timestamp: new Date().toISOString(),
-    };
-
-    // 1. Send over WebSocket if connected
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
-        this.socket.send(JSON.stringify(message));
-      } catch {}
-    }
-
-    // 2. Broadcast across all browser tabs and windows in real-time
-    if (this.broadcastChannel) {
-      try {
-        this.broadcastChannel.postMessage(message);
+        this.socket.send(JSON.stringify({ type, payload, timestamp: new Date().toISOString() }));
       } catch {}
     }
   }
 
-  // Helper actions
-  public joinRoom(user: any, roomId: string) {
+  /** Join (or switch to) a room as the signed-in user. Safe to call repeatedly. */
+  public joinRoom(user: { id: string } | null | undefined, roomId: string) {
+    if (!user?.id || !roomId) return;
+    const sameRoom = this.currentRoomId === roomId && this.currentUser?.id === user.id;
     this.currentUser = user;
     this.currentRoomId = roomId;
-    if (this.isConnected) {
-      this.authJoin();
-    } else {
-      this.connect(user, roomId);
+    this.wanted = true;
+    if (sameRoom && (this.joinState.status === "joined" || this.joinState.status === "joining") && this.socket) return;
+    this.setJoinState({ roomId, status: "joining" });
+    if (this.isConnected) this.authJoin();
+    else this.open();
+  }
+
+  /** Ask again after the class list changed or the user signed in (clears a refusal). */
+  public retryJoin() {
+    if (this.currentUser && this.currentRoomId) {
+      const room = this.currentRoomId;
+      this.currentRoomId = "";
+      this.joinRoom(this.currentUser, room);
     }
   }
 

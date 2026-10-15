@@ -1,12 +1,14 @@
 import React from "react";
-import { CheckCircle2, FileText, Film, AlertTriangle, BookOpen, LogOut, Play } from "lucide-react";
+import { CheckCircle2, FileText, Film, AlertTriangle, BookOpen, LogOut } from "lucide-react";
 import { useClassroom } from "../../context/ClassroomContext";
+import { canOpen } from "../../routing/viewRegistry";
+import { HostedByNote, StartClassButton } from "./SessionControls";
 
 /** Shown to everyone once the host ends the class: what was recorded and where the notes go. */
 export const ClassEndedCard: React.FC<{ isHost: boolean }> = ({ isHost }) => {
-  const { classRecording, classDurationSeconds, recordingExcludedMe, setActiveView, leaveClass, currentRole, startClass, classSessionError } = useClassroom();
+  const { classRecording, classDurationSeconds, recordingExcludedMe, setActiveView, leaveClass, currentRole } = useClassroom();
   const minutes = Math.max(1, Math.round(classDurationSeconds / 60));
-  const canOpenNotebook = currentRole !== "auditor";
+  const canOpenNotebook = canOpen(currentRole, "notebook");
 
   let recordingLine: { icon: React.ReactNode; text: string; tone: string } | null = null;
   if (classRecording) {
@@ -38,23 +40,19 @@ export const ClassEndedCard: React.FC<{ isHost: boolean }> = ({ isHost }) => {
             </p>
           )}
           {recordingExcludedMe && <p className="text-xs text-slate-400">You weren't included in the recording.</p>}
-          <p className="text-xs text-slate-400">Lecture notes from this class will appear in the Notebook in a minute or two.</p>
-          {classSessionError && <p className="text-xs text-rose-300">{classSessionError}</p>}
+          <p className="text-xs text-slate-400">{canOpenNotebook ? "Lecture notes from this class will appear in Class notes in a minute or two." : "Lecture notes from this class are being prepared."}</p>
+          {!isHost && <HostedByNote />}
         </div>
       </div>
       <div className="flex flex-wrap gap-2 shrink-0">
-        {isHost && (
-          <button onClick={startClass} className="h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold inline-flex items-center gap-1.5" title="Starts a new class in this room (and a new recording)">
-            <Play className="w-4 h-4" /> Start a new class
-          </button>
-        )}
+        {isHost && <StartClassButton variant="compact" className="h-9" />}
         {canOpenNotebook && (
           <button onClick={() => setActiveView("notebook")} className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold inline-flex items-center gap-1.5">
-            <BookOpen className="w-4 h-4" /> Open notebook
+            <BookOpen className="w-4 h-4" /> Open class notes
           </button>
         )}
         <button onClick={() => leaveClass()} className="h-9 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold inline-flex items-center gap-1.5">
-          <LogOut className="w-4 h-4" /> {isHost ? "Close room" : "Leave"}
+          <LogOut className="w-4 h-4" /> Leave
         </button>
       </div>
     </div>

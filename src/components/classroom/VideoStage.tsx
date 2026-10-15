@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { confirmDialog, toast } from "../ui/Feedback";
 import { useClassroom } from "../../context/ClassroomContext";
 import {
   Mic,
@@ -32,23 +33,21 @@ import {
   Sliders,
   PhoneOff,
 } from "lucide-react";
-import { generateDemoMeetingUrl } from "../../services/demoClassService";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 import { ClassHeader, useClassInfo } from "./ClassHeader";
 import { LivePollCard } from "./controls/TeacherControls";
 import { ClassEndedCard } from "./ClassEndedCard";
+import { useClassContent } from "./slides/SlidesAndNotes";
+import { slidesStore, useStore } from "../../services/classSlides";
+import { AccessProblemCard, ConnectionBanners, HostedByNote, StartClassButton, useAccessProblem, VideoModeBadge } from "./SessionControls";
 import { classroomTransport } from "../../services/media/classroomTransport";
 import { StageLayout, Presentation } from "./stage/StageLayout";
 import { TranscriptFeed } from "./TranscriptFeed";
-import { FloatingAttentionHUD } from "./FloatingAttentionHUD";
-import { ParticipantTileActions } from "./ParticipantTileActions";
 import { RoomBreakOverlay } from "./RoomBreakOverlay";
 import { MultiDeviceRemoteConsole } from "./MultiDeviceRemoteConsole";
 import { RemoteAccessOfferModal } from "./RemoteAccessOfferModal";
-import { IncomingAccessNotification } from "./IncomingAccessNotification";
 import { HelpEscalationModals } from "./HelpEscalationModals";
 import { ChildFeedbackModal } from "./ChildFeedbackModal";
-import { EdgeMeshLatencyHUD } from "./EdgeMeshLatencyHUD";
 import { OneToOnePitchStage } from "../bomber/OneToOnePitchStage";
 import { ParticipantVideoTile } from "./ParticipantVideoTile";
 import { BottomMeetingControls } from "./BottomMeetingControls";
@@ -80,8 +79,6 @@ export const VideoStage: React.FC = () => {
     isAudioMuted,
     isVideoOff,
     isScreenSharing,
-    remotePointer,
-    setRemotePointer,
     attentionAudits,
     roomId,
     roomTitle,
@@ -94,8 +91,7 @@ export const VideoStage: React.FC = () => {
     showSelfView,
     classStatus,
     classDurationSeconds,
-    startClass,
-    endClass,
+    classHost,
     classRecording,
     recordingExcludedMe,
     classSessionError,
@@ -113,8 +109,15 @@ export const VideoStage: React.FC = () => {
     spotlightId,
     setSpotlight,
     hostAction,
+    demoFeatures,
+    setActiveFeedbackTarget,
+    setIsFeedbackModalOpen,
   } = useClassroom();
-  const isHost = currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
+  // The server decides who hosts this class (its teacher, admins, counsellors on their sessions)
+  const isHost = Boolean(classHost?.isHost);
+  const accessProblem = useAccessProblem();
+  useClassContent();
+  const slides = useStore(slidesStore);
   const classInfo = useClassInfo(roomId);
   const isCompact = useIsCompact();
 
@@ -142,33 +145,17 @@ export const VideoStage: React.FC = () => {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const handleCopyStudentLink = () => {
-    const studentUrl = generateDemoMeetingUrl({
-      roomCode: roomId,
-      studentId: "21SCHOLARX",
-      grade: 10,
-      course: roomTitle.split("·")[0]?.trim() || "Physics",
-      language: "en",
-      ratio: roomRatio || "1:4",
-      teacherName: "Dr. Evelyn Vance",
-    });
-    navigator.clipboard.writeText(studentUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
-
-  // Remote annotation / screen pointer click
-  const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (currentRole === "instructor" || isScreenSharing) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      setRemotePointer({ x, y, active: true, label: "Instructor Pointer" });
-      setTimeout(() => {
-        setRemotePointer((prev) => ({ ...prev, active: false }));
-      }, 3000);
+  /** The class's own link: learners on the class list sign in and wait in the lobby until admitted */
+  const handleCopyStudentLink = async () => {
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      toast(`Copy this class link: ${roomLink}`, "neutral");
     }
   };
+
 
   // Dedicated 1:1 Executive Pitching Breakout Stage
   if (activePitchRoom) {
@@ -199,6 +186,9 @@ export const VideoStage: React.FC = () => {
       </div>
     );
   }
+
+  // Not on the class list, wrong breakout group, parent account, or signed out
+  if (accessProblem) return <AccessProblemCard problem={accessProblem} />;
 
   // Removed by the host, or not admitted from the waiting room
   if (transportState.error === "removed" || transportState.error === "denied") {
@@ -244,23 +234,6 @@ export const VideoStage: React.FC = () => {
     return true;
   });
 
-  // Calculate grid column classes based on layout mode and manual controls
-  // Container-query columns: the stage lives in a resizable pane, so columns follow the pane width
-  const getGridClasses = () => {
-    if (manualGridColumns > 0) {
-      if (manualGridColumns === 1) return "grid-cols-1";
-      if (manualGridColumns === 2) return "grid-cols-1 @md:grid-cols-2";
-      if (manualGridColumns === 3) return "grid-cols-1 @md:grid-cols-2 @3xl:grid-cols-3";
-      if (manualGridColumns === 4) return "grid-cols-2 @xl:grid-cols-3 @4xl:grid-cols-4";
-      return "grid-cols-2 @xl:grid-cols-3 @5xl:grid-cols-5";
-    }
-
-    const count = displayParticipants.length;
-    if (count <= 1) return "grid-cols-1";
-    if (count <= 4) return "grid-cols-1 @md:grid-cols-2";
-    if (count <= 6) return "grid-cols-2 @2xl:grid-cols-3";
-    return "grid-cols-2 @xl:grid-cols-3 @4xl:grid-cols-4";
-  };
 
   const getAspectClass = () => {
     if (tileAspectRatio === "4:3") return "aspect-[4/3]";
@@ -279,6 +252,8 @@ export const VideoStage: React.FC = () => {
       ? { kind: "screen", presenter: localParticipant, localStream: screenStream }
       : remotePresenter
       ? { kind: "screen", presenter: remotePresenter }
+      : slides?.onStage
+      ? { kind: "slides" }
       : isWhiteboardPresenting
       ? { kind: "whiteboard" }
       : null;
@@ -299,11 +274,25 @@ export const VideoStage: React.FC = () => {
               { label: p.audioEnabled ? "Mute microphone" : "Microphone is off", onClick: () => hostAction("mute", [p.id]), disabled: !p.audioEnabled },
               { label: p.videoEnabled ? "Stop video" : "Video is off", onClick: () => hostAction("stop_video", [p.id]), disabled: !p.videoEnabled },
               { label: spotlightId === p.id ? "Remove spotlight" : "Spotlight for everyone", onClick: () => setSpotlight(spotlightId === p.id ? null : p.id) },
+              ...(p.role === "student"
+                ? [
+                    {
+                      label: "Give feedback or a remark",
+                      onClick: () => {
+                        setActiveFeedbackTarget(p);
+                        setIsFeedbackModalOpen(true);
+                      },
+                    },
+                  ]
+                : []),
               {
                 label: "Remove from class",
                 danger: true,
-                onClick: () => {
-                  if (window.confirm(`Remove ${p.name} from this class?`)) hostAction("remove", [p.id]);
+                onClick: async () => {
+                  if (await confirmDialog({ title: `Remove ${p.name} from this class?`, body: "They can ask to join again; you'll see them in the lobby.", confirmLabel: "Remove", tone: "critical" })) {
+                    const err = await hostAction("remove", [p.id]);
+                    if (err) toast(err, "critical");
+                  }
                 },
               },
             ]
@@ -321,13 +310,8 @@ export const VideoStage: React.FC = () => {
   return (
     <div className="relative flex-1 flex flex-col bg-canvas overflow-hidden select-none">
       {/* Connection & audio notices: the class keeps running underneath */}
-      {(transportState.status === "reconnecting" || transportState.audioBlocked || mediaJoinError || transportState.error === "duplicate_identity" || transportState.lowBandwidth || transportState.suggestLowBandwidth) && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 w-[calc(100%-1rem)] max-w-md pointer-events-none">
-          {transportState.status === "reconnecting" && (
-            <div className="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-100 text-xs font-semibold flex items-center gap-2 shadow-lg">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Connection unstable, reconnecting… you're still in class
-            </div>
-          )}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 w-[calc(100%-1rem)] max-w-md pointer-events-none">
+          <ConnectionBanners />
           {transportState.suggestLowBandwidth && !transportState.lowBandwidth && (
             <div className="pointer-events-auto px-3 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-100 text-xs flex flex-wrap items-center gap-2 shadow-lg" role="status">
               <span>Your connection is weak. Switch to audio and slides only?</span>
@@ -362,39 +346,19 @@ export const VideoStage: React.FC = () => {
               Tap to turn on class sound
             </button>
           )}
-          {mediaJoinError && (
-            <div className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-100 text-xs">
-              {mediaJoinError === "device_blocked"
-                ? "This device isn't allowed for this class. Please rejoin from a laptop or desktop."
-                : "Couldn't connect audio/video. Check your connection; we'll keep trying."}
+          {mediaJoinError === "device_blocked" && (
+            <div className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-100 text-xs" role="alert">
+              This device isn't allowed for this class. Please rejoin from a laptop or desktop.
             </div>
           )}
-        </div>
-      )}
+      </div>
 
-      {/* Laser Pointer Overlay */}
-      {remotePointer.active && (
-        <div
-          className="absolute z-40 pointer-events-none transition-all duration-75 flex items-center gap-1.5"
-          style={{
-            left: `${remotePointer.x * 100}%`,
-            top: `${remotePointer.y * 100}%`,
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <div className="w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg shadow-cyan-500/80 animate-ping" />
-          <span className="text-2xs font-mono font-bold bg-cyan-900/90 text-cyan-200 px-2 py-0.5 rounded shadow">
-            {remotePointer.label}
-          </span>
-        </div>
-      )}
 
       {/* Main Video Viewport Area */}
       <div
         className="@container flex-1 min-h-0 p-2 sm:p-3 md:p-4 pb-14 overflow-y-auto flex flex-col relative"
-        onClick={handleStageClick}
       >
-        {/* Zoom & Google Meet Style Live Class Top Status HUD */}
+        {/* Live class top status bar */}
         <div className="flex items-center justify-between gap-2 px-3 md:px-4 py-2 rounded-2xl bg-slate-900/90 border border-white/10 mb-2 @md:mb-3 shadow-lg shrink-0 min-w-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {classStatus === "in_progress" ? (
@@ -437,10 +401,10 @@ export const VideoStage: React.FC = () => {
             <ClassHeader roomSlug={roomId} fallbackTitle={roomTitle.split("·")[0]} compact={isCompact} />
           </div>
 
-          <span className="hidden @lg:flex items-center gap-1.5 text-2xs font-semibold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-xl border border-cyan-500/30 whitespace-nowrap">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            AI translation ready
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {classStatus === "waiting" && <StartClassButton variant="compact" />}
+            <VideoModeBadge className="hidden @lg:inline-flex" />
+          </div>
         </div>
 
         {/* Class ended: what happened to the recording and notes */}
@@ -460,11 +424,9 @@ export const VideoStage: React.FC = () => {
                 <div className="w-16 h-16 rounded-3xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
                   <Users className="w-8 h-8" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-1">
-                  Ready for Classroom Participants
-                </h3>
+                <h3 className="text-base font-bold text-white mb-1">Nobody's here yet</h3>
                 <p className="text-xs text-slate-400 max-w-sm mb-4">
-                  Share the student invite link below to connect real-time peers with audio and video.
+                  Share the class link. Learners on the class list sign in and wait in the lobby until the host lets them in.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                   <button
@@ -472,7 +434,7 @@ export const VideoStage: React.FC = () => {
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors cursor-pointer"
                   >
                     {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
+                    <span>{copiedLink ? "Class link copied" : "Copy class link"}</span>
                   </button>
 
                   {(currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep") && (
@@ -481,7 +443,7 @@ export const VideoStage: React.FC = () => {
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-cyan-200 border border-cyan-500/30 font-bold text-xs transition-colors cursor-pointer"
                     >
                       <Sliders className="w-4 h-4 text-brand-yellow" />
-                      <span>Manual Link & Room Builder (No CRM)</span>
+                      <span>Schedule a class</span>
                     </button>
                   )}
                 </div>
@@ -538,26 +500,31 @@ export const VideoStage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                            Classroom Ready · Room {roomId}
+                          <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                            {isHost ? "Ready to start" : "Waiting for the host"}
                           </span>
                         </div>
                         <h3 className="text-base sm:text-lg font-bold text-white mb-1">{roomTitle}</h3>
                         <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          Your camera, mic, and real-time AI interpreter are ready. Start the live class to lecture, or connect a test student right now.
+                          {isHost
+                            ? "Your camera and microphone are ready. Learners wait in the lobby until you let them in; start the class when you're ready."
+                            : "Your camera and microphone are ready."}
                         </p>
                       </div>
 
                       <div className="space-y-2.5">
-                        <button
-                          onClick={startClass}
-                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <Play className="w-4 h-4 fill-current" />
-                          <span>Start class for everyone</span>
-                        </button>
-                        <p className="text-2xs text-slate-400 text-center">Starting the class also starts its recording.</p>
-                        {classSessionError && <p className="text-xs text-rose-300 text-center">{classSessionError}</p>}
+                        {isHost ? (
+                          <>
+                            <StartClassButton variant="hero" />
+                            <p className="text-2xs text-slate-400 text-center">Starting the class also starts its recording.</p>
+                          </>
+                        ) : classHost ? (
+                          <HostedByNote className="text-center" />
+                        ) : (
+                          <p className="text-2xs text-slate-400 text-center inline-flex items-center justify-center gap-1.5 w-full">
+                            <span className="w-3 h-3 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" /> Checking the class…
+                          </p>
+                        )}
 
 
                         <button
@@ -565,7 +532,7 @@ export const VideoStage: React.FC = () => {
                           className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                           {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                          <span>{copiedLink ? "Student Link Copied!" : "Copy Student Invite Link"}</span>
+                          <span>{copiedLink ? "Class link copied" : "Copy class link"}</span>
                         </button>
 
                         {(currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep") && (
@@ -574,7 +541,7 @@ export const VideoStage: React.FC = () => {
                             className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 hover:from-blue-900/60 hover:to-indigo-900/60 border border-blue-500/30 text-cyan-200 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <Sliders className="w-3.5 h-3.5 text-brand-yellow" />
-                            <span>Manual Link & Room Builder (No CRM)</span>
+                            <span>Schedule a class</span>
                           </button>
                         )}
                       </div>
@@ -590,6 +557,8 @@ export const VideoStage: React.FC = () => {
             presentation={presentation}
             compact={isCompact}
             detailsPane={<TranscriptFeed />}
+            layout={layoutMode}
+            columns={manualGridColumns}
           />
         )}
 
@@ -609,14 +578,13 @@ export const VideoStage: React.FC = () => {
 
       {/* Live engagement for auditors and admins is real data: Class analytics → Live engagement, and the observer panel */}
 
-      {/* Multi-Device Remote System Access Console */}
-      <MultiDeviceRemoteConsole />
-
-      {/* Student Offer Device Access Modal */}
-      <RemoteAccessOfferModal />
-
-      {/* Real-time Incoming Request & Offer Prompts */}
-      <IncomingAccessNotification />
+      {/* Remote device control is an illustrative demo (mounted once, only when demos are on) */}
+      {demoFeatures && (
+        <>
+          <MultiDeviceRemoteConsole />
+          <RemoteAccessOfferModal />
+        </>
+      )}
 
       {/* Instant Single-Click Parent & CX Help Escalations */}
       <HelpEscalationModals />

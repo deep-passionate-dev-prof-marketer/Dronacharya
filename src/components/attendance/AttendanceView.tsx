@@ -91,7 +91,7 @@ export const AttendanceView: React.FC = () => {
           {liveLearners.length ? (
             <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
               {liveLearners.map((p) => {
-                const late = startMs ? Date.parse(p.joinedAt) - startMs > 5 * 60_000 : false;
+                const late = startMs && p.joinedAtMs ? p.joinedAtMs - startMs > 5 * 60_000 : false;
                 return (
                   <li key={p.id} className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2">
                     <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: p.avatarColor || "var(--color-brand-blue)" }} aria-hidden="true">

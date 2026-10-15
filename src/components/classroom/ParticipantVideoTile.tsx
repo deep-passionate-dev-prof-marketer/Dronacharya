@@ -39,7 +39,7 @@ export const ParticipantVideoTile: React.FC<Props> = ({
   useEffect(() => {
     const el = videoRef.current;
     if (!el || !showVideo) return;
-    // LiveKit tracks attach themselves (this also drives adaptive quality for this tile's size)
+    // Media-server video attaches itself (the tile size picks the video layer)
     if (participant.attachVideo) return participant.attachVideo(el);
     if (activeStream && el.srcObject !== activeStream) el.srcObject = activeStream;
     el.play().catch(() => {});
@@ -47,6 +47,8 @@ export const ParticipantVideoTile: React.FC<Props> = ({
 
   return (
     <div
+      data-participant={participant.id}
+      data-local={isLocal ? "true" : undefined}
       className={`relative w-full h-full rounded-2xl bg-slate-900/90 border overflow-hidden flex flex-col items-center justify-center group transition-all duration-300 select-none shadow-lg ${aspectClass} ${
         isPinned
           ? "border-blue-500 ring-2 ring-blue-500/50 shadow-blue-500/20"

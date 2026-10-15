@@ -86,7 +86,7 @@ export const LEAD_INTELLIGENCE_REGISTRY: Record<string, LeadIntelligenceDossier>
       "Dual American High School Diploma accredited by Cognia with 18+ Advanced Placement (AP) courses.",
       "Dedicated 1:1 Ivy-League College Admissions Counselor assigned starting in Grade 11.",
       "Direct faculty research mentorship with publication opportunities in student STEM journals.",
-      "Recorded HD lectures & asynchronous Google LLM Notebook for self-paced olympiad prep.",
+      "Recorded HD lectures & an AI class notebook for self-paced olympiad prep.",
     ],
     objectionForecast: [
       {

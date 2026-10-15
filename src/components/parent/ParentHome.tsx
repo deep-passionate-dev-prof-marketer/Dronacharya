@@ -339,6 +339,8 @@ export const ParentHome: React.FC = () => {
               </div>
             </div>
 
+            <ChildMessages childId={data.child.id} childName={data.child.name} />
+
             <section className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
               <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-1.5">
                 <Star className="w-4 h-4" /> From the teachers
@@ -397,5 +399,42 @@ export const ParentHome: React.FC = () => {
         )}
       </div>
     </div>
+  );
+};
+
+/** "Ask parent" requests this child sent from class (newest first) */
+const ChildMessages: React.FC<{ childId: string; childName: string }> = ({ childId, childName }) => {
+  const [items, setItems] = React.useState<Array<{ id: number; title: string; body: string; createdAt: string; read: boolean; data: any }> | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch("/api/notifications")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((b) => !cancelled && b && setItems(b.notifications.filter((n: any) => n.kind === "ask_parent" && n.data?.studentId === childId)))
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [childId]);
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.06] p-4">
+      <h2 className="text-sm font-semibold text-white mb-3">Messages from {childName.split(" ")[0]}</h2>
+      <ul className="space-y-3">
+        {items.slice(0, 5).map((n) => (
+          <li key={n.id} className="text-sm">
+            <div className="flex items-center gap-2">
+              {!n.read && <span className="w-2 h-2 rounded-full bg-blue-400" aria-label="New" />}
+              <span className="font-medium text-white">{n.title}</span>
+              <span className="text-2xs text-slate-500">{dateTime(n.createdAt)}</span>
+            </div>
+            <p className="text-slate-300 mt-1 whitespace-pre-line">{n.body}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 };

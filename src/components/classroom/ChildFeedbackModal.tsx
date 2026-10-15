@@ -57,16 +57,17 @@ export const ChildFeedbackModal: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">
-                Direct Child Feedback: {activeFeedbackTarget.name}
+                Feedback for {activeFeedbackTarget.name}
               </h3>
               <p className="text-xs text-slate-300">
-                Instantly award praise, badges, and academic XP points
+                Saved as a remark. Their parents can read it in the parent portal.
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsFeedbackModalOpen(false)}
             className="text-slate-400 hover:text-white"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -85,6 +86,8 @@ export const ChildFeedbackModal: React.FC = () => {
                   type="button"
                   key={num}
                   onClick={() => setStars(num)}
+                  aria-label={`${num} of 5`}
+                  aria-pressed={num <= stars}
                   className="p-1 transition-transform hover:scale-110"
                 >
                   <Star
@@ -96,9 +99,7 @@ export const ChildFeedbackModal: React.FC = () => {
                   />
                 </button>
               ))}
-              <span className="font-mono font-bold text-sm text-brand-yellow ml-2">
-                +{stars * 50} XP Points
-              </span>
+              <span className="text-xs text-slate-400 ml-2">{stars} of 5</span>
             </div>
           </div>
 

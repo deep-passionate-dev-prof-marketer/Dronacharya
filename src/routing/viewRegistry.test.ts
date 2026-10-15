@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canOpen, homeView, navSections, phoneTabs, viewLabel, VIEWS, viewsFor } from "./viewRegistry";
+import { canOpen, homeView, navSections, phoneTabs, setDemoFeatures, viewLabel, VIEWS, viewsFor } from "./viewRegistry";
 
 const ROLES = ["student", "instructor", "auditor", "sales_rep", "admin", "parent"];
 
@@ -29,12 +29,26 @@ describe("view registry", () => {
     expect(ROLES.filter((r) => canOpen(r, "analytics")).sort()).toEqual(["admin", "auditor"]);
   });
 
-  it("parents only see family pages and class notes", () => {
-    expect(viewsFor("parent").map((v) => v.id).sort()).toEqual(["notebook", "parent_home"]);
+  it("parents only see family pages, class notes and their children's library", () => {
+    expect(viewsFor("parent").map((v) => v.id).sort()).toEqual(["materials", "notebook", "parent_home"]);
   });
 
   it("names a page by the role's job where it differs", () => {
     expect(viewLabel("classroom", "auditor")).toBe("Observe live class");
     expect(viewLabel("classroom", "instructor")).toBe("Live class");
+  });
+
+  it("hides demo pages when demos are off", () => {
+    setDemoFeatures(false);
+    try {
+      const adminViews = viewsFor("admin").map((v) => v.id);
+      for (const id of ["room_bomber", "crm", "remote_access", "admin", "selfhosted", "blockchain"]) {
+        expect(adminViews).not.toContain(id);
+        expect(canOpen("admin", id)).toBe(false);
+      }
+      expect(adminViews).toContain("people");
+    } finally {
+      setDemoFeatures(true);
+    }
   });
 });

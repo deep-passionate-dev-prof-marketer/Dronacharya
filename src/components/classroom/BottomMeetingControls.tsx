@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import { confirmDialog } from "../ui/Feedback";
 import { useClassroom } from "../../context/ClassroomContext";
+import { canOpen } from "../../routing/viewRegistry";
 import {
+  Loader2,
   Mic,
   MicOff,
   Video,
@@ -58,11 +61,13 @@ export const BottomMeetingControls: React.FC = () => {
     dockSplitRatio,
     setDockSplitRatio,
     roomTitle,
-    latencyMs,
     classStatus,
     classDurationSeconds,
     startClass,
     endClass,
+    classHost,
+    sessionBusy,
+    demoFeatures,
     triggerRoomBomber,
     leaveClass,
     captionHealth,
@@ -92,14 +97,22 @@ export const BottomMeetingControls: React.FC = () => {
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isPollSheetOpen, setIsPollSheetOpen] = useState(false);
-  // Hosts run the class: teachers, admins, and counsellors on their sessions
-  const isTeacher = currentRole === "instructor" || currentRole === "admin" || currentRole === "sales_rep";
+  // Hosts run the class: the server decides (its teacher, admins, counsellors on their sessions)
+  const isTeacher = Boolean(classHost?.isHost);
   const isStudent = currentRole === "student";
   // Auditors observe hidden, without camera or microphone
   const isObserver = currentRole === "auditor";
 
   type MoreItem = { key: string; label: string; icon: React.ComponentType<{ className?: string }>; onClick: () => void; tone?: string; active?: boolean; show?: boolean; mobileOnly?: boolean };
   const moreItems: MoreItem[] = [
+    {
+      key: "start",
+      label: sessionBusy === "start" ? "Starting…" : classStatus === "ended" ? "Start a new class" : "Start class for everyone",
+      icon: Play,
+      onClick: () => void startClass(),
+      tone: "text-emerald-300",
+      show: isTeacher && classStatus !== "in_progress",
+    },
     { key: "share", label: isScreenSharing ? "Stop sharing" : "Share screen", icon: Share2, onClick: toggleScreenShare, active: isScreenSharing, mobileOnly: true, show: !isObserver },
     { key: "hand", label: handRaised ? "Lower hand" : "Raise hand", icon: Hand, onClick: toggleHandRaise, active: handRaised, mobileOnly: true, show: !isObserver },
     { key: "poll", label: "Quick poll", icon: BarChart3, onClick: () => setIsPollSheetOpen(true), tone: "text-blue-300", show: isTeacher },
@@ -121,12 +134,13 @@ export const BottomMeetingControls: React.FC = () => {
       icon: Briefcase,
       onClick: () => triggerRoomBomber({ salesRepName: "Marcus Sterling (Lead Admissions)", discountPct: 20, studentName: "Demo Student" }),
       tone: "text-violet-300",
-      show: isTeacher && classStatus === "in_progress",
+      // Pitch rooms are an admissions demo on sample data; admissions staff only
+      show: demoFeatures && isTeacher && ["admin", "sales_rep"].includes(currentRole) && classStatus === "in_progress",
     },
     { key: "parent", label: "Ask parent", icon: HelpCircle, onClick: () => setIsParentHelpModalOpen(true), tone: "text-blue-300", show: isStudent },
-    { key: "cx", label: "Tech help", icon: ShieldAlert, onClick: () => setIsCxHelpModalOpen(true), tone: "text-rose-300", show: isStudent },
-    { key: "notebook", label: "Class notebook", icon: BookOpen, onClick: () => setActiveView("notebook"), tone: "text-amber-300" },
-    { key: "end", label: "End class for all", icon: PhoneOff, onClick: endClass, tone: "text-amber-300", show: isTeacher && classStatus === "in_progress" },
+    { key: "cx", label: "Tech help", icon: ShieldAlert, onClick: () => setIsCxHelpModalOpen(true), tone: "text-rose-300" },
+    { key: "notebook", label: "Class notes", icon: BookOpen, onClick: () => setActiveView("notebook"), tone: "text-amber-300", show: canOpen(currentRole, "notebook") },
+    { key: "end", label: sessionBusy === "end" ? "Ending…" : "End class for all", icon: PhoneOff, onClick: () => void endClass(), tone: "text-amber-300", show: isTeacher && classStatus === "in_progress" },
   ].filter((i) => i.show !== false);
 
   // Display is set per button so responsive "hidden …:inline-flex" pairs don't fight a base inline-flex
@@ -242,9 +256,15 @@ export const BottomMeetingControls: React.FC = () => {
             </button>
 
             {isTeacher && classStatus !== "in_progress" && (
-              <button onClick={startClass} className={`${ctrl} hidden @md:inline-flex bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/40 font-bold`} title="Start live class">
-                <Play className="w-4 h-4 fill-current" />
-                <span className="hidden @xl:inline">Start</span>
+              <button
+                onClick={() => void startClass()}
+                disabled={sessionBusy === "start"}
+                aria-busy={sessionBusy === "start"}
+                className={`${ctrl} hidden @md:inline-flex bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/40 font-bold disabled:opacity-70 disabled:cursor-wait`}
+                title="Start the class for everyone"
+              >
+                {sessionBusy === "start" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                <span className="hidden @xl:inline">{sessionBusy === "start" ? "Starting…" : "Start"}</span>
               </button>
             )}
 
@@ -304,8 +324,8 @@ export const BottomMeetingControls: React.FC = () => {
             </div>
 
             <button
-              onClick={() => {
-                if (window.confirm("Leave this class? You can rejoin any time.")) leaveClass();
+              onClick={async () => {
+                if (await confirmDialog({ title: "Leave this class?", body: "You can rejoin any time.", confirmLabel: "Leave", tone: "critical" })) leaveClass();
               }}
               className={`${ctrl} inline-flex bg-rose-600 hover:bg-rose-500 text-white border-rose-400/40 @md:px-4`}
               title="Leave meeting"
@@ -318,15 +338,16 @@ export const BottomMeetingControls: React.FC = () => {
 
           {/* Right: room info + quick panels */}
           <div className="hidden @4xl:flex items-center justify-end gap-2 flex-1 basis-0 min-w-0">
-            <span className="hidden @6xl:flex items-center gap-1.5 h-9 px-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-2xs text-emerald-400 font-mono whitespace-nowrap">
-              <ShieldCheck className="w-3.5 h-3.5" /> E2EE
-            </span>
-            <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-300" title="Participants">
-              <Users className="w-3.5 h-3.5 text-blue-400" /> {participants.length}
+            <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-300" title="In class (not counting the lobby)">
+              <Users className="w-3.5 h-3.5 text-blue-400" /> {participants.filter((p) => !p.waiting).length}
             </span>
             {isTeacher && classStatus === "in_progress" && (
-              <button onClick={endClass} className="h-9 px-3 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-semibold text-xs border border-amber-500/40 transition-colors whitespace-nowrap">
-                End class
+              <button
+                onClick={() => void endClass()}
+                disabled={sessionBusy === "end"}
+                className="h-9 px-3 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-200 hover:text-white font-semibold text-xs border border-amber-500/40 transition-colors whitespace-nowrap disabled:opacity-70"
+              >
+                {sessionBusy === "end" ? "Ending…" : "End class"}
               </button>
             )}
           </div>

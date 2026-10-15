@@ -29,10 +29,10 @@ export const ObserverPanel: React.FC = () => {
   const startMs = classStartedAt ? Date.parse(classStartedAt) : null;
   const learners = participants.filter((p) => !STAFF.has(p.role) && !p.waiting);
   const hosts = participants.filter((p) => p.role === "instructor" || p.role === "admin");
-  const lateJoiners = startMs ? learners.filter((p) => Date.parse(p.joinedAt) - startMs > 5 * 60_000).length : 0;
+  const lateJoiners = startMs ? learners.filter((p) => p.joinedAtMs && p.joinedAtMs - startMs > 5 * 60_000).length : 0;
   const scheduled = info?.scheduledStart ? Date.parse(info.scheduledStart) : null;
   const delay = startMs && scheduled && Math.abs(startMs - scheduled) <= 120 * 60_000 ? Math.round((startMs - scheduled) / 60_000) : null;
-  const sinceStart = startMs ? transcriptLines.filter((l) => Date.parse(l.timestamp) >= startMs) : transcriptLines;
+  const sinceStart = startMs ? transcriptLines.filter((l) => (l.atMs ?? 0) >= startMs) : transcriptLines;
   const hostIds = new Set(hosts.map((h) => h.id));
   const teacherChars = sinceStart.filter((l) => hostIds.has(l.speakerId)).reduce((a, l) => a + l.text.length, 0);
   const allChars = sinceStart.reduce((a, l) => a + l.text.length, 0);

@@ -15,7 +15,9 @@ import {
 import { useClassroom } from "../../context/ClassroomContext";
 
 export const SelfHostedPanel: React.FC = () => {
-  const { latencyMs, streamingQuality, setStreamingQuality } = useClassroom();
+  const { streamingQuality, setStreamingQuality } = useClassroom();
+  // Sample figure for this illustrative page (not a measurement)
+  const latencyMs = 18;
   const [systemInfo, setSystemInfo] = useState<any>({
     status: "healthy",
     deployment: "In-House Self-Hosted Cluster",

@@ -13,9 +13,9 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { WhiteboardCanvas } from "./WhiteboardCanvas";
-import { DeckAndNotes } from "./DeckAndNotes";
+import { SlidesAndNotes } from "./slides/SlidesAndNotes";
 import { SmartPeerNoteTaker } from "./SmartPeerNoteTaker";
-import { PollsAndQuizzes } from "./PollsAndQuizzes";
+import { PollsPanel } from "./PollsPanel";
 import { BreakoutManager } from "./BreakoutManager";
 import { TranscriptFeed } from "./TranscriptFeed";
 import { WaitingLobby } from "./WaitingLobby";
@@ -32,37 +32,41 @@ interface DockTab {
 }
 
 export const CollaborativeDock: React.FC = () => {
-  const { activeDockTab, setActiveDockTab, waitingList, currentRole } = useClassroom();
+  const { activeDockTab, setActiveDockTab, waitingList, currentRole, classHost, demoFeatures } = useClassroom();
+  const isHost = Boolean(classHost?.isHost);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const ALL_TABS: DockTab[] = [
     { id: "whiteboard", label: "Whiteboard", icon: PenTool },
     { id: "stem3d", label: "3D AR Lab", icon: Boxes },
-    { id: "notes", label: "Deck & Notes", icon: FileText },
+    { id: "notes", label: "Slides & notes", icon: FileText },
     { id: "smartnotes", label: "Peer Notes", icon: Sparkles, highlight: true },
-    { id: "polls", label: "Polls & Quiz", icon: BarChart2 },
+    { id: "polls", label: "Polls", icon: BarChart2 },
     { id: "breakouts", label: "Breakouts", icon: Users2 },
     { id: "transcript", label: "Transcripts", icon: MessageSquare },
     {
       id: "lobby",
       label: "Lobby",
       icon: DoorOpen,
-      badge: waitingList.length > 0 ? waitingList.length : undefined,
+      badge: classHost?.isHost && waitingList.length > 0 ? waitingList.length : undefined,
     },
   ];
 
   const TABS = ALL_TABS.filter((tab) => {
-    if (currentRole === "student") {
-      return ["whiteboard", "stem3d", "notes", "smartnotes", "polls", "transcript"].includes(tab.id);
-    }
-    if (currentRole === "auditor") {
-      return ["transcript", "smartnotes", "notes"].includes(tab.id);
-    }
-    if (currentRole === "sales_rep") {
-      return ["notes", "transcript", "smartnotes"].includes(tab.id);
-    }
-    return true;
+    // Peer notes is an illustrative demo (sample conversation)
+    if (tab.id === "smartnotes" && !demoFeatures) return false;
+    // Running the class (lobby, breakouts) is for its host; everyone else sees their own view
+    if (isHost) return true;
+    if (currentRole === "auditor") return ["transcript", "notes"].includes(tab.id);
+    if (currentRole === "student") return ["whiteboard", "stem3d", "notes", "smartnotes", "polls", "breakouts", "transcript"].includes(tab.id);
+    return ["whiteboard", "notes", "polls", "transcript"].includes(tab.id);
   });
+  // A tab this person can't use (role changed, demos switched off): fall back to the first one
+  const visibleIds = TABS.map((t) => t.id).join(",");
+  React.useEffect(() => {
+    if (TABS.length && !TABS.some((t) => t.id === activeDockTab)) setActiveDockTab(TABS[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleIds, activeDockTab]);
 
   if (isCollapsed) {
     return (
@@ -158,9 +162,9 @@ export const CollaborativeDock: React.FC = () => {
             <StemArVisualizer />
           </React.Suspense>
         )}
-        {activeDockTab === "notes" && <DeckAndNotes />}
-        {activeDockTab === "smartnotes" && <SmartPeerNoteTaker />}
-        {activeDockTab === "polls" && <PollsAndQuizzes />}
+        {activeDockTab === "notes" && <SlidesAndNotes />}
+        {activeDockTab === "smartnotes" && demoFeatures && <SmartPeerNoteTaker />}
+        {activeDockTab === "polls" && <PollsPanel />}
         {activeDockTab === "breakouts" && <BreakoutManager />}
         {activeDockTab === "transcript" && <TranscriptFeed />}
         {activeDockTab === "lobby" && <WaitingLobby />}

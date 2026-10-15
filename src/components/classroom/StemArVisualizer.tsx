@@ -356,7 +356,6 @@ export const StemArVisualizer: React.FC = () => {
               <span>AR WebGL 3D STEM Engine</span>
             </div>
             <div>Rotation: {isRotating ? `${speed}x Active` : "Paused"}</div>
-            <div>Rendering: 60 FPS · 1080p Spatial Projection</div>
           </div>
         )}
 

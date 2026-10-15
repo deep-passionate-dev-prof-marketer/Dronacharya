@@ -16,7 +16,7 @@ export type PeerStreamCallback = (peer: RemotePeerInfo) => void;
 export type PeerLeftCallback = (peerId: string) => void;
 
 interface SignalPayload {
-  type: "join" | "leave" | "offer" | "answer" | "ice-candidate" | "state-update" | "heartbeat" | "class-status";
+  type: "join" | "leave" | "offer" | "answer" | "ice-candidate" | "state-update" | "heartbeat";
   senderId: string;
   senderName: string;
   senderRole: UserRole;
@@ -27,28 +27,28 @@ interface SignalPayload {
   candidate?: RTCIceCandidateInit;
   isAudioMuted?: boolean;
   isVideoOff?: boolean;
-  classStatus?: "waiting" | "in_progress" | "paused" | "ended";
   timestamp: number;
 }
 
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
-    {
-      urls: [
-        "turn:openrelay.metered.ca:80",
-        "turn:openrelay.metered.ca:443",
-        "turn:openrelay.metered.ca:443?transport=tcp",
-      ],
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-  ],
-  iceCandidatePoolSize: 10,
+/** No outside servers: STUN/TURN only if the school runs its own (server settings, via /api/media/ice) */
+let RTC_CONFIG: RTCConfiguration = {
+  iceServers: [],
+  iceCandidatePoolSize: 4,
 };
+let iceLoaded: Promise<void> | null = null;
+function loadIceServers() {
+  if (!iceLoaded) {
+    iceLoaded = fetch("/api/media/ice")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => {
+        if (Array.isArray(b?.iceServers) && b.iceServers.length) RTC_CONFIG = { ...RTC_CONFIG, iceServers: b.iceServers };
+      })
+      .catch(() => {
+        iceLoaded = null;
+      });
+  }
+  return iceLoaded;
+}
 
 class WebRtcMeshService {
   private localStream: MediaStream | null = null;
@@ -60,7 +60,6 @@ class WebRtcMeshService {
   private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map();
   private isMakingOffer: Map<string, boolean> = new Map();
 
-  private broadcastChannel: BroadcastChannel | null = null;
   private wsRelayUnbind: (() => void) | null = null;
   private disconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private heartbeatTimer: any = null;
@@ -68,14 +67,9 @@ class WebRtcMeshService {
   private onPeerStreamListeners: Set<PeerStreamCallback> = new Set();
   private onPeerLeftListeners: Set<PeerLeftCallback> = new Set();
   private onPeerStateChangeListeners: Set<(peers: RemotePeerInfo[]) => void> = new Set();
-  private onClassStatusChangedListeners: Set<(status: "waiting" | "in_progress" | "paused" | "ended") => void> = new Set();
 
   private isConnected: boolean = false;
   private audioAnalyserContext: AudioContext | null = null;
-
-  constructor() {
-    this.setupStorageListener();
-  }
 
   public async startLocalMedia(video: boolean = true, audio: boolean = true): Promise<MediaStream> {
     if (this.localStream) {
@@ -148,6 +142,8 @@ class WebRtcMeshService {
     if (localStream) {
       this.localStream = localStream;
     }
+    await loadIceServers();
+    if (this.localUser !== user) return; // left meanwhile
 
     this.initSignaling(roomId);
     this.isConnected = true;
@@ -194,34 +190,13 @@ class WebRtcMeshService {
     }
     this.peerConnections.clear();
     this.remotePeers.clear();
-
-    if (this.broadcastChannel) {
-      this.broadcastChannel.close();
-      this.broadcastChannel = null;
-    }
+    this.pendingCandidates.clear();
+    this.localUser = null;
 
     this.wsRelayUnbind?.();
     this.wsRelayUnbind = null;
 
     this.isConnected = false;
-  }
-
-  public broadcastClassStatus(status: "waiting" | "in_progress" | "paused" | "ended"): void {
-    if (!this.localUser) return;
-    this.broadcastSignal({
-      type: "class-status",
-      senderId: this.localUser.id,
-      senderName: this.localUser.name,
-      senderRole: this.localUser.role,
-      roomId: this.currentRoomId,
-      classStatus: status,
-      timestamp: Date.now(),
-    });
-  }
-
-  public onClassStatusChanged(cb: (status: "waiting" | "in_progress" | "paused" | "ended") => void): () => void {
-    this.onClassStatusChangedListeners.add(cb);
-    return () => this.onClassStatusChangedListeners.delete(cb);
   }
 
   public updateMediaState(isAudioMuted: boolean, isVideoOff: boolean): void {
@@ -242,19 +217,7 @@ class WebRtcMeshService {
   // WebRTC Peer Connection & Signaling Handlers
   // -------------------------------------------------------------
   private initSignaling(roomId: string) {
-    if (typeof BroadcastChannel !== "undefined") {
-      try {
-        if (this.broadcastChannel) this.broadcastChannel.close();
-        this.broadcastChannel = new BroadcastChannel(`dronacharya_mesh_${roomId}`);
-        this.broadcastChannel.onmessage = (event) => {
-          this.handleSignal(event.data);
-        };
-      } catch (e) {
-        console.warn("[WebRTC] BroadcastChannel not supported in environment:", e);
-      }
-    }
-
-    // Start 2-second heartbeat presence broadcast to self-heal multi-tab handshakes
+    // 2-second heartbeat: peers that missed a "join" (reconnects, late admission) still find each other
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = setInterval(() => {
       if (this.localUser && this.isConnected) {
@@ -287,36 +250,8 @@ class WebRtcMeshService {
     });
   }
 
-  private setupStorageListener() {
-    if (typeof window !== "undefined") {
-      window.addEventListener("storage", (e) => {
-        if (e.key === `dronacharya_sig_${this.currentRoomId}` && e.newValue) {
-          try {
-            const data = JSON.parse(e.newValue);
-            this.handleSignal(data);
-          } catch {}
-        }
-      });
-    }
-  }
-
+  /** Signals go only through our realtime server, which stamps the verified sender on each one. */
   private broadcastSignal(payload: SignalPayload) {
-    // 1. BroadcastChannel (Same browser tab-to-tab)
-    if (this.broadcastChannel) {
-      try {
-        this.broadcastChannel.postMessage(payload);
-      } catch {}
-    }
-
-    // 2. localStorage Event Bus (Fallback for cross-tab with unique nonce)
-    try {
-      localStorage.setItem(
-        `dronacharya_sig_${this.currentRoomId}`,
-        JSON.stringify({ ...payload, _nonce: `${Date.now()}_${Math.random().toString(36).slice(2)}` })
-      );
-    } catch {}
-
-    // 3. Our realtime server (cross-device)
     realtimeSocket.send("MESH_SIGNAL", { roomId: this.currentRoomId, signal: payload });
   }
 
@@ -498,12 +433,6 @@ class WebRtcMeshService {
           if (shouldInitiate) {
             await this.createPeerConnection(remoteId, signal.senderName, signal.senderRole, signal.senderAvatarColor || "#0082FF", true);
           }
-        }
-        break;
-      }
-      case "class-status": {
-        if (signal.classStatus) {
-          this.notifyClassStatusChanged(signal.classStatus);
         }
         break;
       }
@@ -785,16 +714,6 @@ class WebRtcMeshService {
   private notifyPeerLeft(peerId: string) {
     this.onPeerLeftListeners.forEach((cb) => cb(peerId));
     this.notifyStateChanged();
-  }
-
-  private notifyClassStatusChanged(status: "waiting" | "in_progress" | "paused" | "ended") {
-    this.onClassStatusChangedListeners.forEach((cb) => {
-      try {
-        cb(status);
-      } catch (err) {
-        console.warn("[WebRTC] class status listener error:", err);
-      }
-    });
   }
 
   private notifyStateChanged() {

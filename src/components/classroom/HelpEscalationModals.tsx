@@ -1,266 +1,152 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { HelpCircle, LifeBuoy, Loader2, Send, X } from "lucide-react";
 import { useClassroom } from "../../context/ClassroomContext";
-import {
-  HelpCircle,
-  ShieldAlert,
-  X,
-  Send,
-  CheckCircle2,
-  PhoneCall,
-  MessageSquare,
-  Clock,
-  AlertCircle,
-} from "lucide-react";
+import { api } from "../../services/apiClient";
+import { captureDeviceSnapshot } from "../../services/deviceAccessClient";
+import { toast } from "../ui/Feedback";
 
+const CATEGORIES: Array<{ value: string; label: string }> = [
+  { value: "audio", label: "I can't hear, or nobody hears me" },
+  { value: "video", label: "Camera or screen problem" },
+  { value: "connection", label: "Keeps freezing or disconnecting" },
+  { value: "access", label: "Can't get into the class or a page" },
+  { value: "other", label: "Something else" },
+];
+
+const Sheet: React.FC<{ title: string; icon: React.ReactNode; onClose: () => void; children: React.ReactNode }> = ({ title, icon, onClose, children }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="absolute inset-0 bg-black/60 animate-fadeIn" onClick={onClose} aria-hidden="true" />
+      <div className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl border border-white/10 bg-slate-900 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl animate-sheetUp sm:animate-fadeIn space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            {icon} {title}
+          </h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400" aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Help from class: learners can ask their parent (a notification and email to every linked parent),
+ * and anyone can ask the school for tech help (a support request admins answer).
+ */
 export const HelpEscalationModals: React.FC = () => {
-  const {
-    isParentHelpModalOpen,
-    setIsParentHelpModalOpen,
-    isCxHelpModalOpen,
-    setIsCxHelpModalOpen,
-    askParentHelp,
-    askCxHelp,
-    participants,
-    currentRole,
-    activeEscalationToast,
-    dismissEscalationToast,
-  } = useClassroom();
+  const { isParentHelpModalOpen, setIsParentHelpModalOpen, isCxHelpModalOpen, setIsCxHelpModalOpen, roomId, transportState } = useClassroom();
+  const [message, setMessage] = useState("");
+  const [category, setCategory] = useState("audio");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedStudentId, setSelectedStudentId] = useState(participants[1]?.id || "stu-1");
-  const [parentReason, setParentReason] = useState("Assistance requested with lab worksheet and audio device setup.");
-  const [cxReason, setCxReason] = useState("Learner experiencing high audio jitter and camera packet degradation.");
-  const [cxCategory, setCxCategory] = useState("WebRTC Media Diagnostic");
+  useEffect(() => {
+    setMessage("");
+    setError(null);
+  }, [isParentHelpModalOpen, isCxHelpModalOpen]);
 
-  const students = participants.filter((p) => p.role === "student");
-
-  const handleDispatchParent = (e: React.FormEvent) => {
+  const askParent = async (e: React.FormEvent) => {
     e.preventDefault();
-    askParentHelp(selectedStudentId, parentReason);
+    setBusy(true);
+    setError(null);
+    const r = await api<{ sentTo: string[]; message?: string }>("POST", "/api/help/ask-parent", { roomSlug: roomId, message });
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    if (!r.data.sentTo.length) return setError(r.data.message || "There's no parent linked to your account yet.");
+    toast(`Sent to ${r.data.sentTo.join(" and ")}`);
     setIsParentHelpModalOpen(false);
   };
 
-  const handleDispatchCx = (e: React.FormEvent) => {
+  const askTech = async (e: React.FormEvent) => {
     e.preventDefault();
-    askCxHelp(`[${cxCategory}] ${cxReason}`);
+    setBusy(true);
+    setError(null);
+    const device = await captureDeviceSnapshot().catch(() => null);
+    const r = await api("POST", "/api/help/tickets", {
+      roomSlug: roomId,
+      category,
+      message: message.trim() || CATEGORIES.find((c) => c.value === category)?.label,
+      device: device ? { ...device, videoMode: transportState.mode, connection: transportState.status } : undefined,
+    });
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    toast("Sent. The school's support team will reply here and by email.");
     setIsCxHelpModalOpen(false);
   };
 
   return (
     <>
-      {/* Floating Active Escalation Toast */}
-      {activeEscalationToast && (
-        <div className="fixed top-20 right-6 z-50 max-w-sm w-full bg-brand-navy-deep border border-brand-cyan shadow-2xl rounded-2xl p-4 text-white select-none animate-slideIn">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className={`p-2 rounded-xl ${activeEscalationToast.type === "parent_help" ? "bg-cyan-950 text-cyan-300 border border-cyan-800" : "bg-rose-950 text-rose-300 border border-rose-800"}`}>
-                {activeEscalationToast.type === "parent_help" ? <HelpCircle className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-              </div>
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-white">
-                  {activeEscalationToast.type === "parent_help" ? "Parent Escalation Dispatched" : "21K CX Priority Intervention"}
-                </h4>
-                <p className="text-2xs text-slate-300">
-                  Status: <span className="text-emerald-400 font-mono font-bold capitalize">{activeEscalationToast.status}</span>
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={dismissEscalationToast}
-              className="text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <p className="text-xs text-slate-200 mt-2 bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-            {activeEscalationToast.reason}
-          </p>
-
-          {activeEscalationToast.responseNote && (
-            <div className="mt-2 text-2xs text-cyan-300 font-medium flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>{activeEscalationToast.responseNote}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 1. Modal: Ask for Parent Help */}
       {isParentHelpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-canvas rounded-t-3xl sm:rounded-2xl border border-brand-navy shadow-2xl overflow-hidden font-sans text-white">
-            <div className="p-4 bg-brand-navy-deep border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-brand-navy text-brand-cyan">
-                  <HelpCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Ask for Parent Help</h3>
-                  <p className="text-xs text-slate-300">
-                    Dispatches instant SMS & WhatsApp notification to verified guardian
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsParentHelpModalOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleDispatchParent} className="p-5 space-y-4 text-xs">
-              {/* Target Student */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
-                  Select Learner Requiring Assistance:
-                </label>
-                <select
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-brand-cyan"
-                >
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.parentEmail || "guardian@21k.family"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Context Reason */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
-                  Classroom Context & Assistance Reason:
-                </label>
-                <textarea
-                  rows={3}
-                  value={parentReason}
-                  onChange={(e) => setParentReason(e.target.value)}
-                  placeholder="Explain why parent presence or support is requested..."
-                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-brand-cyan"
-                  required
-                />
-              </div>
-
-              {/* Delivery Channels Badge */}
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-2xs text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-cyan-300">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>WhatsApp & SMS Gateway</span>
-                </span>
-                <span className="font-mono text-emerald-400">Instant Delivery (&lt;3s)</span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsParentHelpModalOpen(false)}
-                  className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue hover:bg-brand-blue-strong text-white font-bold transition-all shadow"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Dispatch Parent Alert</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Sheet title="Ask my parent for help" icon={<HelpCircle className="w-4 h-4 text-blue-300" />} onClose={() => setIsParentHelpModalOpen(false)}>
+          <form onSubmit={askParent} className="space-y-3">
+            <p className="text-sm text-slate-300">Your parent gets a message saying you'd like help with this class (and an email, if the school has their address).</p>
+            <label htmlFor="ask-parent-msg" className="block text-xs font-semibold text-slate-300">
+              Message (optional)
+            </label>
+            <textarea
+              id="ask-parent-msg"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="e.g. I can't log into the worksheet"
+              className="w-full rounded-xl bg-slate-950 border border-white/15 focus:border-blue-500 outline-none px-3 py-2 text-sm text-white placeholder-slate-500"
+            />
+            {error && (
+              <p className="text-sm text-rose-300" role="alert">
+                {error}
+              </p>
+            )}
+            <button type="submit" disabled={busy} className="btn-primary w-full">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send to my parent
+            </button>
+          </form>
+        </Sheet>
       )}
 
-      {/* 2. Modal: Ask for CX Help */}
       {isCxHelpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className="pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-sheetUp sm:animate-fadeIn max-h-[94dvh] overflow-y-auto w-full max-w-md bg-canvas rounded-t-3xl sm:rounded-2xl border border-rose-900/50 shadow-2xl overflow-hidden font-sans text-white">
-            <div className="p-4 bg-gradient-to-r from-rose-950 via-brand-navy-deep to-brand-navy-deep border-b border-rose-800/40 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-rose-900/60 text-rose-300">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Ask for CX Help</h3>
-                  <p className="text-xs text-rose-200">
-                    Direct Priority Escalation to 21K Customer Experience / Tech Ops
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsCxHelpModalOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleDispatchCx} className="p-5 space-y-4 text-xs">
-              {/* Issue Category */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
-                  Issue Category:
+        <Sheet title="Tech help" icon={<LifeBuoy className="w-4 h-4 text-rose-300" />} onClose={() => setIsCxHelpModalOpen(false)}>
+          <form onSubmit={askTech} className="space-y-3">
+            <fieldset className="space-y-1.5">
+              <legend className="text-xs font-semibold text-slate-300 mb-1">What's wrong?</legend>
+              {CATEGORIES.map((c) => (
+                <label key={c.value} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${category === c.value ? "border-blue-500/60 bg-blue-500/10 text-white" : "border-white/10 text-slate-300 hover:bg-white/5"}`}>
+                  <input type="radio" name="tech-category" value={c.value} checked={category === c.value} onChange={() => setCategory(c.value)} className="accent-blue-500" />
+                  {c.label}
                 </label>
-                <select
-                  value={cxCategory}
-                  onChange={(e) => setCxCategory(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-rose-500"
-                >
-                  <option value="WebRTC Media Diagnostic">WebRTC Media & Audio Quality Diagnostic</option>
-                  <option value="Student Attendance / Roster Anomaly">Student Attendance / Roster Anomaly</option>
-                  <option value="Screen Share & Whiteboard Synchronization">Screen Share & Whiteboard Synchronization</option>
-                  <option value="Breakout Room Routing Error">Breakout Room Routing Error</option>
-                  <option value="Urgent Classroom Intervention">Urgent Classroom Intervention (Pedagogy/Discipline)</option>
-                </select>
-              </div>
-
-              {/* Problem Description */}
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1 uppercase tracking-wider text-2xs">
-                  Urgent Description:
-                </label>
-                <textarea
-                  rows={3}
-                  value={cxReason}
-                  onChange={(e) => setCxReason(e.target.value)}
-                  placeholder="Detail the technical or operational glitch needing instant intervention..."
-                  className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
-                  required
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-2xs text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-rose-400">
-                  <PhoneCall className="w-3.5 h-3.5" />
-                  <span>21K Tech Ops Duty Desk</span>
-                </span>
-                <span className="font-mono text-cyan-300">SLA: Response in &lt; 30s</span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCxHelpModalOpen(false)}
-                  className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Dispatch CX Ticket</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+              ))}
+            </fieldset>
+            <label htmlFor="tech-msg" className="block text-xs font-semibold text-slate-300">
+              Details (optional)
+            </label>
+            <textarea
+              id="tech-msg"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              maxLength={2000}
+              rows={3}
+              placeholder="What happened, and what you tried"
+              className="w-full rounded-xl bg-slate-950 border border-white/15 focus:border-blue-500 outline-none px-3 py-2 text-sm text-white placeholder-slate-500"
+            />
+            <p className="text-2xs text-slate-400">We include your device type, browser and connection state so support can help faster.</p>
+            {error && (
+              <p className="text-sm text-rose-300" role="alert">
+                {error}
+              </p>
+            )}
+            <button type="submit" disabled={busy} className="btn-primary w-full">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send to support
+            </button>
+          </form>
+        </Sheet>
       )}
     </>
   );

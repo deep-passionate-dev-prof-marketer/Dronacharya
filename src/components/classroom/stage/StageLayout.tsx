@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { SlidesStage } from "../slides/SlidesAndNotes";
 import { ChevronLeft, ChevronRight, MonitorUp, Users, MessageSquareText, Presentation } from "lucide-react";
 import type { Participant } from "../../../types";
 import { bestFit, tilesPerPage } from "./bestFit";
@@ -7,6 +8,7 @@ import { WhiteboardCanvas } from "../WhiteboardCanvas";
 export type Presentation =
   | { kind: "screen"; presenter: Participant; localStream?: MediaStream | null }
   | { kind: "whiteboard" }
+  | { kind: "slides" }
   | null;
 
 interface Props {
@@ -17,6 +19,10 @@ interface Props {
   /** < 1024px: swipeable panes (details · stage · people) instead of a single gallery */
   compact: boolean;
   detailsPane: React.ReactNode;
+  /** The person's layout choice: auto gallery, a big speaker with a strip, the focus only, or fixed columns */
+  layout?: "auto" | "spotlight" | "filmstrip" | "presentation" | "custom_grid";
+  /** Fixed columns for "custom_grid" (0 = automatic) */
+  columns?: number;
 }
 
 /** The person the stage should focus on when it can only show one: pinned → active speaker → teacher → anyone. */
@@ -44,7 +50,7 @@ function useSize<T extends HTMLElement>() {
 }
 
 // ------------------------------------------------------------------ gallery
-export const GalleryGrid: React.FC<{ participants: Participant[]; renderTile: Props["renderTile"] }> = ({ participants, renderTile }) => {
+export const GalleryGrid: React.FC<{ participants: Participant[]; renderTile: Props["renderTile"]; columns?: number }> = ({ participants, renderTile, columns = 0 }) => {
   const [ref, { w, h }] = useSize<HTMLDivElement>();
   const [page, setPage] = useState(0);
   // Self view moves to the end in bigger classes so classmates/teacher come first
@@ -52,11 +58,14 @@ export const GalleryGrid: React.FC<{ participants: Participant[]; renderTile: Pr
     if (participants.length <= 4) return participants;
     return [...participants.filter((p) => !p.isLocal), ...participants.filter((p) => p.isLocal)];
   }, [participants]);
-  const perPage = w && h ? tilesPerPage(w, h) : 25;
+  // Fixed columns: as many rows as fit at that width, the rest on further pages
+  const fixedW = columns > 0 && w ? Math.floor((w - 8 * (columns - 1)) / columns) : 0;
+  const fixedRows = fixedW ? Math.max(1, Math.floor((h + 8) / (fixedW / (16 / 9) + 8))) : 0;
+  const perPage = fixedW ? columns * fixedRows : w && h ? tilesPerPage(w, h) : 25;
   const pages = Math.max(1, Math.ceil(ordered.length / perPage));
   const current = Math.min(page, pages - 1);
   const visible = ordered.slice(current * perPage, current * perPage + perPage);
-  const fit = bestFit(visible.length, w, h);
+  const fit = fixedW ? { tileW: fixedW, tileH: Math.floor(fixedW / (16 / 9)) } : bestFit(visible.length, w, h);
 
   return (
     <div className="relative flex-1 min-h-0 flex flex-col">
@@ -180,6 +189,8 @@ const PresentationStage: React.FC<{ presentation: NonNullable<Presentation>; pip
       <div className="w-full h-full rounded-2xl overflow-hidden border border-white/10 flex flex-col">
         <WhiteboardCanvas variant="stage" />
       </div>
+    ) : presentation.kind === "slides" ? (
+      <SlidesStage />
     ) : (
       <ScreenView presenter={presentation.presenter} localStream={presentation.localStream} />
     )}
@@ -188,7 +199,7 @@ const PresentationStage: React.FC<{ presentation: NonNullable<Presentation>; pip
 );
 
 // ------------------------------------------------------------------ main layout
-export const StageLayout: React.FC<Props> = ({ participants, renderTile, pinnedId, presentation, compact, detailsPane }) => {
+export const StageLayout: React.FC<Props> = ({ participants, renderTile, pinnedId, presentation, compact, detailsPane, layout = "auto", columns = 0 }) => {
   const focus = pickFocus(participants, pinnedId);
   // While something is presented, the teacher (or focus person) stays visible as a picture-in-picture
   const pipTile = focus ? renderTile(focus) : null;
@@ -234,7 +245,12 @@ export const StageLayout: React.FC<Props> = ({ participants, renderTile, pinnedI
     );
   }
 
-  if (pinnedId && focus && participants.length > 1) {
+  // "Theater": just the person in focus
+  if (layout === "presentation" && focus) {
+    return <div className="flex-1 min-h-0">{renderTile(focus)}</div>;
+  }
+
+  if ((pinnedId || layout === "spotlight" || layout === "filmstrip") && focus && participants.length > 1) {
     return (
       <div className="flex-1 min-h-0 flex flex-col gap-2">
         <div className="flex-1 min-h-0">{renderTile(focus)}</div>
@@ -243,7 +259,7 @@ export const StageLayout: React.FC<Props> = ({ participants, renderTile, pinnedI
     );
   }
 
-  return <GalleryGrid participants={participants} renderTile={renderTile} />;
+  return <GalleryGrid participants={participants} renderTile={renderTile} columns={layout === "custom_grid" ? columns : 0} />;
 };
 
 // ------------------------------------------------------------------ phones & tablets

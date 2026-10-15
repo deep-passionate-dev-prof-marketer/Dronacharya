@@ -11,6 +11,8 @@ export type LiveClassStatus = "waiting" | "in_progress" | "paused" | "ended";
 export interface Participant {
   id: string;
   name: string;
+  /** When they joined the video room (epoch ms), when known */
+  joinedAtMs?: number;
   role: UserRole;
   avatarColor: string;
   isLocal?: boolean;
@@ -51,6 +53,8 @@ export interface TranscriptLine {
   speakerId: string;
   speakerName: string;
   timestamp: string;
+  /** When the line was heard (epoch ms); `timestamp` is only for display */
+  atMs?: number;
   text: string;
   translatedText?: string;
   language: string;
@@ -128,6 +132,7 @@ export interface WaitingParticipant {
   id: string;
   name: string;
   role: UserRole;
+  avatarColor?: string;
   requestedAt: string;
   cameraReady: boolean;
   micReady: boolean;
@@ -224,7 +229,7 @@ export interface ExecutionLog {
 }
 
 // -------------------------------------------------------------
-// Google LLM Notebook Visual Representation Models
+// Class notebook visual models
 // -------------------------------------------------------------
 
 export interface ConceptCitation {
@@ -411,6 +416,8 @@ export interface RoomBreakSession {
   mindfulnessActivity: string;
   soundAlertEnabled: boolean;
   startedAt?: string;
+  /** Shared end time (epoch ms) so every screen counts down together */
+  endsAt?: number;
 }
 
 // -------------------------------------------------------------
@@ -581,6 +588,8 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  /** Signed in with a temporary password: choose your own before anything else */
+  mustChangePassword?: boolean;
   role: UserRole;
   avatarColor: string;
   department?: string;

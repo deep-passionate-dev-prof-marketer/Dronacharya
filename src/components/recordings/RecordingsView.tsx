@@ -241,7 +241,7 @@ export const RecordingsView: React.FC = () => {
               <div>
                 <h1 className="text-xl font-bold text-white">Class recordings</h1>
                 <p className="text-xs text-slate-400">
-                  Every class is recorded automatically. {egress ? "Video and transcript." : "Video recording isn't set up on this server yet, so classes are kept as transcripts."}
+                  Every class is recorded automatically as a transcript with notes{egress ? ", plus video" : ""}.
                 </p>
               </div>
               <button onClick={load} className="h-9 px-3 rounded-xl bg-white/[0.06] border border-white/10 text-xs text-slate-200 inline-flex items-center gap-1.5">

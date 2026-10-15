@@ -133,8 +133,8 @@ export const TranscriptFeed: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Benchmark Speech Triggers */}
-      <div className="px-3 py-2 bg-slate-950/80 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto text-2xs">
+      {/* Translation test lines (development only: they add sample lines to the transcript) */}
+      {import.meta.env.DEV && <div className="px-3 py-2 bg-slate-950/80 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto text-2xs">
         <span className="text-2xs text-slate-400 font-semibold shrink-0">Two-Way Test:</span>
         <button
           onClick={() => {
@@ -181,7 +181,7 @@ export const TranscriptFeed: React.FC = () => {
           <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
           <span>STEM → {(activeLanguage !== "en" ? activeLanguage : "es").toUpperCase()}</span>
         </button>
-      </div>
+      </div>}
 
       {/* Transcript Feed List */}
       <div ref={listRef} className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5">

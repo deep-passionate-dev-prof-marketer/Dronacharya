@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { confirmDialog, promptDialog } from "../ui/Feedback";
 import {
   Pen,
   Highlighter,
@@ -37,7 +38,8 @@ interface Props {
 }
 
 export const WhiteboardCanvas: React.FC<Props> = ({ variant = "dock" }) => {
-  const { authenticatedUser, isWhiteboardPresenting, setWhiteboardPresenting, currentRole } = useClassroom();
+  const { authenticatedUser, isWhiteboardPresenting, setWhiteboardPresenting, currentRole, classHost } = useClassroom();
+  const isClassHost = Boolean(classHost?.isHost);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tool, setTool] = useState<WbTool>("pen");
@@ -48,7 +50,7 @@ export const WhiteboardCanvas: React.FC<Props> = ({ variant = "dock" }) => {
   const lastSent = useRef(0);
   const layout = useRef({ scale: 1, ox: 0, oy: 0 });
   const me = authenticatedUser?.id || "guest";
-  const canPresent = currentRole === "instructor" || currentRole === "admin";
+  const canPresent = isClassHost;
 
   // Replays the whole board; cheap at classroom scale and keeps every device pixel-consistent
   const repaint = useCallback(() => {
@@ -122,8 +124,9 @@ export const WhiteboardCanvas: React.FC<Props> = ({ variant = "dock" }) => {
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const p = toBoard(e);
     if (tool === "text") {
-      const text = window.prompt("Text or equation:");
-      if (text) whiteboardStore.draw({ id: `${me}-${Date.now()}`, tool, color, width, points: [p], text, by: me, done: true });
+      promptDialog({ title: "Add text", placeholder: "Text or equation", confirmLabel: "Add", maxLength: 200 }).then((text) => {
+        if (text) whiteboardStore.draw({ id: `${me}-${Date.now()}`, tool, color, width, points: [p], text, by: me, done: true });
+      });
       return;
     }
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -206,7 +209,17 @@ export const WhiteboardCanvas: React.FC<Props> = ({ variant = "dock" }) => {
         <button onClick={() => whiteboardStore.undo(me)} title="Undo" aria-label="Undo" className={btn()}>
           <Undo2 className="w-4 h-4" />
         </button>
-        <button onClick={() => whiteboardStore.clear()} title="Clear board" aria-label="Clear board" className={btn()}>
+        {/* Hosts wipe the whole board for everyone; others can remove only their own drawings */}
+        <button
+          onClick={async () => {
+            if (isClassHost) {
+              if (await confirmDialog({ title: "Clear the board for everyone?", confirmLabel: "Clear board", tone: "critical" })) whiteboardStore.clear();
+            } else whiteboardStore.clearMine(me);
+          }}
+          title={isClassHost ? "Clear board for everyone" : "Clear my drawings"}
+          aria-label={isClassHost ? "Clear board for everyone" : "Clear my drawings"}
+          className={btn()}
+        >
           <Trash2 className="w-4 h-4" />
         </button>
         <button onClick={download} title="Save as image" aria-label="Save as image" className={btn()}>

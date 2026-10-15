@@ -3,8 +3,7 @@
  *
  * Guarantees ZERO hardcoded/fixed domains.
  * Auto-detects the host domain from the active runtime environment (window.location.origin)
- * and normalizes any production meeting link (internal room slugs, Google Meet, Zoom,
- * MS Teams, Jitsi, Daily, WebRTC SFU endpoints, custom production video URLs).
+ * and reads class links (our own rooms only).
  */
 
 export interface NormalizedProductionMeeting {
@@ -65,203 +64,48 @@ export function buildShortMeetingUrl(shortCode: string, customOrigin?: string): 
 }
 
 /**
- * Parses and normalizes ANY user-supplied production meeting link.
- * Supports:
- * - Internal Dronacharya / 21K rooms (full URL or slug or shortcode)
- * - Google Meet (meet.google.com/xxx-xxxx-xxx)
- * - Zoom (zoom.us/j/1234567890 or https://*.zoom.us/...)
- * - Microsoft Teams (teams.microsoft.com/... or teams.live.com/...)
- * - Jitsi Meet (meet.jit.si/MyRoomName - embeddable)
- * - Daily.co (xxx.daily.co/xxx - embeddable)
- * - WebRTC / Video SFU endpoints or any HTTPS production meeting stream URL
+ * Reads a class link someone pasted: a full link to one of our rooms (/room/<slug>, ?room=<slug>, or
+ * the short form /s/<code>, from this or an older address of the school's site), or just the room
+ * name. Classes only run on the school's own server; links to outside meeting services aren't
+ * opened.
  */
 export function parseProductionMeetingLink(rawInput: string): NormalizedProductionMeeting {
   const trimmed = rawInput.trim();
   const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  if (!trimmed) {
-    const defaultSlug = "dronacharya-gr10-phy";
-    return {
-      rawInput: "",
-      normalizedUrl: buildMeetingUrl(defaultSlug),
-      roomSlug: defaultSlug,
-      displayTitle: "Grade 10-A · Quantum Mechanics (Live Stage)",
-      provider: "internal",
-      isExternal: false,
-      canEmbed: true,
-      isSecure: true,
-      joinedAt: now,
-    };
-  }
-
-  // Case 1: Google Meet
-  if (/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(trimmed)) {
-    const match = trimmed.match(/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
-    const code = match ? match[1] : "live-session";
-    const fullUrl = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
-    return {
-      rawInput: trimmed,
-      normalizedUrl: fullUrl,
-      roomSlug: `gmeet-${code}`,
-      displayTitle: `Google Meet (${code})`,
-      provider: "google-meet",
-      isExternal: true,
-      canEmbed: false, // Google Meet prohibits iframe embedding due to X-Frame-Options
-      meetingId: code,
-      isSecure: true,
-      joinedAt: now,
-    };
-  }
-
-  // Case 2: Zoom
-  if (/zoom\.us\/j\/(\d+)/i.test(trimmed) || /zoom\.us/i.test(trimmed)) {
-    const match = trimmed.match(/zoom\.us\/j\/(\d+)/i);
-    const id = match ? match[1] : "live-session";
-    const fullUrl = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
-    return {
-      rawInput: trimmed,
-      normalizedUrl: fullUrl,
-      roomSlug: `zoom-${id}`,
-      displayTitle: `Zoom Meeting (${id})`,
-      provider: "zoom",
-      isExternal: true,
-      canEmbed: false,
-      meetingId: id,
-      isSecure: true,
-      joinedAt: now,
-    };
-  }
-
-  // Case 3: Microsoft Teams
-  if (/teams\.microsoft\.com/i.test(trimmed) || /teams\.live\.com/i.test(trimmed)) {
-    const fullUrl = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
-    return {
-      rawInput: trimmed,
-      normalizedUrl: fullUrl,
-      roomSlug: `teams-${Date.now().toString(36)}`,
-      displayTitle: "Microsoft Teams Live Meeting",
-      provider: "teams",
-      isExternal: true,
-      canEmbed: false,
-      isSecure: true,
-      joinedAt: now,
-    };
-  }
-
-  // Case 4: Jitsi Meet (Fully iframe-embeddable with WebRTC!)
-  if (/meet\.jit\.si\//i.test(trimmed)) {
-    const match = trimmed.match(/meet\.jit\.si\/([a-zA-Z0-9_\-]+)/i);
-    const room = match ? match[1] : "21k-live";
-    const fullUrl = trimmed.startsWith("http") ? trimmed : `https://meet.jit.si/${room}`;
-    return {
-      rawInput: trimmed,
-      normalizedUrl: fullUrl,
-      roomSlug: `jitsi-${room}`,
-      displayTitle: `Jitsi Room · ${room}`,
-      provider: "jitsi",
-      isExternal: true,
-      canEmbed: true,
-      embedUrl: `https://meet.jit.si/${room}#config.prejoinConfig.enabled=false&config.startWithAudioMuted=false`,
-      meetingId: room,
-      isSecure: true,
-      joinedAt: now,
-    };
-  }
-
-  // Case 5: Daily.co
-  if (/\.daily\.co\//i.test(trimmed)) {
-    const fullUrl = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
-    const slugMatch = trimmed.match(/daily\.co\/([a-zA-Z0-9_\-]+)/i);
-    const room = slugMatch ? slugMatch[1] : "live";
-    return {
-      rawInput: trimmed,
-      normalizedUrl: fullUrl,
-      roomSlug: `daily-${room}`,
-      displayTitle: `Daily.co Live Session · ${room}`,
-      provider: "daily",
-      isExternal: true,
-      canEmbed: true,
-      embedUrl: fullUrl,
-      meetingId: room,
-      isSecure: true,
-      joinedAt: now,
-    };
-  }
-
-  // Case 6: Generic HTTPS URL (Production WebRTC / Streaming SFU endpoint)
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      const urlObj = new URL(trimmed);
-      const hostOrigin = urlObj.origin;
-      const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-
-      // Check if this URL is on the current application host
-      if (currentOrigin && hostOrigin === currentOrigin) {
-        // Path extraction
-        const path = urlObj.pathname;
-        if (path.includes("/room/")) {
-          const slug = path.split("/room/")[1].replace(/\/.*$/, "");
-          return {
-            rawInput: trimmed,
-            normalizedUrl: trimmed,
-            roomSlug: slug,
-            displayTitle: `Classroom Session · ${slug}`,
-            provider: "internal",
-            isExternal: false,
-            canEmbed: true,
-            isSecure: true,
-            joinedAt: now,
-          };
-        }
-        if (path.includes("/s/")) {
-          const code = path.split("/s/")[1].replace(/\/.*$/, "");
-          return {
-            rawInput: trimmed,
-            normalizedUrl: trimmed,
-            roomSlug: `short-${code}`,
-            shortCode: code,
-            displayTitle: `Shortlink Session · ${code}`,
-            provider: "internal",
-            isExternal: false,
-            canEmbed: true,
-            isSecure: true,
-            joinedAt: now,
-          };
-        }
-      }
-
-      // External Production Video Endpoint
-      return {
-        rawInput: trimmed,
-        normalizedUrl: trimmed,
-        roomSlug: `ext-${urlObj.hostname.replace(/[^a-z0-9]/gi, "-")}-${Date.now().toString(36)}`,
-        displayTitle: `Production Meeting (${urlObj.hostname})`,
-        provider: "generic-production",
-        isExternal: true,
-        canEmbed: true, // Attempt iframe embed with fallback to external companion
-        embedUrl: trimmed,
-        isSecure: urlObj.protocol === "https:",
-        joinedAt: now,
-      };
-    } catch {
-      // Fallback
-    }
-  }
-
-  // Case 7: Pure Slug or Code (e.g. "in-21kos-gr10-bc-phy-vance", "p-es10h", "8xN2pQ")
-  const cleanSlug = trimmed.replace(/[^a-zA-Z0-9_\-]/g, "");
-  const isShortCode = cleanSlug.length <= 8 && !cleanSlug.includes("-");
-
-  return {
+  const internal = (slug: string, extra: Partial<NormalizedProductionMeeting> = {}): NormalizedProductionMeeting => ({
     rawInput: trimmed,
-    normalizedUrl: isShortCode ? buildShortMeetingUrl(cleanSlug) : buildMeetingUrl(cleanSlug),
-    roomSlug: cleanSlug,
-    shortCode: isShortCode ? cleanSlug : undefined,
-    displayTitle: isShortCode ? `Room Shortlink (${cleanSlug})` : `Classroom (${cleanSlug})`,
+    normalizedUrl: buildMeetingUrl(slug),
+    roomSlug: slug,
+    displayTitle: `Classroom (${slug})`,
     provider: "internal",
     isExternal: false,
     canEmbed: true,
     isSecure: true,
     joinedAt: now,
-  };
+    ...extra,
+  });
+  const clean = (v: string) => v.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 120);
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed);
+      const fromPath = url.pathname.match(/\/room\/([^/?#]+)/)?.[1];
+      const fromQuery = url.searchParams.get("room") || url.searchParams.get("join");
+      const slug = clean(decodeURIComponent(fromPath || fromQuery || ""));
+      if (slug) return internal(slug, { normalizedUrl: buildMeetingUrl(slug) });
+      const code = clean(url.pathname.match(/\/s\/([^/?#]+)/)?.[1] || "");
+      if (code) return internal(`short-${code}`, { shortCode: code, normalizedUrl: buildShortMeetingUrl(code), displayTitle: `Room link (${code})` });
+    } catch {
+      // not a URL after all
+    }
+  }
+
+  // A room name or short code typed on its own
+  const slug = clean(trimmed) || "dronacharya-gr10-phy";
+  const isShortCode = slug.length <= 8 && !slug.includes("-");
+  return internal(slug, {
+    normalizedUrl: isShortCode ? buildShortMeetingUrl(slug) : buildMeetingUrl(slug),
+    shortCode: isShortCode ? slug : undefined,
+    displayTitle: isShortCode ? `Room link (${slug})` : `Classroom (${slug})`,
+  });
 }

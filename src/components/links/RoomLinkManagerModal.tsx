@@ -99,14 +99,16 @@ export const RoomLinkManagerModal: React.FC<Props> = ({
   const [activeShortCode, setActiveShortCode] = useState("8xN2pQ");
   const shortUrl = buildShortMeetingUrl(activeShortCode);
 
+  // Only when the dialog is open (it's mounted on every page)
   useEffect(() => {
+    if (!isOpen) return;
     fetch("/api/links/all")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (Array.isArray(data)) setLinksList(data);
       })
       .catch(() => {});
-  }, []);
+  }, [isOpen]);
 
   const handleCopySlug = () => {
     navigator.clipboard.writeText(fullUrl);

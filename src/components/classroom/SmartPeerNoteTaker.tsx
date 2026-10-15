@@ -15,8 +15,9 @@ import {
   RotateCw,
 } from "lucide-react";
 import { PeerNotetakerSession, PeerDialogueMessage } from "../../types";
-import { summarizePeerConversation } from "../../services/geminiService";
+import { summarizePeerConversation } from "../../services/aiService";
 import { useClassroom } from "../../context/ClassroomContext";
+import { toast } from "../ui/Feedback";
 
 const INITIAL_PEER_MESSAGES: PeerDialogueMessage[] = [
   {
@@ -123,6 +124,8 @@ export const SmartPeerNoteTaker: React.FC = () => {
         peerContributionSplit: result.peerContributionSplit || prev.peerContributionSplit,
         lastGeneratedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }));
+    } catch (err: any) {
+      toast(err?.message || "Couldn't summarise this conversation.", "critical");
     } finally {
       setIsSummarizing(false);
     }

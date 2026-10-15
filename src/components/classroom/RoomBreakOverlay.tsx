@@ -3,7 +3,7 @@ import { useClassroom } from "../../context/ClassroomContext";
 import { Coffee, Play, Plus, Volume2, Sparkles, Smile } from "lucide-react";
 
 export const RoomBreakOverlay: React.FC = () => {
-  const { roomBreak, startRoomBreak, endRoomBreak, currentRole } = useClassroom();
+  const { roomBreak, startRoomBreak, endRoomBreak, classHost } = useClassroom();
 
   if (!roomBreak.isActive) return null;
 
@@ -13,7 +13,7 @@ export const RoomBreakOverlay: React.FC = () => {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const isTeacher = currentRole === "instructor";
+  const isTeacher = Boolean(classHost?.isHost);
 
   return (
     <div className="absolute inset-0 z-30 bg-brand-navy-deep/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white select-none animate-fadeIn">

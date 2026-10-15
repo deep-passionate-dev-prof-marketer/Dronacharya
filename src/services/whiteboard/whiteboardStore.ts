@@ -61,10 +61,20 @@ export const whiteboardStore = {
     classroomTransport.sendData("wb_clear", { ids: [last.id] });
   },
 
+  /** Host only: wipes the board for everyone (others ignore a full clear that isn't from a host) */
   clear() {
     strokes = [];
     emit();
     classroomTransport.sendData("wb_clear", {});
+  },
+
+  /** Removes this person's own strokes, for everyone */
+  clearMine(by: string) {
+    const ids = strokes.filter((s) => s.by === by).map((s) => s.id);
+    if (!ids.length) return;
+    strokes = strokes.filter((s) => s.by !== by);
+    emit();
+    classroomTransport.sendData("wb_clear", { ids });
   },
 
   /**

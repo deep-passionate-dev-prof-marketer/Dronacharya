@@ -39,47 +39,17 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
   const [playerY, setPlayerY] = useState<number>(240);
   const [playerDir, setPlayerDir] = useState<"left" | "right" | "up" | "down">("down");
 
-  // Countdown timer to scheduled demo
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(180);
-
-  // Simulated peer waiting students roaming the Minecraft campus
-  const [peerStudents, setPeerStudents] = useState<PeerPlayer[]>([
-    {
-      id: "p1",
-      studentId: "10QUANTUMA",
-      name: "Liam O'Connor",
-      x: 200,
-      y: 180,
-      color: "#38bdf8",
-      direction: "right",
-    },
-    {
-      id: "p2",
-      studentId: "08ROBOTICS",
-      name: "Aria Thorne",
-      x: 520,
-      y: 190,
-      color: "#ec4899",
-      direction: "left",
-    },
-    {
-      id: "p3",
-      studentId: "09STEAMPAL",
-      name: "Marcus Vance",
-      x: 360,
-      y: 380,
-      color: "#10b981",
-      direction: "up",
-    },
-  ]);
-
-  // Tick countdown timer
+  // Countdown to the class's scheduled start (ad-hoc rooms have none)
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  const scheduledMs = classInfo?.scheduledStart ? Date.parse(classInfo.scheduledStart) : null;
+  const countdownSeconds = scheduledMs ? Math.max(0, Math.round((scheduledMs - now) / 1000)) : null;
+
+  // Other learners aren't shown here (the lobby is just yours while you wait)
+  const [peerStudents, setPeerStudents] = useState<PeerPlayer[]>([]);
 
   // Keyboard navigation for player avatar (WASD / Arrows)
   useEffect(() => {
@@ -297,10 +267,13 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
     setPlayerY(Math.max(80, Math.min(420, Math.round(y))));
   };
 
-  const formatCountdown = (secs: number) => {
-    const mins = Math.floor(secs / 60);
+  const formatCountdown = (secs: number | null) => {
+    if (secs === null) return "When your teacher starts";
+    if (secs === 0) return "Any moment now";
+    const h = Math.floor(secs / 3600);
+    const mins = Math.floor((secs % 3600) / 60);
     const remainder = secs % 60;
-    return `${mins.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}`;
+    return h ? `${h} h ${mins} min` : `${mins.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -330,7 +303,7 @@ export const GamifiedWaitingLobby: React.FC<{ onEnterClassroom: () => void }> = 
         {/* Live Class Countdown Timer */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-950/60 border border-amber-500/30 text-amber-300">
-            <Clock className="w-4 h-4 animate-spin text-amber-400" />
+            <Clock className="w-4 h-4 text-amber-400" />
             <div className="text-right">
               <span className="text-2xs uppercase font-bold text-amber-400/80 block leading-none">
                 {startsInLabel}
