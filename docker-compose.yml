@@ -2,6 +2,9 @@
 #
 #   cp .env.example .env        # then fill in (see docs/DEPLOY.md)
 #   docker compose up -d --build
+#
+# Trying it on a computer that already has a development .env: put the settings in .env.docker
+# (with ENV_FILE=.env.docker in it) and run  docker compose --env-file .env.docker up -d --build
 #   docker compose --profile ai up -d     # also start the AI server (notes, answers, captions)
 #
 # Ports to open on the server's firewall:
@@ -11,7 +14,7 @@ services:
   app:
     build: .
     restart: unless-stopped
-    env_file: .env
+    env_file: ${ENV_FILE:-.env}
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://dronacharya:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/dronacharya
@@ -54,7 +57,8 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # deploy/Caddyfile uses your certificate; CADDYFILE=Caddyfile.local is for trying it on localhost
+      - ./deploy/${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro
       - ./deploy/certs:/certs:ro
       - caddy-data:/data
     depends_on:

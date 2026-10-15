@@ -188,6 +188,31 @@ The full list, with defaults, is in `.env.example`. A few worth knowing:
 | `RECORDING_CONSENT_DEFAULT` | Whether learners with no parent decision are included in recordings. |
 | `MEDIA_DISABLED` | `1` turns the media server off. Classes fall back to direct peer-to-peer video and breakouts are unavailable. For testing only. |
 
+## Try it on one computer first
+
+On a laptop with Docker Desktop (no domain, no certificate):
+
+1. Put these in `.env.docker` (next to `.env`; it stays out of git and out of the image):
+
+   | Setting | Value |
+   |---|---|
+   | `ENV_FILE` | `.env.docker` |
+   | `CADDYFILE` | `Caddyfile.local` (a local test certificate; the browser warns once) |
+   | `SITE_ADDRESS` | `localhost` |
+   | `PUBLIC_APP_URL` | `https://localhost` |
+   | `MEDIA_ANNOUNCED_IP` | the computer's network address (macOS: `ipconfig getifaddr en0`) |
+   | `POSTGRES_PASSWORD`, `SESSION_SECRET` | random values, as in step 2 |
+   | `BOOTSTRAP_ADMIN_EMAIL` | your email |
+   | `AUTH_DEV_LOGIN` | `0` |
+
+2. Stop anything else using ports 80, 443 or 40000–40003 (e.g. `npm run dev`), then start it:
+
+   ```bash
+   docker compose --env-file .env.docker up -d --build
+   ```
+
+3. Open `https://localhost`, accept the certificate warning, and sign in as in step 5.
+
 ## Without Docker
 
 The app is one Node 22 process.

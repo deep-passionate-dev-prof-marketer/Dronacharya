@@ -1,0 +1,7 @@
+# Trying it on one computer (CADDYFILE=Caddyfile.local, SITE_ADDRESS=localhost): a local test
+# certificate, so browsers show a warning once. Not for the real site.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	tls internal
+	reverse_proxy app:3000
+}
