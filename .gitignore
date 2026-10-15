@@ -10,7 +10,8 @@ coverage/
 .aistudio/
 .vercel
 scratch/
-scripts/
+scripts/capture_devices.js
+scripts/take_audit_shots.py
 .claude/
 data/
 deploy/certs/*.pem
