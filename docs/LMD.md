@@ -2,7 +2,7 @@
 ## Dronacharya: Database Schema, Analytics API, Formulas and State Machines
 
 **Document version:** 4.0 (class analytics release)
-**Runtime:** Node.js 22+, Express 4, ws 8, Drizzle ORM 0.45, Postgres (PGlite / Supabase), React 19
+**Runtime:** Node.js 22+, Express 4, ws 8, Drizzle ORM 0.45, Postgres (PGlite in development), mediasoup 3, React 19
 
 ---
 
@@ -17,7 +17,7 @@
 | `guardians` | Parent ↔ learner | (parentId, studentId), relation |
 | `classes` | One scheduled meeting per room | id, roomSlug (unique), kind, subject, course, topic, gradeLevel, program, language, teacherId, scheduledStart, durationMin, classSize, **cohort** |
 | `class_enrollments` | Learners in a class | (classId, studentKey) |
-| `attendance_events` | LiveKit join/leave | roomSlug, userId, role, event, at, **eventId** (unique: webhook dedupe) |
+| `attendance_events` | media server join/leave | roomSlug, userId, role, event, at, **eventId** (unique: dedupe) |
 | `kv_store` | Write-through state | (namespace, key) → jsonb (sessions, admitted, device rules, analytics_settings…) |
 | `audit_events` | Append-only logs | stream (device_access, security, room_control, analytics_access), at, roomSlug, userId, type, data |
 | `engagement_samples` | On-device engagement summaries | roomSlug, participantId, at, data.summary (presence, eyeContact, perclos, dominant…) |
@@ -112,7 +112,7 @@ cohort, size, room, language, program, country, device, timezone` (comma lists).
 ```
 Class session    waiting ──start (host, room lock)──▶ in_progress ──end (host) / room_finished / reconcile──▶ ended
                    ended ──(30 min grace)──▶ waiting
-Recording        recording ──stop──▶ processing ──egress ended──▶ ready | failed   (transcript_only: ready)
+Recording        recording ──stop──▶ ready   (transcript_only; the processing/failed states remain for older video rows)
 Facts            none ──+20 s──▶ v1 ──+10 min / review submitted / consent withdrawn──▶ v1 (recomputed)
                  FACTS_VERSION bump ──backfill──▶ recomputed
 Review           (none) ──save──▶ draft ──save──▶ draft ──submit (all criteria)──▶ submitted (final)

@@ -19,3 +19,8 @@ otp_codes, guardians, classes, class_enrollments, attendance_events, kv_store, a
 engagement_samples, consents, transcript_lines, recordings, lecture_notes, polls, poll_votes, remarks,
 **session_facts**, **session_learners**, **class_reviews**. Some hubs keep a hot in-memory copy and write
 through. Full column list: `docs/LMD.md` §1.
+
+## Status in v5.0 (self-hosted)
+- Postgres in a container on the school's server (PGlite in development); no hosted database. New tables
+  since v4.0 include materials, class pads, notifications, support tickets and campus posts; users gained
+  password fields (`password_hash`, `must_change_password`).

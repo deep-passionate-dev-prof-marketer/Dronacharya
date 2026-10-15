@@ -24,20 +24,27 @@ Pages, names and access for every role come from one list: `src/routing/viewRegi
 ## What's in it
 
 **Live classes**
-- Video through **LiveKit** (an SFU), with a peer-to-peer fallback when LiveKit isn't configured.
+- Video and audio through **our own media server** (an SFU built on mediasoup, in the same Node process),
+  with simulcast so each viewer gets the quality their screen and network need. Direct peer-to-peer video is
+  the fallback when the media server is turned off.
 - The class is **run by the server**: only the host can start or end it, and starting twice can't create two
-  classes. Sessions are checked against LiveKit and survive server restarts.
-- Waiting room and admit, mute, stop video, remove, polls, breaks, whiteboard, low-bandwidth mode.
-- Live **captions and translation**: the browser's speech recognition, or the server's (Gemini Live, falling
-  back to a local Whisper server).
+  classes. Sessions are checked against the media server and survive server restarts.
+- Waiting room (enforced by the server) and admit, mute, stop video, remove, polls, breaks, whiteboard,
+  low-bandwidth mode.
+- **Breakout rooms**, **shared slides** (PDF, the teacher turns the pages) and a **class notes pad** (the
+  teacher writes, learners read live).
+- **Help buttons**: a learner can ask their parent (a message in the parent portal) or ask for tech help (a
+  ticket for the admins).
+- Live **captions and translation** on the school's own Whisper and language-model servers. The browser's
+  speech recognition is never used, because it sends audio to outside companies.
 - **Device-locked links**: each room has rules about which devices may join (phone, tablet, laptop, desktop).
   Learners can ask to join on another device; staff approve or deny. Every decision is logged.
 
 **After class**
-- Every class is **recorded automatically**: video with LiveKit Egress, otherwise as a transcript. Learners
-  without recording consent are left out of the video.
+- Every class is **recorded automatically** as a transcript, kept on the school's server.
 - **AI class notes** (summary, key points, homework) and "ask about this class", grounded in the transcript.
-  Gemini first, then a local model (Ollama), then extractive notes when there's no AI at all.
+  Written by the school's own language model (Ollama), or extractive notes when there's no AI server.
+- **Library**: teachers share documents and images (PDF, Office, images; 50 MB each) with their classes.
 
 **Parents**
 - A portal per child: attendance, remarks, notes, and consent for recording and engagement analytics.
@@ -60,11 +67,14 @@ Pages, names and access for every role come from one list: `src/routing/viewRegi
   and CSV export.
 - Learner groups smaller than 3 are hidden. Teachers never see scores about themselves.
 
-**Attendance**: who came on time, late, left early or missed each class, from LiveKit join and leave records.
+**Attendance**: who came on time, late, left early or missed each class, from the media server's join and leave records.
 **Observe live class**: auditors watch hidden and see live numbers, engagement, the transcript and their review.
 
-Screens that still run on illustrative data (admissions hub, pitch rooms, automation, certificates, library,
-facilitator matrix, CRM view) carry a **Sample** notice.
+**Accounts**: admins add people on the **People** page. Each person gets a temporary password and chooses
+their own at first sign-in.
+
+Illustrative demo screens (pitch rooms, remote devices, certificates, automation, CRM simulator,
+self-hosting, peer notes) are hidden in production; `SHOW_DEMO_FEATURES=1` shows them.
 
 ---
 
@@ -73,11 +83,13 @@ facilitator matrix, CRM view) carry a **Sample** notice.
 - **Frontend**: React 19, TypeScript, Tailwind CSS 4 (design tokens in `src/index.css`), Vite 8, lucide icons;
   dependency-free SVG charts (`src/components/charts`) and UI primitives (`src/components/ui`).
 - **Server**: Express + WebSockets (`ws`) in one Node process (`server.ts`, run with tsx).
-- **Database**: Postgres through Drizzle ORM. PGlite (embedded, `data/pglite`) in development, Supabase in
+- **Database**: Postgres through Drizzle ORM. PGlite (embedded, `data/pglite`) in development, Postgres in
   production. Migrations in `src/server/db/migrations` run on start.
-- **Live video**: LiveKit (`livekit-client`, `livekit-server-sdk`), Egress for video recording.
-- **AI**: Google Gemini (`@google/genai`); local fallback with Ollama (notes, answers) and whisper.cpp
-  (captions, transcripts).
+- **Live video**: our own media server, `mediasoup` on the server and `mediasoup-client` in the browser
+  (`src/server/media`, `src/services/media/classroomTransport.ts`).
+- **Sign-in**: passwords (scrypt), optional email codes through the school's own mail server.
+- **AI**: the school's own servers only: Ollama (notes, answers, translation) and Whisper (captions).
+- **No outside services**: fonts are bundled, and the browser talks only to this server.
 - **On-device engagement**: MediaPipe face landmarks (only for learners who agree).
 
 ---
@@ -94,8 +106,9 @@ Sign in with the test accounts on the sign-in screen (`AUTH_DEV_LOGIN=1`; **must
 
 Optional services:
 
+The media server starts with the app (UDP and TCP ports 40000 and up). `MEDIA_DISABLED=1` turns it off.
+
 ```bash
-npm run livekit:dev         # LiveKit for real video (otherwise peer-to-peer)
 npm run ai:models           # download the local Whisper model and pull the Ollama model
 npm run ai:ollama           # local language model (notes, answers)
 npm run ai:whisper          # local speech-to-text (captions, transcripts)
@@ -118,7 +131,9 @@ classes, recordings, notes, attendance, the parent portal or the security log.
 ```bash
 npm run lint        # TypeScript, plus the design-system ratchet (no hard-coded colours, nothing under 11px)
 npm test            # unit tests (vitest): quality model, facts, aggregation, routing, attendance, captions…
-npm run test:api    # API regression suite against a running server (82 checks incl. analytics access rules)
+npm run test:api    # API regression suite against a running server (142 checks: access rules, passwords, media server door…)
+node scripts/e2e-class.mjs    # two headless browsers run a whole class: lobby, admit, video both ways, slides, breakouts…
+node scripts/ui-crawl.mjs     # signs in as every role and clicks every button on every page
 npm run build       # production bundle (analytics and charts load on demand)
 ```
 
@@ -126,18 +141,15 @@ npm run build       # production bundle (analytics and charts load on demand)
 
 ## Deploy
 
-Production runs as one Node service plus Supabase:
+Everything runs on the school's own server with `docker compose up -d --build`:
 
-- **App**: `Dockerfile` (or `render.yaml` for Render; Railway and Fly work the same way). `npm start` serves
-  the API, WebSockets and the built app.
-- **Database and storage**: Supabase Postgres (`DATABASE_URL`, `DATABASE_CA_CERT`) and Supabase Storage for
-  recordings (`RECORDING_S3_*`).
-- **Video**: LiveKit Cloud (`LIVEKIT_URL`, key, secret; webhook to `https://<domain>/api/livekit/webhook`;
-  `LIVEKIT_EGRESS=1` for video recordings).
-- **Sign-in**: Google Workspace SSO (`GOOGLE_*`), `SESSION_SECRET`, `AUTH_DEV_LOGIN=0`.
-- **AI**: `GEMINI_API_KEY`, optionally a local AI host (`docker-compose.ai.yml`, `OLLAMA_URL`, `WHISPER_URL`).
+- **App** (`Dockerfile`): web app, API, sockets and the media server in one Node process.
+- **Database**: Postgres in its own container.
+- **HTTPS**: Caddy, with the school's certificate (or an automatic one).
+- **AI** (optional, `--profile ai`): Ollama and Whisper.
 
-See `.env.example` for every setting.
+Open ports 80 and 443 (TCP), and 40000–40003 (UDP and TCP) for class video. Step by step: `docs/DEPLOY.md`.
+Every setting is in `.env.example`.
 
 ---
 

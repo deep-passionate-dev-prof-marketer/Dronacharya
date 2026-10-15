@@ -50,3 +50,9 @@ Listener Audio Playback              UI Audio Meters / Glow             Semantic
 - A second STT path streams 16 kHz PCM16 from an AudioWorklet to the server (`/stt`: Gemini Live, then local
   Whisper), for browsers without Web Speech or when `STT_PREFER_SERVER=1`.
 - Final captions are stored as `transcript_lines` and feed recordings, AI notes and class analytics.
+
+## Status in v5.0 (self-hosted)
+- Class media goes through the school's **own media server** (mediasoup SFU in the app's process); the mesh
+  is the fallback when it's turned off. Captions still never touch the media track.
+- Captions come only from the `/stt` path on the school's Whisper server. Browser speech recognition is no
+  longer used (it sends audio to the browser vendor), and `STT_PREFER_SERVER` is gone.

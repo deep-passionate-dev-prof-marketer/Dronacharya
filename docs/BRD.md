@@ -98,8 +98,8 @@ Booking (admissions or scheduler, cohort assigned)
    └─▶ Live class (teacher starts it: recording + transcript begin)
           ├─▶ Auditor may observe hidden and draft a review
           └─▶ Teacher ends it
-                 ├─▶ Notes (Gemini → local model → extractive)
-                 ├─▶ Attendance (from LiveKit join/leave)
+                 ├─▶ Notes (the school's language model → extractive)
+                 ├─▶ Attendance (from the media server's join/leave)
                  └─▶ Session facts (20 s after the end, refreshed after 10 min)
                         └─▶ Class analytics: targets, needs attention, review queue
 ```

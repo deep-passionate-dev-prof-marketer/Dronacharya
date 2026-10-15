@@ -10,8 +10,10 @@ Status key: **Live** = real data and real behaviour. **Sample** = a working scre
 ---
 
 ### 1. Roles, sign-in and navigation (Live)
-- **Sign-in**: Google Workspace SSO for staff, email one-time codes, signed class invite links for learners
-  (no password). Test accounts appear only with `AUTH_DEV_LOGIN=1`.
+- **Sign-in**: email and password for everyone. Admins add people on the **People** page with a temporary
+  password, which each person replaces at first sign-in; admins can reset it. Signed class invite links for
+  learners; optional email codes through the school's own mail server. Test accounts appear only with
+  `AUTH_DEV_LOGIN=1`.
 - **One list of pages** (`src/routing/viewRegistry.ts`) drives the sidebar, the phone tab bar (four tabs per
   role plus More), the command palette (Ctrl/Cmd+K: pages, then actions) and role access. Every page has one
   name everywhere; the classroom is "Observe live class" for auditors.
@@ -19,24 +21,32 @@ Status key: **Live** = real data and real behaviour. **Sample** = a working scre
   hub; auditors → Class analytics. A class link or a page URL always wins.
 
 ### 2. Live class (Live)
-- LiveKit video; peer-to-peer fallback when LiveKit isn't configured.
+- Video and audio through the school's own media server (SFU, simulcast, active-speaker detection);
+  direct peer-to-peer video when it's turned off. If a media process crashes, a new one starts and
+  everyone reconnects by themselves.
 - **Server-run sessions**: only the host starts or ends; the start also starts the recording; restarts and
-  crashes recover by checking LiveKit.
+  crashes recover by checking the media server's rooms.
+- **Breakout rooms** (host splits admitted learners into groups, visits them, messages all, calls everyone
+  back), **shared slides** (PDF; learners follow the teacher's page) and the **notes pad** (teacher writes,
+  learners read live).
+- **Help buttons**: "Ask parent" (a message in the parent portal, and email if the school's mail server is
+  set up) and "Tech help" (a ticket on the admins' Help requests page).
 - Waiting room with admit/admit all; mute, stop video, remove; polls (server-counted); whiteboard; 5-minute
   breaks; low-bandwidth mode (audio and slides only).
 - Auditors join hidden, without camera or microphone, and see the observer panel (§10).
 
 ### 3. Recording, transcript and notes (Live)
-- Automatic recording of every class; video with LiveKit Egress (custom layout leaves out learners without
-  recording consent), otherwise transcript-only. Files on local disk or Supabase Storage.
-- **Notes** after class: summary, key points, homework, grounded in the transcript. Gemini → local model
-  (Ollama) → extractive. Long classes are summarised in parts.
+- Automatic recording of every class as a transcript, kept on the school's server (local volume, or the
+  school's own S3-compatible store).
+- **Notes** after class: summary, key points, homework, grounded in the transcript. The school's language
+  model (Ollama), or extractive notes without one. Long classes are summarised in parts.
 - **Ask about this class**: answers quote the transcript.
 - **Recordings** page: playback with transcript; auditors and admins also see the engagement timeline.
 
 ### 4. Captions and translation (Live)
-- Captions from the browser's speech recognition, or the server's (Gemini Live, falling back mid-class to a
-  local Whisper server). Each viewer reads captions in their own language. See `docs/translation/`.
+- Captions from the school's own Whisper server (the browser's speech recognition is never used, since it
+  sends audio to outside companies). Each viewer reads captions in their own language, translated by the
+  school's language model. See `docs/translation/`.
 - Simulated "test phrase" buttons exist only in development builds.
 
 ### 5. Parents (Live)

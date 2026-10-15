@@ -19,3 +19,8 @@
   default) and browser speech recognition may use the browser vendor's service. Setting
   `AI_PROVIDERS=local` and `STT_PREFER_SERVER=1` keeps all speech and text on the school's servers.
 - See `docs/HMD.md` §3–4 for the full security and privacy posture.
+
+## Status in v5.0 (self-hosted)
+- Passwords (scrypt) for everyone; identity at the media server's door comes from the session.
+- The v4.0 correction no longer applies: Gemini and browser speech recognition are gone, so classroom speech
+  and text stay on the school's servers. Fonts are bundled; the browser talks only to the school's server.

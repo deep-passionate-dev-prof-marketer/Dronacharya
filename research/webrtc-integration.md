@@ -20,3 +20,9 @@ Dronacharya implements an in-house WebRTC mesh and selective forwarding signalin
 LiveKit is the primary media path: the server issues tokens after the device check, hosts admit learners
 from the waiting room, auditors join hidden. Data messages follow trust rules (server-only class status and
 polls, host-only stage and whiteboard sync). The mesh described above remains the fallback.
+
+## Status in v5.0 (self-hosted)
+The school's own SFU (mediasoup) replaced LiveKit: the server admits a browser after the class-list and
+device checks and keeps learners in the waiting room until admitted. Simulcast layers follow tile size. A
+crashed media process is replaced and browsers reconnect by themselves. The mesh remains the fallback, with
+no public STUN servers (TURN/STUN only if the school runs its own).

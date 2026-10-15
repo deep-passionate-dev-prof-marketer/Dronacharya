@@ -1,40 +1,47 @@
 # System Architecture & Sequence Flows
 ## Dronacharya: Components, Data Flows and Sequences
 
-**Document version:** 4.0 (class analytics release)
+**Document version:** 5.0 (self-hosted release)
 
 ---
 
 ### 1. Architecture
 
+Everything runs on the school's own server. The browser talks only to it.
+
 ```
                          ┌──────────────────────────── Browser (React 19 SPA) ───────────────────────────┐
                          │ Shell: view registry → sidebar / phone tabs / command palette / role access    │
-                         │ Live class (LiveKit client, captions, whiteboard, polls)   Class analytics      │
-                         │ Recordings & notes   Parent portal   Attendance   Device access   Observer     │
+                         │ Live class (mediasoup-client, captions, whiteboard, polls, slides, breakouts)   │
+                         │ Recordings & notes   Parent portal   Attendance   Library   People   Observer  │
                          │ On-device engagement (MediaPipe, consenting learners only)                     │
-                         └───────┬───────────────────────┬──────────────────────────┬────────────────────┘
-                         HTTPS /api/*            WebSocket / (room events)      WebRTC media
-                                 │               WebSocket /stt (audio)              │
-┌────────────────────────────────▼───────────────────────▼──────────────┐   ┌────────▼─────────────────┐
-│ Node server (server.ts, Express + ws)                                 │   │ LiveKit (SFU)            │
-│  auth/        sessions, Google SSO, OTP, invite links                 │◀──│  webhooks: join/leave,   │
-│  livekitHub   tokens after the device check                           │   │  room finished, egress   │
-│  classSessionHub  start/end (host only, per-room lock), transcript,   │──▶│ Egress: video recordings │
-│               recordings, notes, ask, webhook, reconcile              │   └──────────────────────────┘
-│  roomControlHub  admit, mute, remove;  polls;  remarks                │
-│  deviceAccessHub  device rules, requests, access log                  │   ┌──────────────────────────┐
-│  securityHub  capture-attempt log      parentHub  portal, consent     │──▶│ AI: Gemini (notes, ask,  │
-│  sttHub       server captions (Gemini Live → local Whisper)           │   │ live STT) → Ollama /     │
-│  matchingHub  booking, matcher, cohorts                               │   │ whisper.cpp fallback     │
-│  analytics/   facts · quality · aggregate · routes · attendance       │   └──────────────────────────┘
+                         └───────┬──────────────────────┬───────────────────────┬────────────────────────┘
+                         HTTPS /api/*        WebSocket / (room events)    WebSocket /media (signalling)
+                                 │           WebSocket /stt (audio)       UDP/TCP 40000+ (video, audio)
+                     ┌───────────▼──────────────────────▼───────────────────────▼───────┐
+                     │ Caddy (HTTPS)                                                      │
+                     └───────────┬────────────────────────────────────────────────────────┘
+┌────────────────────────────────▼──────────────────────────────────────┐
+│ Node server (server.ts, Express + ws), one process                    │
+│  auth/        passwords (scrypt), optional email codes, invite links  │
+│  media/       our SFU (mediasoup workers, one port each): rooms,      │   ┌──────────────────────────┐
+│               waiting room, device check at join, simulcast, speakers │   │ School AI server         │
+│  classSessionHub  start/end (host only, per-room lock), transcript,   │──▶│ (optional)               │
+│               recordings, notes, ask, attendance, reconcile           │   │ Ollama: notes, ask,      │
+│  roomControlHub  admit, mute, remove;  polls;  remarks                │   │   translation            │
+│  breakoutHub  slidesHub  helpHub  materialsHub  peopleHub  socialHub  │   │ Whisper: live captions   │
+│  deviceAccessHub  device rules, requests, access log                  │   └──────────────────────────┘
+│  securityHub  capture-attempt log      parentHub  portal, consent     │
+│  sttHub       live captions (Whisper)                                 │
+│  matchingHub  booking, matcher, cohorts                               │
+│  analytics/   facts · quality · aggregate · routes · attendance       │
 └───────────────┬───────────────────────────────────────────────────────┘
                 │ Drizzle ORM (migrations on start)
        ┌────────▼─────────────────────────────┐      ┌─────────────────────────────────┐
-       │ Postgres: PGlite (dev) / Supabase    │      │ Recording files: local disk or  │
-       │ 21 tables incl. session_facts,       │      │ Supabase Storage (S3 API)       │
-       │ session_learners, class_reviews      │      └─────────────────────────────────┘
-       └──────────────────────────────────────┘
+       │ Postgres: PGlite (dev) / Postgres    │      │ Files (recordings, library):    │
+       │ container in production              │      │ local volume, or the school's   │
+       │                                      │      │ own S3-compatible store         │
+       └──────────────────────────────────────┘      └─────────────────────────────────┘
 ```
 
 ---
@@ -42,15 +49,17 @@
 ### 2. Joining a class
 
 ```
-Learner                    Server                                   LiveKit
-  │ open invite link ──────▶ verify signed invite → session cookie
-  │ device snapshot ───────▶ device-access policy for the room
-  │                          ├─ blocked → "request another device" (staff approve/deny, logged)
-  │                          └─ allowed → token (waiting=true until admitted; auditors hidden, no publish)
-  │ connect ─────────────────────────────────────────────────────────▶ join
-  │                                                                     │ webhook participant_joined
-  │                          ◀────────────────────────── attendance_events (deduplicated by event id)
-  │ host admits ───────────▶ admitted list (kv, survives restarts) → updated token permissions
+Learner                    Server (HTTP + room socket)              Media server (/media, same process)
+  │ sign in (password, or invite link) ──▶ session cookie
+  │ room socket AUTH_JOIN ─▶ class list check (canAccessRoom)
+  │ GET /api/media/status ─▶ {sfu: true}   (false → direct peer-to-peer fallback)
+  │ join {room, device} ──────────────────────────────────────────────▶ signed in? parent? on the list?
+  │                                                                     device rules for the room
+  │                                                                     ├─ blocked → "request another device"
+  │                                                                     └─ allowed → peer (learner: waiting)
+  │                          attendance (join/leave hooks) ◀──────────── mediaHooks.joined / left
+  │ host admits ───────────▶ admitted list (kv, survives restarts) ─────▶ mediaAdmit: waiting → in class
+  │ createTransport / produce (camera r0–r2, mic, screen) / consume others, layers follow tile size
 ```
 
 ---
@@ -60,19 +69,20 @@ Learner                    Server                                   LiveKit
 ```
 Teacher "Start class"
   └─▶ POST /api/rooms/:slug/session/start  (host only, per-room lock: one session, one recording)
-        ├─ recording starts (Egress video, or transcript-only)
-        └─ class_status broadcast (only the server can send it)
-During class: transcript lines (captions), polls, room-control and security audit events,
-              engagement samples (consenting learners), join/leave webhooks
-Teacher "End class" (or LiveKit room_finished)
+        ├─ recording starts (transcript)
+        └─ class_status to everyone: room socket + media server data (only the server can send it)
+During class: transcript lines (captions), polls, slides, notes pad, breakouts, help requests,
+              room-control and security audit events, engagement samples (consenting learners),
+              join/leave from the media server
+Teacher "End class" (or the media room stays empty past ROOM_FINISHED_GRACE_MS)
   └─▶ endSession → stop recording
-        ├─ notes: Gemini → Ollama → extractive (resumed after restarts)
+        ├─ notes: Ollama → extractive (resumed after restarts)
         └─ scheduleFacts(recordingId): computeSessionFacts at +20 s and +10 min
              reads recording, class + enrolments, attendance events, engagement samples, transcript,
              polls/votes, audit events, submitted reviews, notes
              writes session_facts (one row) + session_learners (one row per learner) in one transaction
 Background (every reconcile interval): backfillFacts(25) for finished classes without facts or with
-             facts from an older FACTS_VERSION; stale sessions reconciled against LiveKit
+             facts from an older FACTS_VERSION; stale sessions reconciled against the media server's rooms
 ```
 
 ---
@@ -116,12 +126,13 @@ Parent or learner withdraws → consents row (history kept)
 
 ---
 
-### 7. Server captions with fallback
+### 7. Live captions
 
 ```
 Browser AudioWorklet (PCM16, 16 kHz) ──▶ WS /stt (same-origin, signed-in, not parents)
-  └─ chainTranscriber: Gemini Live ── fails / quota / closes early ──▶ local Whisper (energy VAD segments)
-       └─ captions → transcript lines → translation for each viewer
+  └─ the school's Whisper server (energy VAD segments)
+       └─ captions → transcript lines → translation for each viewer (Ollama)
+The browser's own speech recognition is never used (it sends audio to outside companies).
 ```
 
 ---
@@ -202,7 +213,7 @@ Controller (Teacher)                 WebSocket Server                    Target 
 Speaker Audio (Microphone)
        |
        v
-Browser SpeechRecognition (Universal English)
+WS /stt → the school's Whisper server
        |
        v
 Sentence Chunking & Silence Boundary Detection
@@ -212,7 +223,7 @@ POST /api/ai/live-translate-stream (Target: ES, HI, FR, DE, ZH, AR, JA)
        |
        +---> Fast Dictionary Exact Match (<1ms) --------+
        |                                                |
-       +---> Google Gemini 2.5 / 3.0 Flash Stream ------>+
+       +---> The school's language model (Ollama) ------>+
                                                         |
                                                         v
                                             Dual-Subtitles Displayed

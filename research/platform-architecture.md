@@ -66,3 +66,10 @@ This document provides the foundational architecture mapping for the Dronacharya
 - **AI**: Gemini first, local Ollama/Whisper as fallback (`AI_PROVIDERS`).
 - **New modules**: `src/server/analytics/*`, `src/routing/viewRegistry.ts`, `src/components/{ui,charts,analytics}`.
   See `docs/MMD.md` for the current module map.
+
+## Status in v5.0 (self-hosted)
+- **Media**: our own SFU (`mediasoup`, `mediasoup-client`; `src/server/media`); mesh as fallback.
+- **Persistence**: Postgres on the school's server.
+- **Sign-in**: passwords, with temporary passwords from the People page; optional email codes via the
+  school's own mail server.
+- **AI**: the school's Ollama and Whisper only.

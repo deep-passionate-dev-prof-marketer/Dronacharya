@@ -1,7 +1,7 @@
 # 17 - Deployment Design
 
-- Production: the Node server (`server.ts`) in Docker / Render / Railway / Fly, with Supabase Postgres.
-  The `/stt` WebSocket needs a long-lived server process, so serverless platforms can't host it.
-- Optional local AI host: `docker-compose.ai.yml` (Ollama + whisper.cpp), reached with `OLLAMA_URL` and
-  `WHISPER_URL`.
+- Production: the school's own server, from `docker-compose.yml` (app, Postgres, Caddy). The `/stt`
+  WebSocket needs a long-lived server process. See `docs/DEPLOY.md`.
+- AI: `docker compose --profile ai up -d` starts Ollama and Whisper next to the app, reached with
+  `OLLAMA_URL=http://ollama:11434` and `WHISPER_URL=http://whisper:8000`.
 - Development: `npm run ai:models`, `npm run ai:ollama`, `npm run ai:whisper`.

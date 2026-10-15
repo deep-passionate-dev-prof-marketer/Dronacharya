@@ -12,7 +12,7 @@
 ## 2. What Must Be Modified (Zero Third-Party Dependency Purge)
 - **Purge External Translation Endpoint in `src/services/translation/translationEngine.ts`**: Remove `https://api.mymemory.translated.net/get` and replace with pure self-hosted offline translation engine.
 - **Purge External Translation Endpoint in `api/ai/live-translate-stream.ts`**: Remove `https://api.mymemory.translated.net/get` from edge microservice and replace with pure self-hosted offline translation engine.
-- **Remove External Fallback in `src/services/geminiService.ts`**: Ensure all translation requests delegate to the self-hosted engine without relying on external Gemini or MyMemory endpoints.
+- **Remove External Fallback in `src/services/aiService.ts` (was `geminiService.ts`)** (done in v5): Ensure all translation requests delegate to the self-hosted engine without relying on external Gemini or MyMemory endpoints.
 
 ## 3. What Must Be Added
 - **Self-Hosted Comprehensive Vocabulary & Grammar Engine (`src/services/translation/selfHostedDictionary.ts`)**:
@@ -36,7 +36,7 @@
 By implementing the self-hosted translation engine directly inside the decoupled `translationEngine.ts` and `api/ai/live-translate-stream.ts`, both the browser client and serverless edge functions operate completely offline with 0ms external API roundtrip latency, 0 external data leaks, and zero cost.
 
 ## 4. Status (v4.0)
-- MyMemory calls removed from the client and server; the Vercel `live-translate-stream` function is not part
+- MyMemory calls removed from the client and server; the old serverless `live-translate-stream` function is not part
   of the Node deployment (the Node server serves `POST /api/ai/live-translate-stream`).
-- Server-side speech recognition added (`/stt`, Gemini Live → local Whisper) for browsers without Web Speech.
+- Server-side speech recognition (`/stt`) on the school's Whisper server, for everyone (v5: no outside speech or AI services).
 - Transcripts now feed recordings, AI notes and class analytics (learner questions, teacher talk time).

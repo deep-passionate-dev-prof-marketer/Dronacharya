@@ -31,27 +31,31 @@ went in **Class analytics** and can observe live classes and review them.
 ### 3. Functional requirements
 
 #### 3.1 Sign-in and access
-- **FR-AUTH-1**: Server-side sessions (signed cookie). Google Workspace SSO for staff, email one-time codes,
-  signed class invite links for learners. Dummy accounts only when `AUTH_DEV_LOGIN=1` (never in production).
+- **FR-AUTH-1**: Server-side sessions (signed cookie). Email and password for everyone: admins create accounts
+  with a temporary password that must be changed at first sign-in. Signed class invite links for learners;
+  optional email codes through the school's own mail server. No outside sign-in providers. Dummy accounts only
+  when `AUTH_DEV_LOGIN=1` (never in production).
 - **FR-AUTH-2**: One view registry decides each role's pages, names, navigation and phone tabs. A role can't
   open, or be offered, a page it isn't allowed. Each role lands on its own home page (auditors: Class analytics).
 - **FR-AUTH-3**: Role URLs name the role, country, language and page; learners' and parents' names never
   appear in URLs.
 
 #### 3.2 Live class
-- **FR-LIVE-1**: LiveKit media; the server issues tokens after the device-access check. Auditors join hidden,
-  without publishing.
+- **FR-LIVE-1**: Media through the school's own SFU, in the app's process; the server admits a browser only
+  after the class-list and device-access checks, and keeps learners in the waiting room until admitted.
+  Auditors join hidden, without publishing. A crashed media process is replaced and browsers reconnect.
 - **FR-LIVE-2**: Only the host can start or end the class; concurrent starts make one session and one recording.
 - **FR-LIVE-3**: Waiting room and admit; mute, stop video, remove; polls run by the server; whiteboard; breaks;
   low-bandwidth mode.
-- **FR-LIVE-4**: Captions from browser speech recognition or the server (Gemini Live, then local Whisper),
-  translated into each viewer's language.
+- **FR-LIVE-4**: Captions from the school's Whisper server, translated into each viewer's language by the
+  school's language model. No audio or text goes to an outside service.
+- **FR-LIVE-5**: Breakout rooms, shared PDF slides, the teacher's notes pad, and help buttons (ask parent,
+  tech help).
 
 #### 3.3 Recording and notes
-- **FR-REC-1**: Every class records automatically (video with Egress, otherwise transcript). Learners without
-  recording consent are excluded from the video layout.
+- **FR-REC-1**: Every class records automatically as a transcript, kept on the school's server.
 - **FR-REC-2**: After class, AI notes (summary, key points, homework) and "ask about this class", grounded in
-  the transcript; providers Gemini → Ollama → extractive.
+  the transcript; the school's language model (Ollama), or extractive notes and transcript quotes without one.
 
 #### 3.4 Parent portal
 - **FR-PAR-1**: Per child: classes, attendance, remarks, notes; recording and engagement consent with history.

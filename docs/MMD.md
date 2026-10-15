@@ -22,9 +22,12 @@ src/
     classroom/                stage, control bar, dock, ObserverPanel (auditors)
     audit/                    Device access page (rules, access report, capture attempts)
   server/
-    auth/                     sessions, SSO, OTP, invites, requireAuth
-    classSessionHub.ts        class sessions, transcript, recordings, notes, webhook, reconcile
-    livekitHub.ts             tokens (device check, hidden auditors), timezone capture
+    auth/                     sessions, passwords, OTP, invites, requireAuth
+    classSessionHub.ts        class sessions, transcript, recordings, notes, attendance, reconcile
+    media/                    our SFU: mediasoup workers, rooms, the /media door (device check, waiting
+                              room, hidden auditors), crash recovery; /api/media/status and /ice
+    peopleHub.ts              accounts, temporary passwords, parent links (admin)
+    breakoutHub, slidesHub, helpHub, materialsHub, socialHub, notifyHub   in-class features, library, feed
     matchingHub.ts            booking, matcher, cohorts, learner geography
     deviceAccessHub.ts        device rules, requests, access log and report
     engagementHub.ts          consent, engagement samples, live engagement rollups
@@ -38,6 +41,8 @@ src/
 scripts/
   seed-analytics-demo.ts      demo history (development only)
   api-smoke.mjs               API regression suite
+  e2e-class.mjs               two-browser class test (E2E_CRASH_MEDIA=1 also crashes the media server)
+  ui-crawl.mjs                every role, every page, every button
   ui-debt.mjs                 design-system ratchet
 ```
 
@@ -122,7 +127,7 @@ scripts/
 ### 4. Data flow between modules
 
 ```
-LiveKit webhook ─▶ classSessionHub ─▶ attendance_events ─┐
+media server ───▶ classSessionHub ─▶ attendance_events ─┐
 captions/stt ───▶ transcript_lines ──────────────────────┤
 engagement panel ▶ engagement_samples (consent) ─────────┤
 roomControl/security/deviceAccess ▶ audit_events ────────┼─▶ facts.ts ─▶ session_facts / session_learners

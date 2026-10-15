@@ -19,3 +19,9 @@
   can't host the WebSockets, sessions, webhooks and database the app needs.
 - **Note**: a `vercel.json` and `api/` stand-ins exist in the repository for UI-only previews on Vercel. They
   don't provide real sign-in, data or class analytics and must not be used as the production deployment.
+
+## Status in v5.0 (self-hosted)
+- **Production**: the school's own server, from `docker-compose.yml`: the app (with its media server),
+  Postgres, Caddy for HTTPS, and optionally Ollama + Whisper. No outside services at run time. See
+  `docs/DEPLOY.md`.
+- The Vercel stand-ins (`vercel.json`, `api/`) and the Render blueprint have been removed.

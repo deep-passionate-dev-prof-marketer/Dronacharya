@@ -5,10 +5,11 @@ All endpoints are served by the Node server (`server.ts`) and need a signed-in s
 `POST /api/ai/live-translate-stream`
 - Body: `{ text: string, sourceLanguage?: string, targetLanguage: string, speaker?: string }`
 - Response: `{ speaker, sourceLanguage, targetLanguage, englishText, translatedText, provider }`
-- Gemini when available; on quota/failure a dictionary translation (circuit breaker, 2 minutes).
+- The school's language model (Ollama) when set up; otherwise `503 {unavailable: true}` and the client uses its
+  on-device dictionary. A failing AI server is skipped for 2 minutes.
 
 `GET /api/stt/status`
-- Response: `{ enabled: boolean, providers: ("gemini" | "local")[], preferServer: boolean }`
+- Response: `{ enabled: boolean, providers: ("local")[], preferServer: boolean, serverOnly: true }`
 
 `WS /stt?lang=<BCP-47>` (same origin only; signed in; parents refused)
 - Client sends binary PCM16 16 kHz mono frames, and `{ "type": "stop" }` to finish.
