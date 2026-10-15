@@ -12,13 +12,11 @@ export default defineConfig(() => {
       },
     },
     build: {
-      // three.js (3D lab) and livekit-client (live class) are ~550 kB libraries loaded only on demand
+      // three.js (3D lab) is a ~550 kB library loaded only on demand
       chunkSizeWarningLimit: 600,
       rollupOptions: {
-        // The app, plus the page LiveKit Egress renders when recording a class
         input: {
           main: path.resolve(import.meta.dirname, 'index.html'),
-          recording: path.resolve(import.meta.dirname, 'recording-layout.html'),
         },
         output: {
           // Long-lived vendor chunks stay cached across app deploys
