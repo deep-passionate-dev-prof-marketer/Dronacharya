@@ -13,3 +13,4 @@ scratch/
 scripts/
 .claude/
 data/
+deploy/certs/*.pem

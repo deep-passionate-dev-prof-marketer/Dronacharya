@@ -1,0 +1,11 @@
+# HTTPS for the school's site. Caddy forwards everything (pages, API, WebSockets) to the app.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Your own certificate (fully self-hosted): put fullchain.pem and privkey.pem in deploy/certs/.
+	# Delete this line instead to have Caddy get a free certificate automatically from Let's Encrypt
+	# (the only outside contact: it proves you own the domain; no school data is shared).
+	tls /certs/fullchain.pem /certs/privkey.pem
+
+	reverse_proxy app:3000
+}

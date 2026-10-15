@@ -1,0 +1,93 @@
+# 21K School Dronacharya on the school's own server. Nothing runs outside it.
+#
+#   cp .env.example .env        # then fill in (see docs/DEPLOY.md)
+#   docker compose up -d --build
+#   docker compose --profile ai up -d     # also start the AI server (notes, answers, captions)
+#
+# Ports to open on the server's firewall:
+#   80, 443 (TCP)                 web app, over HTTPS (Caddy)
+#   40000-40003 (UDP and TCP)     class video and audio (the media server)
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://dronacharya:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/dronacharya
+      # The server's public IP address: browsers send class video and audio to it
+      MEDIA_ANNOUNCED_IP: ${MEDIA_ANNOUNCED_IP:?set MEDIA_ANNOUNCED_IP in .env to the server's public IP}
+      MEDIA_PORT: "40000"
+      MEDIA_WORKERS: "4"            # one UDP + TCP port each: keep in step with the ports below
+    ports:
+      - "40000-40003:40000-40003/udp"
+      - "40000-40003:40000-40003/tcp"
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16.14-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dronacharya
+      POSTGRES_DB: dronacharya
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dronacharya -d dronacharya"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # HTTPS in front of the app (browsers only allow camera and microphone on HTTPS)
+  proxy:
+    image: caddy:2.11.4
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. classroom.21k.school}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/certs:/certs:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+
+  # ---- The school's AI server (optional): docker compose --profile ai up -d ----
+  # Then set OLLAMA_URL=http://ollama:11434 and WHISPER_URL=http://whisper:8000 in .env
+  ollama:
+    profiles: ["ai"]
+    image: ollama/ollama:0.33.2
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_FLASH_ATTENTION: "1"
+    volumes:
+      - ollama:/root/.ollama
+    # NVIDIA GPU: uncomment
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+  whisper:
+    profiles: ["ai"]
+    # faster-whisper behind an OpenAI-compatible /v1/audio/transcriptions endpoint (use a -cuda tag on a GPU server)
+    image: ghcr.io/speaches-ai/speaches:0.8.3-cpu
+    restart: unless-stopped
+    volumes:
+      - whisper-models:/home/ubuntu/.cache/huggingface/hub
+
+volumes:
+  app-data:
+  db-data:
+  caddy-data:
+  ollama:
+  whisper-models:
